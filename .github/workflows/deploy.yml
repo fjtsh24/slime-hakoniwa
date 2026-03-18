@@ -51,7 +51,7 @@ jobs:
       - name: Install Netlify CLI
         run: npm install -g netlify-cli
       - name: Deploy to Netlify
-        run: netlify deploy --prod --dir=frontend/dist --functions=netlify/functions --site $NETLIFY_SITE_ID --message "Deploy from GitHub Actions"
+        run: netlify deploy --prod --dir=frontend/dist --functions=netlify/functions --auth $NETLIFY_AUTH_TOKEN --site $NETLIFY_SITE_ID --message "Deploy from GitHub Actions"
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
