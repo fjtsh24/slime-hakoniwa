@@ -1,13 +1,6 @@
 {
   "indexes": [
     {
-      "collectionGroup": "worlds",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "nextTurnAt", "order": "ASCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "slimes",
       "queryScope": "COLLECTION",
       "fields": [
@@ -21,13 +14,6 @@
       "fields": [
         { "fieldPath": "worldId", "order": "ASCENDING" },
         { "fieldPath": "isWild", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "slimes",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "mapId", "order": "ASCENDING" }
       ]
     },
     {
