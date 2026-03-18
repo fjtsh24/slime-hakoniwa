@@ -225,8 +225,7 @@ describe('executeEatAction', () => {
   // テスト 5: skillGrantProb > 0 かつ Math.random() がしきい値以下の場合スキルが付与される
   // ----------------------------------------------------------------
   it('skillGrantProb > 0 かつ Math.random() がしきい値以下の場合スキルが付与される', async () => {
-    jest.spyOn(Math, 'random').mockReturnValue(0) // 確実付与
-
+    // skillGrantProb=1.0 なら Math.random() は常に 1.0 以下なのでモック不要
     const slime = makeSlime()
     const food = makeFood('food-skill-test', {}, {}, 1.0, 'skill-def-001') // 確率100%
     const reservation = makeEatReservation(food.id)
@@ -236,8 +235,6 @@ describe('executeEatAction', () => {
     const skillGrantEvent = result.events.find((e) => e.eventType === 'skill_grant')
     expect(skillGrantEvent).toBeDefined()
     expect(skillGrantEvent?.eventData['skillId']).toBe('skill-def-001')
-
-    jest.spyOn(Math, 'random').mockRestore()
   })
 
   // ----------------------------------------------------------------

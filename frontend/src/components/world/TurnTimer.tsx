@@ -13,7 +13,7 @@ function formatCountdown(seconds: number): string {
   return [h, m, s].map((v) => String(v).padStart(2, '0')).join(':')
 }
 
-export function TurnTimer({ worldId }: TurnTimerProps) {
+export function TurnTimer({ worldId: _worldId }: TurnTimerProps) {
   const world = useWorldStore((s) => s.world)
   const isLoading = useWorldStore((s) => s.isLoading)
 
@@ -31,6 +31,7 @@ export function TurnTimer({ worldId }: TurnTimerProps) {
       return () => clearTimeout(timer)
     }
     prevTurnRef.current = world.currentTurn
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [world?.currentTurn])
 
   useEffect(() => {

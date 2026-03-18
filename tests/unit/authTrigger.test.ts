@@ -12,7 +12,7 @@
  *   cd functions && npm test tests/unit/authTrigger.test.ts
  */
 
-import type { GameMap, Tile } from '../../shared/types/map'
+import type { Tile } from '../../shared/types/map'
 
 // ================================================================
 // firebase-functions モック
@@ -24,9 +24,8 @@ import type { GameMap, Tile } from '../../shared/types/map'
 jest.mock('firebase-functions', () => {
   const onCreateFn = jest.fn((handler: (user: unknown) => Promise<void>) => handler)
   const authUserFn = jest.fn(() => ({ onCreate: onCreateFn }))
-  const authFn = jest.fn(() => ({ user: authUserFn }))
   const regionFn = jest.fn(() => ({
-    auth: authFn,
+    auth: { user: authUserFn },
     pubsub: {
       schedule: jest.fn(() => ({
         onRun: jest.fn((handler: () => Promise<void>) => handler),

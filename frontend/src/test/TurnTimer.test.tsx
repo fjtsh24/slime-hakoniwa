@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { TurnTimer } from '../../../frontend/src/components/world/TurnTimer'
-import { useWorldStore } from '../../../frontend/src/stores/worldStore'
+import { TurnTimer } from '../components/world/TurnTimer'
+import { useWorldStore } from '../stores/worldStore'
 import type { World } from '../../../shared/types/world'
 
 // worldStore をモック
-vi.mock('../../../frontend/src/stores/worldStore', () => ({
+vi.mock('../stores/worldStore', () => ({
   useWorldStore: vi.fn(),
 }))
 
@@ -34,8 +34,8 @@ describe('TurnTimer', () => {
     const world = buildWorldState({ currentTurn: 42 })
 
     // useWorldStore の各セレクタ呼び出しに応じて値を返す
-    mockUseWorldStore.mockImplementation((selector: (s: { world: World | null; isLoading: boolean; error: string | null }) => unknown) => {
-      const state = { world, isLoading: false, error: null }
+    mockUseWorldStore.mockImplementation((selector) => {
+      const state = { world, isLoading: false, error: null, subscribeToWorld: vi.fn(), clearWorld: vi.fn() }
       return selector(state) as ReturnType<typeof useWorldStore>
     })
 
@@ -47,8 +47,8 @@ describe('TurnTimer', () => {
   it('カウントダウンが表示されること（nextTurnAt が未来の場合）', () => {
     const world = buildWorldState()
 
-    mockUseWorldStore.mockImplementation((selector: (s: { world: World | null; isLoading: boolean; error: string | null }) => unknown) => {
-      const state = { world, isLoading: false, error: null }
+    mockUseWorldStore.mockImplementation((selector) => {
+      const state = { world, isLoading: false, error: null, subscribeToWorld: vi.fn(), clearWorld: vi.fn() }
       return selector(state) as ReturnType<typeof useWorldStore>
     })
 
@@ -63,8 +63,8 @@ describe('TurnTimer', () => {
   })
 
   it('isLoading=true のときローディング表示されること', () => {
-    mockUseWorldStore.mockImplementation((selector: (s: { world: World | null; isLoading: boolean; error: string | null }) => unknown) => {
-      const state = { world: null, isLoading: true, error: null }
+    mockUseWorldStore.mockImplementation((selector) => {
+      const state = { world: null, isLoading: true, error: null, subscribeToWorld: vi.fn(), clearWorld: vi.fn() }
       return selector(state) as ReturnType<typeof useWorldStore>
     })
 
@@ -74,8 +74,8 @@ describe('TurnTimer', () => {
   })
 
   it('world が null のとき取得失敗メッセージが表示されること', () => {
-    mockUseWorldStore.mockImplementation((selector: (s: { world: World | null; isLoading: boolean; error: string | null }) => unknown) => {
-      const state = { world: null, isLoading: false, error: null }
+    mockUseWorldStore.mockImplementation((selector) => {
+      const state = { world: null, isLoading: false, error: null, subscribeToWorld: vi.fn(), clearWorld: vi.fn() }
       return selector(state) as ReturnType<typeof useWorldStore>
     })
 

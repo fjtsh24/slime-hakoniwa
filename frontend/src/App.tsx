@@ -20,6 +20,7 @@ function AppRoutes() {
     }
     subscribe(user.uid)
     return () => cleanup()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid])
 
   // 1. 認証ロード中 → スピナー
