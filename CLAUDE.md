@@ -1,0 +1,103 @@
+# スライム箱庭ゲーム — Claude Code 設定
+
+## プロジェクト概要
+
+スライム育成WEBゲーム。箱庭諸島的な「行動予約」でターン進行するリアルタイム連動型。
+
+- **Firebase ProjectID**: slime-sim-prototype
+- **デプロイ**: フロントエンド→Netlify、ターン進行→Firebase Cloud Functions
+
+## 現在の状態
+
+Phase 1（ターン進行システム基盤）完了。次はPhase 2（認証・ユーザー・マップ基盤）。
+
+詳細は `implementation_plan.md` を参照。
+
+## エージェント構成
+
+実装はマルチエージェントチームで進める。`agent_plan.md` を必ず参照すること。
+
+| ID | 担当 | 参加必須タイミング |
+|----|------|-----------------|
+| A1/Fun | ゲームデザイン・面白さ管理 | ゲームパラメータ変更・UX変更時（全フェーズ） |
+| A2/Sec | セキュリティ | 新API・Firestoreルール変更・認証フロー変更時（全フェーズ） |
+| A3/BE | バックエンド・ターン進行 | Cloud Functions・Netlify Functions実装時 |
+| A4/FE | フロントエンド | Reactコンポーネント・ストア実装時 |
+| A5/DB | データモデル・DB | スキーマ変更・新エンティティ追加時 |
+| A6/Infra | インフラ・CI/CD | 環境設定・デプロイ設定変更時 |
+| A7/QA | テスト・品質管理 | 実装完了後のテスト・カバレッジ確認 |
+
+**フェーズ完了時のレビュー順序**: QA(A7) → Sec(A2) → Fun(A1) → 全員承認で次フェーズへ
+
+## 作業ルール
+
+### 実装前の確認
+- 新規Phaseに入る前に `implementation_plan.md` の該当Phaseを確認する
+- セキュリティ影響がある変更は A2/Sec を先に参照する
+- ゲームパラメータ変更は A1/Fun の判断を仰ぐ
+
+### TDD方針
+- A7(QA) がテストを先行作成 → A3/A4 が実装する順序を守る
+- コアロジック（ターン処理・アクション実行）のカバレッジ目標: 80%以上
+- テストレポートは `tests/reports/` に出力する
+
+### セキュリティ
+- Firestoreへの書き込み権限は Admin SDK（Cloud Functions）のみ（`firestore.rules` 参照）
+- 全APIエンドポイントで Firebase IDトークン検証を行う（`netlify/functions/helpers/auth.ts` 使用）
+- 入力バリデーションは zod（`netlify/functions/helpers/validation.ts` 使用）
+
+### コミット・ブランチ
+- `main`: 本番環境（PRのみマージ可）
+- `develop`: 開発統合ブランチ
+- `feature/*`: 機能開発 / `fix/*`: バグ修正
+
+## ディレクトリ構成
+
+```
+slime-hakoniwa/
+├── frontend/          React + TypeScript + Vite（Netlifyデプロイ）
+├── functions/         Firebase Cloud Functions（ターン進行）
+├── netlify/functions/ Netlify Functions（APIゲートウェイ）
+├── shared/
+│   ├── types/         フロント・Functions共用型定義
+│   └── data/          マスタデータ（foods, slimeSpecies）
+├── docs/              openapi.yaml・schema.dbml・security.md・レビュー報告
+├── tests/
+│   ├── unit/
+│   ├── integration/
+│   └── reports/
+├── firestore.rules
+└── firestore.indexes.json
+```
+
+## よく使うコマンド
+
+```bash
+# Firebase Emulator起動（開発時は常にこれを先に）
+firebase emulators:start
+
+# フロントエンド開発サーバー
+cd frontend && npm run dev
+
+# Functionsテスト（Emulator必要）
+cd functions && npm test
+
+# フロントエンドテスト
+cd frontend && npm test
+```
+
+## Phase 1 完了済みファイル（主要）
+
+- `functions/src/scheduled/turnProcessor.ts` — ターン処理コア
+- `netlify/functions/api.ts` — 予約CRUD API
+- `shared/types/` — 全型定義
+- `shared/data/` — food・slimeSpeciesマスタ
+- `firestore.rules` — セキュリティルール
+- `docs/openapi.yaml` — Swagger仕様書
+- `docs/schema.dbml` — DBスキーマ
+
+## 注意事項
+
+- `slime-sim-prototype-firebase-adminsdk-*.json` は `.gitignore` 対象。コミットしないこと
+- `turnIntervalSec` のデフォルトは **3600秒**（1時間）。変更時はA1/Funに確認
+- Firestoreの `worlds` コレクションへの直接書き込みは一切禁止（Admin SDKのみ）

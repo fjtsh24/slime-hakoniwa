@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx jest:*)",
+      "Bash(cd:*)",
+      "Bash(wait:*)",
+      "Bash(node:*)",
+      "Bash(functions/node_modules/.bin/jest --config functions/jest.config.js --no-coverage --testPathPattern=\"turnProcessor.test.ts\" 2>&1)",
+      "Bash(functions/node_modules/.bin/jest --config functions/jest.config.js --no-coverage --testPathPattern=\"turnProcessor.test.ts\" --testNamePattern=\"currentTurn を\" --verbose 2>&1)",
+      "Bash(ls:*)",
+      "Bash(npm audit:*)",
+      "Bash(npm install:*)",
+      "Bash(which firebase:*)",
+      "Bash(find:*)",
+      "Bash(npm run:*)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(''''netlify firebase-admin version:'''', d[''''version'''']\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(''''functions firebase-admin version:'''', d[''''version'''']\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\(''''scripts'''',{}\\), indent=2, ensure_ascii=False\\)\\)\")",
+      "Bash(python3:*)",
+      "Bash(curl -s http://localhost:8080)",
+      "Bash(FIRESTORE_EMULATOR_HOST=localhost:8080 npx jest tests/integration/reservationApi --forceExit --verbose)",
+      "Bash(FIRESTORE_EMULATOR_HOST=localhost:8080 npx jest tests/integration/slimeInitial --forceExit --verbose)",
+      "Bash(FIRESTORE_EMULATOR_HOST=localhost:8080 GCLOUD_PROJECT=slime-hakoniwa-test npx jest tests/integration/reservationApi --forceExit --verbose 2>&1)",
+      "Bash(find /home/fjsth24/workspace/slime_hakoniwa/frontend/src -type f \\\\\\(-name *.tsx -o -name *.ts \\\\\\))",
+      "Bash(find /home/fjsth24/workspace/slime_hakoniwa/netlify/functions/src -type f \\\\\\(-name *.ts -o -name *.js \\\\\\))",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}

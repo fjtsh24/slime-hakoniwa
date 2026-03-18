@@ -1,0 +1,36 @@
+{
+  "name": "slime-hakoniwa-functions",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "lint": "eslint src --ext ts --report-unused-disable-directives --max-warnings 0",
+    "test": "jest --forceExit",
+    "test:coverage": "jest --coverage --forceExit --coverageReporters=html --coverageDirectory=../tests/reports/functions-coverage"
+  },
+  "engines": {
+    "node": "20"
+  },
+  "main": "lib/functions/src/index.js",
+  "overrides": {
+    "firebase": "^11.0.0"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0",
+    "firebase-functions": "^4.5.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.11",
+    "@types/node": "^20.10.6",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^8.55.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.1",
+    "typescript": "^5.2.2",
+    "@firebase/rules-unit-testing": "^3.0.1"
+  }
+}

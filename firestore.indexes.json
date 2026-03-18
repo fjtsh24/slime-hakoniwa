@@ -1,0 +1,77 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "worlds",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "nextTurnAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "slimes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "worldId", "order": "ASCENDING" },
+        { "fieldPath": "ownerUid", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "slimes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "worldId", "order": "ASCENDING" },
+        { "fieldPath": "isWild", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "slimes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "mapId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "actionReservations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "worldId",    "order": "ASCENDING" },
+        { "fieldPath": "turnNumber", "order": "ASCENDING" },
+        { "fieldPath": "status",     "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "actionReservations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ownerUid", "order": "ASCENDING" },
+        { "fieldPath": "status",   "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "actionReservations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "slimeId",    "order": "ASCENDING" },
+        { "fieldPath": "turnNumber", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "actionReservations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "slimeId",    "order": "ASCENDING" },
+        { "fieldPath": "turnNumber", "order": "ASCENDING" },
+        { "fieldPath": "status",     "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "turnLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "worldId",    "order": "ASCENDING" },
+        { "fieldPath": "turnNumber", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

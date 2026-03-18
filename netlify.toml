@@ -1,0 +1,27 @@
+[build]
+  base = "frontend"
+  publish = "dist"
+  command = "npm run build"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# ローカル開発: `netlify dev` を使うとフロントエンド(Vite) + Netlify Functions が同時に起動する
+# フロントエンドは frontend/ ディレクトリで `npm run dev` を実行し Vite を 5173 番で起動する
+# netlify dev 自体は 8888 番でリッスンし /.netlify/functions/* とリダイレクトルールを提供する
+[dev]
+  command = "npm --prefix frontend run dev"
+  targetPort = 5173
+  port = 8888
+  autoLaunch = false
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

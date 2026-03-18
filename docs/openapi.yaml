@@ -1,0 +1,443 @@
+openapi: 3.0.3
+
+info:
+  title: スライム箱庭ゲーム API
+  version: 0.1.0
+  description: |
+    リアルタイム連動型スライム育成ゲームのAPI仕様書。
+
+    ## 認証
+    保護されたエンドポイントは Firebase Authentication の ID トークンを
+    `Authorization: Bearer <token>` ヘッダーに付与してください。
+
+servers:
+  - url: http://localhost:8888
+    description: 開発環境
+  - url: https://{netlify-site}.netlify.app
+    description: 本番環境（Netlify Functions）
+    variables:
+      netlify-site:
+        default: slime-hakoniwa
+        description: Netlify サイト名
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Firebase ID Token
+      description: Firebase Authentication で発行された ID トークン
+
+  schemas:
+    # ----- 行動データ -----
+    EatActionData:
+      type: object
+      required:
+        - foodId
+      properties:
+        foodId:
+          type: string
+          description: 食べる食料のID
+          example: food_herb_001
+      additionalProperties: false
+
+    MoveActionData:
+      type: object
+      required:
+        - targetX
+        - targetY
+      properties:
+        targetX:
+          type: integer
+          description: 移動先タイルのX座標
+          example: 3
+        targetY:
+          type: integer
+          description: 移動先タイルのY座標
+          example: 7
+      additionalProperties: false
+
+    RestActionData:
+      type: object
+      description: 休息行動（追加データなし）
+      properties: {}
+      additionalProperties: false
+
+    # ----- 行動予約 -----
+    ActionReservation:
+      type: object
+      required:
+        - id
+        - slimeId
+        - ownerUid
+        - worldId
+        - turnNumber
+        - actionType
+        - actionData
+        - status
+        - createdAt
+        - executedAt
+      properties:
+        id:
+          type: string
+          description: 予約のユニークID（Firestore ドキュメントID）
+          example: res_abc123
+        slimeId:
+          type: string
+          description: 対象スライムのID
+          example: slime_xyz789
+        ownerUid:
+          type: string
+          description: スライムオーナーの Firebase UID
+          example: uid_firebase_000
+        worldId:
+          type: string
+          description: 対象ワールドのID
+          example: world_main
+        turnNumber:
+          type: integer
+          minimum: 1
+          description: 予約を実行するターン番号
+          example: 42
+        actionType:
+          type: string
+          enum:
+            - eat
+            - move
+            - rest
+            - battle
+          description: 行動の種類
+          example: eat
+        actionData:
+          description: 行動種類に対応する行動データ
+          oneOf:
+            - $ref: '#/components/schemas/EatActionData'
+            - $ref: '#/components/schemas/MoveActionData'
+            - $ref: '#/components/schemas/RestActionData'
+        status:
+          type: string
+          enum:
+            - pending
+            - executed
+            - cancelled
+          description: 予約のステータス
+          example: pending
+        createdAt:
+          type: string
+          format: date-time
+          description: 予約作成日時（ISO 8601）
+          example: "2026-03-16T12:00:00Z"
+        executedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 予約実行日時（未実行の場合は null）
+          example: null
+
+    # ----- ワールドステータス -----
+    WorldStatus:
+      type: object
+      required:
+        - worldId
+        - currentTurn
+        - nextTurnAt
+        - secondsUntilNextTurn
+      properties:
+        worldId:
+          type: string
+          description: ワールドのID
+          example: world_main
+        currentTurn:
+          type: integer
+          minimum: 1
+          description: 現在のターン番号
+          example: 42
+        nextTurnAt:
+          type: string
+          format: date-time
+          description: 次のターン処理が実行される日時（ISO 8601）
+          example: "2026-03-16T12:05:00Z"
+        secondsUntilNextTurn:
+          type: integer
+          minimum: 0
+          description: 次のターンまでの残り秒数
+          example: 180
+
+    # ----- エラー -----
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: エラーメッセージ
+          example: スライムが見つかりません
+        details:
+          type: object
+          description: 追加のエラー詳細（任意）
+          additionalProperties: true
+          example:
+            field: slimeId
+            value: slime_notexist
+
+paths:
+  # ================================================================
+  # POST /api/reservations — 行動予約の作成
+  # ================================================================
+  /api/reservations:
+    post:
+      summary: 行動予約の作成
+      description: |
+        指定したスライムに対して、特定ターンで実行する行動を予約します。
+        同じスライムの同じターンへの予約が既に存在する場合はエラーになります。
+      operationId: createReservation
+      tags:
+        - reservations
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - slimeId
+                - worldId
+                - turnNumber
+                - actionType
+                - actionData
+              properties:
+                slimeId:
+                  type: string
+                  description: 行動を予約するスライムのID
+                  example: slime_xyz789
+                worldId:
+                  type: string
+                  description: 対象ワールドのID
+                  example: world_main
+                turnNumber:
+                  type: integer
+                  minimum: 1
+                  description: 予約を実行するターン番号（現在のターン以降）
+                  example: 43
+                actionType:
+                  type: string
+                  enum:
+                    - eat
+                    - move
+                    - rest
+                    - battle
+                  description: 行動の種類
+                  example: eat
+                actionData:
+                  description: actionType に対応する行動データ
+                  oneOf:
+                    - $ref: '#/components/schemas/EatActionData'
+                    - $ref: '#/components/schemas/MoveActionData'
+                    - $ref: '#/components/schemas/RestActionData'
+            examples:
+              eat:
+                summary: 食事行動の予約
+                value:
+                  slimeId: slime_xyz789
+                  worldId: world_main
+                  turnNumber: 43
+                  actionType: eat
+                  actionData:
+                    foodId: food_herb_001
+              move:
+                summary: 移動行動の予約
+                value:
+                  slimeId: slime_xyz789
+                  worldId: world_main
+                  turnNumber: 43
+                  actionType: move
+                  actionData:
+                    targetX: 3
+                    targetY: 7
+              rest:
+                summary: 休息行動の予約
+                value:
+                  slimeId: slime_xyz789
+                  worldId: world_main
+                  turnNumber: 43
+                  actionType: rest
+                  actionData: {}
+      responses:
+        '201':
+          description: 行動予約の作成に成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionReservation'
+              example:
+                id: res_abc123
+                slimeId: slime_xyz789
+                ownerUid: uid_firebase_000
+                worldId: world_main
+                turnNumber: 43
+                actionType: eat
+                actionData:
+                  foodId: food_herb_001
+                status: pending
+                createdAt: "2026-03-16T12:00:00Z"
+                executedAt: null
+        '400':
+          description: バリデーションエラー（必須フィールド欠損・不正な値など）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: バリデーションエラー
+                details:
+                  field: turnNumber
+                  message: turnNumber は現在のターン番号以上である必要があります
+        '401':
+          description: 認証エラー（トークン未指定または無効）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: 認証が必要です
+        '403':
+          description: 権限エラー（他プレイヤーのスライムへの操作など）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: このスライムを操作する権限がありません
+        '404':
+          description: スライムまたはワールドが存在しない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: スライムが見つかりません
+                details:
+                  slimeId: slime_notexist
+        '409':
+          description: 同一ターンへの予約が既に存在します
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: 同一ターンへの予約が既に存在します
+
+  # ================================================================
+  # DELETE /api/reservations/{id} — 行動予約のキャンセル
+  # ================================================================
+  /api/reservations/{id}:
+    delete:
+      summary: 行動予約のキャンセル
+      description: |
+        指定した予約をキャンセルします。
+        既に実行済み（executed）またはキャンセル済み（cancelled）の予約はキャンセルできません。
+      operationId: cancelReservation
+      tags:
+        - reservations
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: キャンセルする予約のID
+          schema:
+            type: string
+          example: res_abc123
+      responses:
+        '204':
+          description: キャンセル成功（レスポンスボディなし）
+        '401':
+          description: 認証エラー（トークン未指定または無効）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: 認証が必要です
+        '403':
+          description: 権限エラー（他プレイヤーの予約へのアクセスなど）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: この予約をキャンセルする権限がありません
+        '404':
+          description: 予約が存在しない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: 予約が見つかりません
+                details:
+                  id: res_notexist
+        '409':
+          description: 競合エラー（既に実行済みまたはキャンセル済み）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: この予約はすでに実行済みのためキャンセルできません
+                details:
+                  status: executed
+
+  # ================================================================
+  # GET /api/worlds/{worldId}/status — ワールドのターン状態取得
+  # ================================================================
+  /api/worlds/{worldId}/status:
+    get:
+      summary: ワールドのターン状態取得
+      description: |
+        指定ワールドの現在のターン番号、次のターン処理日時、
+        次のターンまでの残り秒数を返します。
+        このエンドポイントは認証不要の公開APIです。
+      operationId: getWorldStatus
+      tags:
+        - worlds
+      parameters:
+        - name: worldId
+          in: path
+          required: true
+          description: 状態を取得するワールドのID
+          schema:
+            type: string
+          example: world_main
+      responses:
+        '200':
+          description: ワールドのターン状態
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorldStatus'
+              example:
+                worldId: world_main
+                currentTurn: 42
+                nextTurnAt: "2026-03-16T12:05:00Z"
+                secondsUntilNextTurn: 180
+        '404':
+          description: ワールドが存在しない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: ワールドが見つかりません
+                details:
+                  worldId: world_notexist
+
+tags:
+  - name: reservations
+    description: 行動予約の作成・キャンセル
+  - name: worlds
+    description: ワールド状態の参照
