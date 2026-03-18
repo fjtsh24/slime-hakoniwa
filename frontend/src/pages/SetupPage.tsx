@@ -14,6 +14,7 @@ export function SetupPage() {
       if (!userProfile?.mapId) setShowError(true)
     }, SETUP_TIMEOUT_MS)
     return () => clearTimeout(timer)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (

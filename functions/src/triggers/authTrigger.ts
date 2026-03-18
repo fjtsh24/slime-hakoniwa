@@ -31,7 +31,7 @@ export const onUserCreate = functions
     const batch = db.batch()
 
     // usersドキュメント作成
-    const userDoc: Omit<User, 'createdAt' | 'updatedAt'> & { createdAt: any; updatedAt: any } = {
+    const userDoc: Omit<User, 'createdAt' | 'updatedAt'> & { createdAt: FieldValue; updatedAt: FieldValue } = {
       uid,
       displayName: userRecord.displayName ?? '',
       email: userRecord.email ?? '',
@@ -43,7 +43,7 @@ export const onUserCreate = functions
 
     // mapsドキュメント作成
     const mapRef = db.collection('maps').doc(mapId)
-    const mapDoc: Omit<GameMap, 'createdAt'> & { createdAt: any } = {
+    const mapDoc: Omit<GameMap, 'createdAt'> & { createdAt: FieldValue } = {
       id: mapId,
       worldId: 'world-default', // Phase 2ではデフォルトワールドに所属
       ownerUid: uid,
