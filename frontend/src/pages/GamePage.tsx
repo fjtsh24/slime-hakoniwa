@@ -85,7 +85,7 @@ export function GamePage() {
       const idToken = await getIdToken(user)
       const res = await fetch('/api/slimes/initial', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${idToken}` },
+        headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
       })
       if (res.status === 409) {
         setSummonError('すでにスライムがいます')
