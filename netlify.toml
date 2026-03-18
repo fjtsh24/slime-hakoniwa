@@ -6,6 +6,9 @@
 [build.environment]
   NODE_VERSION = "20"
 
+[functions]
+  directory = "../netlify/functions"
+
 # ローカル開発: `netlify dev` を使うとフロントエンド(Vite) + Netlify Functions が同時に起動する
 # フロントエンドは frontend/ ディレクトリで `npm run dev` を実行し Vite を 5173 番で起動する
 # netlify dev 自体は 8888 番でリッスンし /.netlify/functions/* とリダイレクトルールを提供する
