@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { TurnTimer } from '../../../frontend/src/components/world/TurnTimer'
-import { useWorldStore } from '../../../frontend/src/stores/worldStore'
+import { TurnTimer } from '../components/world/TurnTimer'
+import { useWorldStore } from '../stores/worldStore'
 import type { World } from '../../../shared/types/world'
 
 // worldStore をモック
-vi.mock('../../../frontend/src/stores/worldStore', () => ({
+vi.mock('../stores/worldStore', () => ({
   useWorldStore: vi.fn(),
 }))
 

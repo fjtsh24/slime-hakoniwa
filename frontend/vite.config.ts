@@ -4,6 +4,9 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    fs: { allow: ['..'] },
+  },
   resolve: {
     alias: {
       '@shared': path.resolve(__dirname, '../shared'),
@@ -15,8 +18,9 @@ export default defineConfig({
     setupFiles: './src/test/setup.ts',
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'html'],
+      reporter: ['text'],
       reportsDirectory: '../tests/reports/frontend-coverage',
+      include: ['src/**/*.{ts,tsx}'],
     },
   },
 })
