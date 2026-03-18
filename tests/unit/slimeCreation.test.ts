@@ -56,9 +56,12 @@ const mockBatchInstance = {
   commit: mockCommit.mockResolvedValue(undefined),
 }
 
+const mockRunTransaction = jest.fn()
+
 const mockFirestore = {
   collection: mockCollection.mockReturnValue(mockCollectionRef),
   batch: mockBatch.mockReturnValue(mockBatchInstance),
+  runTransaction: mockRunTransaction,
 }
 
 jest.mock('firebase-admin', () => ({
@@ -107,6 +110,12 @@ function makeCreateRequest(overrides?: Partial<CreateInitialSlimeRequest>): Crea
 // ================================================================
 
 describe('createInitialSlime', () => {
+  const mockTx = {
+    get: jest.fn(),
+    set: jest.fn(),
+    update: jest.fn(),
+  }
+
   beforeEach(() => {
     jest.clearAllMocks()
 
@@ -119,6 +128,12 @@ describe('createInitialSlime', () => {
     mockGet.mockResolvedValue({ empty: true, docs: [], exists: false, data: () => undefined })
     mockSet.mockResolvedValue(undefined)
     mockCommit.mockResolvedValue(undefined)
+
+    // runTransaction: コールバックをモックトランザクションで実行する（デフォルト: スライムなし）
+    mockTx.get.mockResolvedValue({ exists: false, data: () => ({ hasSlime: false }) })
+    mockRunTransaction.mockImplementation((callback: (tx: typeof mockTx) => Promise<unknown>) =>
+      callback(mockTx)
+    )
   })
 
   // ----------------------------------------------------------------
@@ -130,7 +145,7 @@ describe('createInitialSlime', () => {
 
     expect(result).not.toBeNull()
     expect(result!.speciesId).toBe('slime-001')
-    expect(mockBatchInstance.set).toHaveBeenCalledWith(
+    expect(mockTx.set).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ speciesId: 'slime-001' })
     )
@@ -145,7 +160,7 @@ describe('createInitialSlime', () => {
 
     expect(result).not.toBeNull()
     expect(result!.ownerUid).toBe('user-specific-001')
-    expect(mockBatchInstance.set).toHaveBeenCalledWith(
+    expect(mockTx.set).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ ownerUid: 'user-specific-001' })
     )
@@ -155,21 +170,14 @@ describe('createInitialSlime', () => {
   // テスト 3: 既にスライムが存在する場合は生成されない（冪等性）
   // ----------------------------------------------------------------
   it('既にスライムが存在する場合は生成されない（冪等性）', async () => {
-    const existingSlime: Partial<Slime> = {
-      id: 'existing-slime-001',
-      ownerUid: 'user-slime-creation-001',
-      speciesId: 'slime-001',
-    }
-    mockGet.mockResolvedValueOnce({
-      empty: false,
-      docs: [{ id: existingSlime.id, data: () => existingSlime }],
-    })
+    // tx.get でユーザーに hasSlime: true が返るケースをシミュレート
+    mockTx.get.mockResolvedValueOnce({ exists: true, data: () => ({ hasSlime: true }) })
 
     const request = makeCreateRequest()
     const result = await createInitialSlime(request)
 
     expect(result).toBeNull()
-    expect(mockBatchInstance.commit).not.toHaveBeenCalled()
+    expect(mockTx.set).not.toHaveBeenCalled()
   })
 
   // ----------------------------------------------------------------
@@ -184,7 +192,7 @@ describe('createInitialSlime', () => {
 
     expect(result).not.toBeNull()
     expect(result!.mapId).toBe('map-specific-001')
-    expect(mockBatchInstance.set).toHaveBeenCalledWith(
+    expect(mockTx.set).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ mapId: 'map-specific-001' })
     )

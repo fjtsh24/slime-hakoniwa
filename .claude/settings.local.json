@@ -24,7 +24,19 @@
       "Bash(find /home/fjsth24/workspace/slime_hakoniwa/frontend/src -type f \\\\\\(-name *.tsx -o -name *.ts \\\\\\))",
       "Bash(find /home/fjsth24/workspace/slime_hakoniwa/netlify/functions/src -type f \\\\\\(-name *.ts -o -name *.js \\\\\\))",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git branch:*)",
+      "Bash(git config:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(gh api:*)",
+      "Bash(git -C /home/fjsth24/workspace/slime_hakoniwa log --oneline -5)",
+      "Bash(git -C /home/fjsth24/workspace/slime_hakoniwa show --name-only HEAD~4)",
+      "Bash(git -C /home/fjsth24/workspace/slime_hakoniwa log --all --full-history -- *.json)",
+      "Bash(git -C /home/fjsth24/workspace/slime_hakoniwa show 42dd1df --name-only)",
+      "Bash(git:*)",
+      "Bash(gh repo:*)",
+      "Bash(gh run:*)"
     ]
   }
 }
