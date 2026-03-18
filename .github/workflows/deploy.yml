@@ -21,7 +21,7 @@ jobs:
       - name: Build
         run: cd functions && npm run build
       - name: Deploy to Firebase
-        run: firebase deploy --only functions --token "$FIREBASE_TOKEN" --non-interactive
+        run: firebase deploy --only functions --token "$FIREBASE_TOKEN" --non-interactive --force
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
 
