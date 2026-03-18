@@ -25,39 +25,5 @@ jobs:
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
 
-  deploy-frontend:
-    name: Deploy Frontend to Netlify
-    runs-on: ubuntu-latest
-    needs: deploy-functions
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - name: Install frontend dependencies
-        run: cd frontend && npm ci
-      - name: Build frontend
-        run: cd frontend && npm run build
-        env:
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-          VITE_GA_MEASUREMENT_ID: ${{ secrets.VITE_GA_MEASUREMENT_ID }}
-      - name: Install Netlify functions dependencies
-        run: cd netlify/functions && npm ci
-      - name: Install Netlify CLI
-        run: npm install -g netlify-cli
-      - name: Link Netlify site
-        run: |
-          mkdir -p .netlify
-          echo "{\"siteId\":\"$NETLIFY_SITE_ID\"}" > .netlify/state.json
-        env:
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-      - name: Deploy to Netlify
-        run: netlify deploy --prod --dir=frontend/dist --functions=netlify/functions --auth $NETLIFY_AUTH_TOKEN --message "Deploy from GitHub Actions"
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+  # フロントエンド（Netlify Functions含む）は Netlify の GitHub ネイティブ連携で自動デプロイ
+  # Netlify Console でリポジトリを連携済み（netlify.toml の設定を自動適用）
