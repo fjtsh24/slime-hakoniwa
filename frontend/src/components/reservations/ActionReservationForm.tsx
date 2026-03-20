@@ -219,15 +219,14 @@ export function ActionReservationForm({
           <label className="text-sm font-medium text-gray-600">食料</label>
           {(() => {
             const selectedSlime = slimes.find((s) => s.id === selectedSlimeId)
-            const inventory = selectedSlime?.inventory
+            // inventory フィールドが Firestore に存在しない既存スライムは [] として扱う
+            const inventory = selectedSlime?.inventory ?? []
             return (
               <>
-                {inventory !== undefined && (
-                  <p className="text-xs text-gray-500 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-                    インベントリに所持している食料のみ食べられます。
-                    gather・fish・hunt で食料を獲得してから食べましょう。
-                  </p>
-                )}
+                <p className="text-xs text-gray-500 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                  インベントリに所持している食料のみ食べられます。
+                  gather・fish・hunt で食料を獲得してから食べましょう。
+                </p>
                 <select
                   value={foodId}
                   onChange={(e) => setFoodId(e.target.value)}
@@ -235,11 +234,11 @@ export function ActionReservationForm({
                   required
                 >
                   {foods.map((f) => {
-                    const qty = inventory?.find((s) => s.foodId === f.id)?.quantity ?? 0
-                    const hasItem = inventory === undefined || qty > 0 || f.alwaysAvailable === true
+                    const qty = inventory.find((s) => s.foodId === f.id)?.quantity ?? 0
+                    const hasItem = qty > 0 || f.alwaysAvailable === true
                     return (
                       <option key={f.id} value={f.id} disabled={!hasItem}>
-                        {f.name}（{f.category}）{inventory !== undefined ? ` ×${qty}` : ''}
+                        {f.name}（{f.category}）{f.alwaysAvailable ? ' ×∞' : ` ×${qty}`}
                         {!hasItem ? ' ─ 未所持' : ''}
                       </option>
                     )
