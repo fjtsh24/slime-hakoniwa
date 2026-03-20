@@ -132,6 +132,10 @@ async function seed(): Promise<void> {
       name: s.name,
       stats: s.stats,
       racialValues: defaultRacialValues(),
+      inventory: [
+        { foodId: "food-plant-001", quantity: 3 },
+        { foodId: "food-fish-001", quantity: 2 },
+      ],
       isWild: false,
       createdAt: admin.firestore.Timestamp.fromDate(now),
       updatedAt: admin.firestore.Timestamp.fromDate(now),

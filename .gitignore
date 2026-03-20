@@ -1,5 +1,7 @@
 node_modules/
 dist/
+# エミュレータのセッション状態（自動保存・git管理外）
+emulator-data/
 .env
 .env.local
 *.local
