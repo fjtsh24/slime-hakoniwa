@@ -26,4 +26,9 @@ export interface Food {
   skillGrantId: string | null;
   /** スキル付与確率（0.0〜1.0） */
   skillGrantProb: number;
+  /**
+   * true のとき、インベントリに所持していなくても食事アクションで選択可能にする
+   * 省略時は false として扱う
+   */
+  alwaysAvailable?: boolean;
 }

@@ -16,6 +16,7 @@ export const foods: Food[] = [
     racialDeltas: { slime: 0.1 },
     skillGrantId: null,
     skillGrantProb: 0.0,
+    alwaysAvailable: true,
   },
   {
     id: "food-slime-002",
