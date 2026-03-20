@@ -13,6 +13,11 @@ export default defineConfig({
         target: 'http://localhost:8888',
         changeOrigin: true,
       },
+      // /dev-cheat/* → netlify dev (開発環境専用チートAPI)
+      '/dev-cheat': {
+        target: 'http://localhost:8888',
+        changeOrigin: true,
+      },
     },
   },
   resolve: {

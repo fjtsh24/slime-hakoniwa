@@ -11,7 +11,8 @@
 
 import { useState } from 'react'
 
-const DEV_API = 'http://localhost:8888/dev-cheat'
+// 相対URLにすることで Vite プロキシ (/dev-cheat → localhost:8888) を経由し CORS を回避
+const DEV_API = '/dev-cheat'
 
 const WORLD_ID = 'world-001'
 
