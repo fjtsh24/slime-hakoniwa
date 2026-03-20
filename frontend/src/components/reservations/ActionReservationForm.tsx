@@ -5,11 +5,15 @@ import { foods } from '../../../../shared/data/foods'
 import type { Slime } from '../../../../shared/types/slime'
 import type { ActionType } from '../../../../shared/types/action'
 
-function nextFreeTurn(from: number, reserved: number[]): number {
+function nextAvailableTurns(from: number, reserved: number[], count: number): number[] {
   const set = new Set(reserved)
+  const turns: number[] = []
   let t = from
-  while (set.has(t)) t++
-  return t
+  while (turns.length < count) {
+    if (!set.has(t)) turns.push(t)
+    t++
+  }
+  return turns
 }
 
 interface ActionReservationFormProps {
@@ -83,7 +87,7 @@ export function ActionReservationForm({
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const turns = snapshot.docs.map((d) => d.data().turnNumber as number)
       setReservedTurns(turns)
-      setTurnNumber(nextFreeTurn(currentTurn + 1, turns))
+      setTurnNumber(nextAvailableTurns(currentTurn + 1, turns, 1)[0])
     })
 
     return () => unsubscribe()
@@ -132,7 +136,7 @@ export function ActionReservationForm({
       }
 
       // フォームリセット（予約済みターンを除いた次の空きターンへ）
-      setTurnNumber(nextFreeTurn(currentTurn + 1, [...reservedTurns, turnNumber]))
+      setTurnNumber(nextAvailableTurns(currentTurn + 1, [...reservedTurns, turnNumber], 1)[0])
       setActionType('eat')
       setFoodId(foods[0]?.id ?? '')
       setTargetX(0)
@@ -196,15 +200,11 @@ export function ActionReservationForm({
           className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
           required
         >
-          {[1, 2, 3, 4, 5].map((offset) => {
-            const t = currentTurn + offset
-            const isReserved = reservedTurns.includes(t)
-            return (
-              <option key={offset} value={t} disabled={isReserved}>
-                {offset}ターン後（Turn {t}）{isReserved ? ' ─ 予約済み' : ''}
-              </option>
-            )
-          })}
+          {nextAvailableTurns(currentTurn + 1, reservedTurns, 5).map((t) => (
+            <option key={t} value={t}>
+              {t - currentTurn}ターン後（Turn {t}）
+            </option>
+          ))}
         </select>
       </div>
 
