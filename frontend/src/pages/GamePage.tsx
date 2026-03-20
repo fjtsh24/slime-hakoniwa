@@ -17,6 +17,7 @@ import { ActionReservationForm } from '../components/reservations/ActionReservat
 import { ReservationList } from '../components/reservations/ReservationList'
 import type { Slime } from '../../../shared/types/slime'
 import { skillDefinitions } from '../../../shared/data/skillDefinitions'
+import { DevPanel } from '../components/dev/DevPanel'
 
 const WORLD_ID = 'world-001'
 
@@ -262,6 +263,7 @@ export function GamePage() {
           <TurnLogList slimeId={selectedSlimeId} worldId={WORLD_ID} slimeName={selectedSlime?.name} />
         )}
       </main>
+      {import.meta.env.DEV && <DevPanel />}
     </div>
   )
 }

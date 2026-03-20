@@ -30,6 +30,12 @@
   to = "/.netlify/functions/api/:splat"
   status = 200
 
+# dev-cheat: 開発環境専用チートAPI（FIRESTORE_EMULATOR_HOST 未設定時は 403）
+[[redirects]]
+  from = "/dev-cheat/*"
+  to = "/.netlify/functions/dev-cheat/:splat"
+  status = 200
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
