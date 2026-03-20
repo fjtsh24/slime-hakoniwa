@@ -82,7 +82,16 @@ async function createInitialSlime(
 
 // Firebase Admin SDK の初期化（二重初期化を防ぐ）
 if (admin.apps.length === 0) {
-  admin.initializeApp()
+  const serviceAccountKey = process.env.FIREBASE_ADMIN_SDK_SERVICE_ACCOUNT_KEY
+  if (serviceAccountKey) {
+    // 本番 Netlify: 環境変数からサービスアカウントキーを読み込む
+    admin.initializeApp({
+      credential: admin.credential.cert(JSON.parse(serviceAccountKey)),
+    })
+  } else {
+    // ローカル開発: Application Default Credentials（firebase emulators等）
+    admin.initializeApp()
+  }
 }
 
 const db = admin.firestore()
