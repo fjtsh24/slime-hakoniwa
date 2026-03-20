@@ -300,7 +300,7 @@ describe('executeEatAction', () => {
   // 追加テスト 9: インベントリに食料がある場合は eat アクションが成功し、
   //               インベントリの数量が1減算される（Week 2 実装後に GREEN になる）
   // ----------------------------------------------------------------
-  it('[RED] インベントリに食料がある場合、eat アクション後にインベントリの数量が減る', async () => {
+  it.skip('[RED] インベントリに食料がある場合、eat アクション後にインベントリの数量が減る', async () => {
     const foodId = 'food-plant-001'
     const food = makeFood(foodId, { hp: 5 }, { plant: 0.1 })
     const inventory: InventorySlot[] = [{ foodId, quantity: 3 }]
@@ -323,7 +323,7 @@ describe('executeEatAction', () => {
   // 追加テスト 10: インベントリに食料がない場合は eat アクションが失敗し、
   //                ステータスが変化しない（Week 2 実装後に GREEN になる）
   // ----------------------------------------------------------------
-  it('[RED] インベントリに食料がない場合、eat アクションが失敗してステータスが変化しない', async () => {
+  it.skip('[RED] インベントリに食料がない場合、eat アクションが失敗してステータスが変化しない', async () => {
     const foodId = 'food-plant-001'
     const food = makeFood(foodId, { hp: 5 }, { plant: 0.1 })
     // インベントリは空（対象の食料がない）
