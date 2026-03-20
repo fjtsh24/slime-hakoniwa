@@ -15,6 +15,7 @@ import { dropTables } from '../../../shared/data/dropTable'
 import { wildMonsters } from '../../../shared/data/wildMonsters'
 import type { DropEntry } from '../../../shared/types/dropTable'
 import { INVENTORY_MAX_SLOTS, RACIAL_VALUE_MAX } from '../../../shared/constants/game'
+import { logger } from '../../../shared/lib/logger'
 
 // ----------------------------------------------------------------
 // 型定義
@@ -108,6 +109,7 @@ export async function processDueTurns(): Promise<void> {
  * 指定ワールドのターンを1つ進める
  */
 export async function processWorldTurn(worldId: string): Promise<void> {
+  const startMs = Date.now()
   let newTurn = 0
   let turnIntervalSec = 300
   let shouldProcess = false
@@ -159,6 +161,8 @@ export async function processWorldTurn(worldId: string): Promise<void> {
 
   // processing にならなかった場合（二重処理や時間未到達）はスキップ
   if (!shouldProcess) return
+
+  logger.info('[turnProcessor] ターン開始', { worldId, turn: newTurn })
 
   // スライム処理完了後に status を 'idle' に戻す（try/finally で確実に実行）
   try {
@@ -229,8 +233,46 @@ export async function processWorldTurn(worldId: string): Promise<void> {
     for (const slimeDoc of slimeDocs) {
       const slime = { id: slimeDoc.id, ...slimeDoc.data() } as Slime
       const reservations = reservationsBySlime.get(slime.id) ?? []
+      const reservation = reservations.find((r) => r.status === 'pending')
 
-      const result = await processSlimeTurn(slime, reservations, newTurn, batch, foods, worldTiles)
+      logger.debug('[turnProcessor] スライム処理', {
+        worldId,
+        turn: newTurn,
+        slimeId: slime.id,
+        slimeName: slime.name,
+        actionType: reservation?.actionType ?? 'autonomous',
+        hunger: slime.stats.hunger,
+        hp: slime.stats.hp,
+      })
+
+      let result: Awaited<ReturnType<typeof processSlimeTurn>>
+      try {
+        result = await processSlimeTurn(slime, reservations, newTurn, batch, foods, worldTiles)
+      } catch (slimeError) {
+        logger.error('[turnProcessor] スライム処理エラー', {
+          worldId,
+          turn: newTurn,
+          slimeId: slime.id,
+          slimeName: slime.name,
+          actionType: reservation?.actionType,
+          error: slimeError instanceof Error ? slimeError.message : String(slimeError),
+          stack: slimeError instanceof Error ? slimeError.stack : undefined,
+        })
+        continue
+      }
+
+      const errorEvents = result.events.filter((e) =>
+        e.eventType.endsWith('_fail') || e.eventType === 'inventory_not_found'
+      )
+      if (errorEvents.length > 0) {
+        logger.warn('[turnProcessor] アクション失敗イベント', {
+          worldId,
+          turn: newTurn,
+          slimeId: slime.id,
+          slimeName: slime.name,
+          events: errorEvents.map((e) => ({ type: e.eventType, data: e.eventData })),
+        })
+      }
 
       // スライム更新（inventory フィールドも含めて書き込む）
       const slimeRef = db().collection('slimes').doc(slime.id)
@@ -315,6 +357,21 @@ export async function processWorldTurn(worldId: string): Promise<void> {
         await logBatch.commit()
       }
     }
+    logger.info('[turnProcessor] ターン完了', {
+      worldId,
+      turn: newTurn,
+      slimeCount: slimeDocs.length,
+      durationMs: Date.now() - startMs,
+    })
+  } catch (turnError) {
+    logger.error('[turnProcessor] ターン処理エラー', {
+      worldId,
+      turn: newTurn,
+      durationMs: Date.now() - startMs,
+      error: turnError instanceof Error ? turnError.message : String(turnError),
+      stack: turnError instanceof Error ? turnError.stack : undefined,
+    })
+    throw turnError
   } finally {
     // 処理完了後（エラー時も含む）に status を 'idle' に戻す
     try {
@@ -548,7 +605,11 @@ export async function executeReservedAction(
           })
           await skillBatch.commit()
         } catch (skillError) {
-          console.warn(`[turnProcessor] スキル付与失敗: slimeId=${slime.id}, skillId=${food.skillGrantId}`, skillError)
+          logger.warn('[turnProcessor] スキル付与失敗', {
+            slimeId: slime.id,
+            skillId: food.skillGrantId,
+            error: skillError instanceof Error ? skillError.message : String(skillError),
+          })
         }
         events.push({ eventType: 'skill_grant', eventData: { skillId: food.skillGrantId, foodId } })
       }
