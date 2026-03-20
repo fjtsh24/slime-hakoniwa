@@ -209,7 +209,11 @@
 **型定義拡張（A5/DB・A3/BE）**
 - [ ] `shared/types/action.ts`: `ActionType` に `"gather" | "fish" | "hunt"` 追加、`BattleActionData / GatherActionData / FishActionData / HuntActionData` 型追加
 - [ ] `shared/types/slime.ts`: `InventorySlot { foodId: string, quantity: number }` 型追加
-- [ ] `shared/types/turnLog.ts`: `TurnEventType` に `gather_success / gather_fail / fish_success / fish_fail / hunt_success / hunt_fail / inventory_full / battle_incapacitated` 追加
+- [ ] `shared/types/turnLog.ts`: 以下を変更（A5/DB 設計済み・後方互換）
+  - `slimeId: string` → `slimeId: string | null`（ワールドイベント対応・既存ドキュメント影響なし）
+  - `actorType: 'slime' | 'world'` フィールド追加（既存ドキュメントはデフォルト `'slime'` で扱う）
+  - `TurnEventType` に `gather_success / gather_fail / fish_success / fish_fail / hunt_success / hunt_fail / inventory_full / battle_incapacitated` 追加
+  - `TurnEventType` にワールドイベント種別を予約列挙: `season_change / weather_change / area_unlock / item_spawn`（Phase 6で実装、型定義のみ先行）
 - [ ] `shared/types/wildMonster.ts`: `WildMonsterSpecies / MonsterStrength` 型定義（新規）
 - [ ] `shared/types/dropTable.ts`: `DropEntry / TileCondition / DropTableEntry` 型定義（新規）
 - [ ] `shared/constants/game.ts`（新規または既存）: `RACIAL_VALUE_MAX = 1.0`、`INVENTORY_MAX_SLOTS = 10` 定数追加
@@ -222,7 +226,10 @@
 - [ ] `netlify/functions/helpers/validation.ts`: `BattleActionData / HuntActionData` の zodスキーマ追加（targetStrength は `"weak" | "normal"` のみ、`"strong"` は Phase 4 除外）
 - [ ] `GatherActionData / FishActionData` は空オブジェクト（zod `.strict()` で余分なキーを拒否）
 - [ ] `firestore.rules`: `slimes/{slimeId}/inventory` サブコレクションのアクセス制御追加（ownerUid == request.auth.uid のみ読み書き可）
-- [ ] `firestore.indexes.json`: 3インデックス追加（`turnLogs`: slimeId+turnNumber、worldId+eventType+turnNumber / `slimes`: mapId+tileX+tileY）
+- [ ] `firestore.indexes.json`: 4インデックス追加
+  - `turnLogs`: `slimeId ASC + turnNumber DESC`
+  - `turnLogs`: `worldId ASC + eventType ASC + turnNumber DESC`（WorldLogPanel のイベント種別フィルタ用）
+  - `slimes`: `mapId ASC + tileX ASC + tileY ASC`
 
 **テスト先行作成（A7/QA）**
 - [ ] `tests/unit/inventoryOps.test.ts`: インベントリ操作ヘルパー 7〜8件（RED）
@@ -312,6 +319,22 @@
 - [ ] battle対象カテゴリ拡張: fish / human 系を追加（zodスキーマ更新）
 - [ ] マップ上でのタイル選択→gather/fish実行という直感的UIとの連動
 
+**WorldLogPanel — 全スライム統合ログ（A4/FE・A5/DB・A1/Fun確認）**
+
+> **設計背景**: 複数スライムが共存するマップを管理する形を目指すため、A1/Fun・A4/FE・A5/DB チーム議論で設計済み（2026-03-20）
+
+- [ ] `frontend/src/components/world/turnLogUtils.ts` 作成（`formatEvent` / `EVENT_COLORS` を `TurnLogList` から切り出して共用）
+- [ ] `frontend/src/components/world/WorldLogPanel.tsx` 新規作成
+  - Firestore クエリ: `worldId + turnNumber DESC` + `limit(100)` のみ（フィルタはクライアント側処理）
+  - **スライムフィルター**: スライム3体以下→タブ、4体以上→ドロップダウン（「全員」＋スライム名リスト）
+  - **イベント種別フィルター**: チェックボックス群（デフォルト全ON）＋「重要のみ」プリセット（evolve/battle/split/merge）
+  - **視覚区別**: 各行の左端にスライムカラーバー + スライム名バッジ、ワールドイベントは 🌍 アイコン
+  - **ポーリング化**: `onSnapshot` を廃止し、`world.currentTurn` の変化を検知して `getDocs` で再取得（Firestore コスト削減・ターン間隔1時間のため十分）
+  - `actorType: 'world'` のドキュメントは専用スタイルで表示
+- [ ] `GamePage.tsx`: `TurnLogList`（1スライム用・スライム詳細パネル向けに残す）を `WorldLogPanel` に差し替え
+  - `slimes` 配列を props として渡し、スライムフィルターと `GamePage` の `selectedSlimeId` を初期値として連動
+- [ ] スライムカラーコードをFirestoreの `slimes` ドキュメントに追加（`color: string`、初期付与時にランダム割り当て）
+
 ---
 
 ## Phase 6: ソーシャル・野生スライム ＋ アクション拡張（spirit/slime系）
@@ -330,6 +353,18 @@
 - [ ] battle対象カテゴリ拡張: spirit / slime 系を追加
 - [ ] battle強度に `"strong"` を追加（zodスキーマ解放）
 - [ ] 食料交換・贈与機能の検討（Phase 7のフィードバック次第）
+
+**ワールドイベント実装（A3/BE・A1/Fun設計・A5/DB）**
+
+> **設計背景**: Phase 4で `slimeId: null` + `actorType: 'world'` のスキーマを導入し、Phase 5で WorldLogPanel の表示対応を完了した後、ここで実際のトリガーを実装する
+
+- [ ] A1/Fun によるワールドイベント詳細設計（優先度・頻度・ゲームバランスへの影響）
+  - 候補: 天気変化（gather/fish成功率変動）・アイテム自然出現（マップ上の特定タイル）・エリア封鎖/開放
+- [ ] `functions/src/scheduled/turnProcessor.ts`: ターン処理時にワールドイベントを判定・書き込む
+  - `slimeId: null`、`actorType: 'world'` で `turnLogs` に書き込み
+  - 天気・季節などのワールド状態は `worlds/{worldId}` に保持し、ターン処理時に参照
+- [ ] `worlds/{worldId}` スキーマに `weather / season` 等のワールド状態フィールド追加（A5/DB）
+- [ ] `firestore.rules`: `slimeId: null` ドキュメントの読み取り権限確認（`worldId` が自分のワールドであること）
 
 **対人戦闘（PvP）について**
 - Phase 6では実装しない
