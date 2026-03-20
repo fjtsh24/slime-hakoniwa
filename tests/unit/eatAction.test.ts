@@ -47,7 +47,7 @@ jest.mock('firebase-admin', () => ({
 // ================================================================
 
 import { executeReservedAction } from '../../functions/src/scheduled/turnProcessor'
-import type { Slime, SlimeStats, RacialValues } from '../../shared/types/slime'
+import type { Slime, SlimeStats, RacialValues, InventorySlot } from '../../shared/types/slime'
 import type { Food, StatDeltas, RacialDeltas } from '../../shared/types/food'
 import type { ActionReservation } from '../../shared/types/action'
 import { foods } from '../../shared/data/foods'
@@ -96,6 +96,10 @@ function makeSlime(overrides?: Partial<Slime>): Slime {
     name: '食事テストスライム',
     stats: makeStats(),
     racialValues: makeRacialValues(),
+    // Phase 4 Week 1: インベントリフィールドを追加
+    // 既存テストは現在の実装（インベントリ未対応）でも通過できるよう、
+    // inventory は Slime 型の省略可能フィールドとして扱う
+    inventory: [{ foodId: 'food-plant-001', quantity: 3 }] as InventorySlot[],
     isWild: false,
     createdAt: new Date('2024-01-01T00:00:00Z'),
     updatedAt: new Date('2024-01-01T00:00:00Z'),
@@ -285,5 +289,61 @@ describe('executeEatAction', () => {
     const eatEvent = result.events.find((e) => e.eventType === 'eat')
     expect(eatEvent).toBeDefined()
     expect(eatEvent?.eventData['foodId']).toBe('food-slime-002')
+  })
+
+  // ================================================================
+  // Phase 4 Week 1 追加テスト（RED: 現在の実装では失敗する）
+  // インベントリ連動の eat アクション挙動を検証する
+  // ================================================================
+
+  // ----------------------------------------------------------------
+  // 追加テスト 9: インベントリに食料がある場合は eat アクションが成功し、
+  //               インベントリの数量が1減算される（Week 2 実装後に GREEN になる）
+  // ----------------------------------------------------------------
+  it('[RED] インベントリに食料がある場合、eat アクション後にインベントリの数量が減る', async () => {
+    const foodId = 'food-plant-001'
+    const food = makeFood(foodId, { hp: 5 }, { plant: 0.1 })
+    const inventory: InventorySlot[] = [{ foodId, quantity: 3 }]
+    const slime = makeSlime({
+      stats: makeStats({ hunger: 50 }),
+      inventory,
+    })
+    const reservation = makeEatReservation(foodId)
+
+    const result = await executeReservedAction(slime, reservation, [food])
+
+    // インベントリの数量が1減算されていること（3 → 2）
+    expect(result.updatedSlime.inventory).toBeDefined()
+    const slot = result.updatedSlime.inventory!.find((s: InventorySlot) => s.foodId === foodId)
+    expect(slot).toBeDefined()
+    expect(slot!.quantity).toBe(2)
+  })
+
+  // ----------------------------------------------------------------
+  // 追加テスト 10: インベントリに食料がない場合は eat アクションが失敗し、
+  //                ステータスが変化しない（Week 2 実装後に GREEN になる）
+  // ----------------------------------------------------------------
+  it('[RED] インベントリに食料がない場合、eat アクションが失敗してステータスが変化しない', async () => {
+    const foodId = 'food-plant-001'
+    const food = makeFood(foodId, { hp: 5 }, { plant: 0.1 })
+    // インベントリは空（対象の食料がない）
+    const inventory: InventorySlot[] = []
+    const slime = makeSlime({
+      stats: makeStats({ hunger: 50 }),
+      inventory,
+    })
+    const reservation = makeEatReservation(foodId)
+
+    const result = await executeReservedAction(slime, reservation, [food])
+
+    // インベントリに食料がないため、hunger とステータスは変化しない
+    expect(result.updatedSlime.stats.hunger).toBe(50)
+    expect(result.updatedSlime.stats.hp).toBe(slime.stats.hp)
+    // eat イベントは記録されない
+    const eatEvent = result.events.find((e) => e.eventType === 'eat')
+    expect(eatEvent).toBeUndefined()
+    // inventory_not_found イベントが記録されること
+    const notFoundEvent = result.events.find((e) => e.eventType === 'inventory_not_found')
+    expect(notFoundEvent).toBeDefined()
   })
 })

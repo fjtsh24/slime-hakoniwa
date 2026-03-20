@@ -3,7 +3,7 @@
  */
 
 /** 行動の種類 */
-export type ActionType = "eat" | "move" | "rest" | "battle";
+export type ActionType = "eat" | "move" | "rest" | "battle" | "gather" | "fish" | "hunt";
 
 /** 行動予約のステータス */
 export type ActionStatus = "pending" | "executed" | "cancelled";
@@ -22,8 +22,37 @@ export interface MoveActionData {
 /** 休息行動のデータ（追加データなし） */
 export type RestActionData = Record<string, never>;
 
+/** 採集行動のデータ（追加データなし） */
+export type GatherActionData = Record<string, never>;
+
+/** 釣り行動のデータ（追加データなし） */
+export type FishActionData = Record<string, never>;
+
+/** 狩猟行動のデータ */
+export interface HuntActionData {
+  /** 狩猟対象カテゴリ: beast / plant（Phase 4スコープ） */
+  targetCategory: "beast" | "plant";
+  /** 強度: weak / normal（Phase 4スコープ、strong は Phase 6で解放） */
+  targetStrength: "weak" | "normal";
+}
+
+/** 戦闘行動のデータ */
+export interface BattleActionData {
+  /** 戦闘対象カテゴリ: beast / plant（Phase 4スコープ） */
+  targetCategory: "beast" | "plant";
+  /** 強度: weak / normal（Phase 4スコープ） */
+  targetStrength: "weak" | "normal";
+}
+
 /** 行動データのユニオン型 */
-export type ActionData = EatActionData | MoveActionData | RestActionData;
+export type ActionData =
+  | EatActionData
+  | MoveActionData
+  | RestActionData
+  | GatherActionData
+  | FishActionData
+  | HuntActionData
+  | BattleActionData;
 
 /**
  * 行動予約

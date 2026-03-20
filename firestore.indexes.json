@@ -66,6 +66,32 @@
         { "fieldPath": "worldId",    "order": "ASCENDING" },
         { "fieldPath": "turnNumber", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "turnLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "slimeId",    "order": "ASCENDING" },
+        { "fieldPath": "turnNumber", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "turnLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "worldId",    "order": "ASCENDING" },
+        { "fieldPath": "eventType",  "order": "ASCENDING" },
+        { "fieldPath": "turnNumber", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "slimes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "mapId", "order": "ASCENDING" },
+        { "fieldPath": "tileX", "order": "ASCENDING" },
+        { "fieldPath": "tileY", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

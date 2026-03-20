@@ -234,6 +234,7 @@ export async function processWorldTurn(worldId: string): Promise<void> {
             id: logId,
             worldId,
             slimeId,
+            actorType: 'slime' as const,
             turnNumber: newTurn,
             eventType: event.eventType,
             eventData: event.eventData,

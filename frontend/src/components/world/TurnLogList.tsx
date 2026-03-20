@@ -26,7 +26,8 @@ function convertTurnLog(id: string, data: Record<string, unknown>): TurnLog {
   return {
     id,
     worldId: data.worldId as string,
-    slimeId: data.slimeId as string,
+    slimeId: (data.slimeId as string | null) ?? null,
+    actorType: (data.actorType as 'slime' | 'world') ?? 'slime',
     turnNumber: data.turnNumber as number,
     eventType: data.eventType as TurnEventType,
     eventData: data.eventData as Record<string, unknown>,
@@ -94,6 +95,19 @@ const EVENT_COLORS: Record<TurnEventType, string> = {
   autonomous: 'bg-gray-100 text-gray-600',
   hunger_decrease: 'bg-red-50 text-red-500',
   skill_grant: 'bg-purple-50 text-purple-600',
+  gather_success: 'bg-green-100 text-green-700',
+  gather_fail: 'bg-gray-100 text-gray-500',
+  fish_success: 'bg-blue-100 text-blue-600',
+  fish_fail: 'bg-gray-100 text-gray-500',
+  hunt_success: 'bg-orange-100 text-orange-700',
+  hunt_fail: 'bg-gray-100 text-gray-500',
+  inventory_full: 'bg-yellow-100 text-yellow-700',
+  inventory_not_found: 'bg-red-100 text-red-500',
+  battle_incapacitated: 'bg-red-100 text-red-700',
+  season_change: 'bg-teal-100 text-teal-700',
+  weather_change: 'bg-sky-100 text-sky-700',
+  area_unlock: 'bg-emerald-100 text-emerald-700',
+  item_spawn: 'bg-amber-100 text-amber-700',
 }
 
 export function TurnLogList({ slimeId, worldId, slimeName }: TurnLogListProps) {
