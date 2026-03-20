@@ -2,6 +2,8 @@
   "name": "slime-hakoniwa",
   "private": true,
   "scripts": {
+    "dev:functions": "netlify dev",
+    "dev:frontend": "npm --prefix frontend run dev",
     "emulator": "firebase emulators:start --import=./emulator-data --export-on-exit=./emulator-data",
     "emulator:fresh": "firebase emulators:start --export-on-exit=./emulator-data",
     "emulator:reset": "node scripts/reset-emulator.mjs",

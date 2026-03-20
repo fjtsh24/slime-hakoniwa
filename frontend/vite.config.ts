@@ -6,6 +6,14 @@ export default defineConfig({
   plugins: [react()],
   server: {
     fs: { allow: ['..'] },
+    proxy: {
+      // /api/* → netlify dev (functions only, port 8888)
+      // netlify.toml の [[redirects]] "/api/*" → "/.netlify/functions/api/:splat" が処理する
+      '/api': {
+        target: 'http://localhost:8888',
+        changeOrigin: true,
+      },
+    },
   },
   resolve: {
     alias: {

@@ -98,18 +98,29 @@ slime-hakoniwa/
 
 ## よく使うコマンド
 
+### ローカル開発起動手順（3ターミナル）
+
 ```bash
-# Firebase Emulator起動（開発時は常にこれを先に）
-firebase emulators:start
+# Terminal 1: Firebase Emulator（Firestore・Auth・Functions）
+npm run emulator          # 前回の状態を復元して起動
+# npm run emulator:reset  # シードデータにリセットしたい場合
 
-# フロントエンド開発サーバー
-cd frontend && npm run dev
+# Terminal 2: Netlify Functions（APIゲートウェイ、port 8888）
+npm run dev:functions
 
-# Functionsテスト（Emulator必要）
-cd functions && npm test
+# Terminal 3: フロントエンド Vite（port 5173）← ブラウザはここに接続
+npm run dev:frontend
+```
 
-# フロントエンドテスト
-cd frontend && npm test
+> **注意**: `netlify dev` はフロントエンドのプロキシとして使わない。
+> catch-all redirect (`/* → index.html`) が Vite のモジュールリクエストに干渉し
+> MIME type エラーが発生するため、Vite を直接起動する構成にしている。
+> Vite の `/api/*` プロキシが netlify dev (8888) に転送する。
+
+```bash
+# テスト
+cd functions && npm test       # Functions テスト（Emulator必要）
+cd frontend && npm test        # フロントエンドテスト
 ```
 
 ## Phase 1 完了済みファイル（主要）

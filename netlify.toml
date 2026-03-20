@@ -12,12 +12,13 @@
 [functions]
   directory = "netlify/functions"
 
-# ローカル開発: `netlify dev` を使うとフロントエンド(Vite) + Netlify Functions が同時に起動する
-# フロントエンドは frontend/ ディレクトリで `npm run dev` を実行し Vite を 5173 番で起動する
-# netlify dev 自体は 8888 番でリッスンし /.netlify/functions/* とリダイレクトルールを提供する
+# ローカル開発: 2ターミナル構成
+#   Terminal 1: netlify dev              → Functions を 8888 番で提供（Functions専用）
+#   Terminal 2: cd frontend && npm run dev → Vite を 5173 番で起動。ブラウザはこちらに接続
+#
+# Vite の server.proxy で /api/* を localhost:8888 へ転送するため、
+# netlify.toml の catch-all redirect (/* → index.html) が Vite モジュールに干渉しない。
 [dev]
-  command = "npm --prefix frontend run dev"
-  targetPort = 5173
   port = 8888
   autoLaunch = false
   functions = "netlify/functions"
