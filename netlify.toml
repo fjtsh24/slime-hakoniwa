@@ -12,13 +12,16 @@
 [functions]
   directory = "netlify/functions"
 
-# ローカル開発: `netlify dev` を使うとフロントエンド(Vite) + Netlify Functions が同時に起動する
-# フロントエンドは frontend/ ディレクトリで `npm run dev` を実行し Vite を 5173 番で起動する
-# netlify dev 自体は 8888 番でリッスンし /.netlify/functions/* とリダイレクトルールを提供する
+# ローカル開発: 2ターミナル構成
+#   Terminal 1: npm run dev:functions  → netlify dev (Functions専用, port 8888)
+#   Terminal 2: npm run dev:frontend   → Vite (port 5173) ← ブラウザはここに接続
+#
+# publish = ".netlify/dev-static" により frontend/dist/ を配信しない。
+# （prod ビルドを dev で誤配信すると import.meta.env.DEV=false になり
+#   connectAuthEmulator が呼ばれず本番 Firebase に繋がるため）
 [dev]
-  command = "npm --prefix frontend run dev"
-  targetPort = 5173
   port = 8888
+  publish = ".netlify/dev-static"
   autoLaunch = false
   functions = "netlify/functions"
 

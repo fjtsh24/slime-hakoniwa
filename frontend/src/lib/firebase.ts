@@ -17,9 +17,17 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp()
 export const auth = getAuth(app)
 export const db = getFirestore(app)
 
-// ローカル開発時はエミュレーターに接続する
-// connectAuthEmulator / connectFirestoreEmulator は初回のみ有効（重複呼び出し不可）
-if (import.meta.env.DEV) {
+// VITE_USE_EMULATOR=true のときエミュレーターに接続する
+//
+// import.meta.env.DEV（Viteのビルドモード）ではなく明示フラグを使う理由:
+//   DEV は「Vite dev serverで起動中か」を示すが、
+//   production ビルドを netlify dev で配信した場合 DEV=false になり
+//   connectAuthEmulator が呼ばれず本番 Firebase に繋がる事故が起きる。
+//   VITE_USE_EMULATOR=true を frontend/.env.local に設定することで
+//   ビルドモードと独立してエミュレータ接続を制御できる。
+export const USE_EMULATOR = import.meta.env.VITE_USE_EMULATOR === 'true'
+
+if (USE_EMULATOR) {
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true })
   connectFirestoreEmulator(db, '127.0.0.1', 8080)
 }

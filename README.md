@@ -60,27 +60,34 @@ slime-hakoniwa/
 ### クイックスタート
 
 ```bash
-# 依存関係のインストール
+# 1. 依存関係のインストール
 cd frontend && npm install
 cd ../functions && npm install
 cd ../netlify/functions && npm install && cd ../..
 
-# Functions のビルド
+# 2. Functions のビルド
 cd functions && npm run build && cd ..
 
-# Firebase Emulator 起動
-firebase emulators:start
+# 3. 環境変数の設定
+cp .env.example .env.local          # Netlify Functions 用
+cp .env.example frontend/.env.local # フロントエンド用（VITE_* 変数を設定）
+# 各ファイルを編集して Firebase プロジェクトの値を設定
 
-# 別ターミナルでシードデータ投入
-cd functions
-FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 npx ts-node src/scripts/seed.ts
-cd ..
+# --- 3ターミナルで同時起動 ---
 
-# 開発サーバー起動（プロジェクトルートから）
-netlify dev
+# Terminal 1: Firebase Emulator（シードデータ込みでリセット起動）
+npm run emulator:reset   # 初回のみ。2回目以降は npm run emulator
+
+# Terminal 2: Netlify Functions（API サーバー、port 8888）
+npm run dev:functions
+
+# Terminal 3: フロントエンド（Vite、port 5173）
+npm run dev:frontend
 ```
 
-アクセス先: **http://localhost:8888**
+アクセス先: **http://localhost:5173**（`localhost:8888` はFunctions専用）
+
+ログイン画面に表示される「テストユーザーでログイン」ボタンで即座にテスト開始できます。
 
 ### テスト実行
 
@@ -103,7 +110,7 @@ FIRESTORE_EMULATOR_HOST=localhost:8080 GCLOUD_PROJECT=slime-hakoniwa-test \
 | Phase 1 | ターン進行システム基盤 | 完了 |
 | Phase 2 | 認証・ユーザー・マップ基盤 | 完了 |
 | Phase 3 | スライム育成基本 | 完了 |
-| Phase 4 | 進化・分裂・融合 + アクション拡張 | 未着手 |
+| Phase 4 | 進化・分裂・融合 + アクション拡張 | 進行中（Week 1〜2 完了） |
 | Phase 5 | マップ描画・UI完成 | 未着手 |
 | Phase 6 | ソーシャル・野生スライム | 未着手 |
 | Phase 7 | チューニング・リリース準備 | 未着手 |

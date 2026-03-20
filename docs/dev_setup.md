@@ -21,13 +21,23 @@ cd ../..
 
 ```bash
 cp .env.example .env.local
-# .env.local を編集して各値を設定
-
-# Vite はフロントエンドの実行ディレクトリから env を読むため、frontend/ にもコピーする
-cp .env.local frontend/.env.local
+cp .env.example frontend/.env.local
 ```
 
-> **注意**: `.env.local` はルートと `frontend/` の両方に必要。ルートのみだと Vite が読めず `auth/invalid-api-key` エラーになる。
+それぞれのファイルを開き、Firebase プロジェクトの値を設定する。
+設定項目の詳細は `.env.example` のコメントを参照。
+
+**ローカル開発に必要な設定:**
+
+| 変数 | 設定先 | 値 | 用途 |
+|------|--------|-----|------|
+| `VITE_FIREBASE_*` | `frontend/.env.local` | Firebase コンソールの値 | フロントエンドの Firebase 接続 |
+| `VITE_USE_EMULATOR` | `frontend/.env.local` | `true` | Auth/Firestore をエミュレータに向ける |
+| `FIRESTORE_EMULATOR_HOST` | `.env.local` | `127.0.0.1:8080` | Netlify Functions のエミュレータ接続 |
+| `FIREBASE_AUTH_EMULATOR_HOST` | `.env.local` | `127.0.0.1:9099` | 同上 |
+
+> **注意**: `frontend/.env.local` の `VITE_USE_EMULATOR=true` を設定し忘れると、
+> フロントエンドが本番 Firebase Auth に接続しようとして `403 Forbidden` エラーになる。
 
 ### 3. Functions のビルド（Emulator 起動前に必須）
 
@@ -35,143 +45,162 @@ cp .env.local frontend/.env.local
 cd functions && npm run build
 ```
 
-> Cloud Functions は TypeScript をコンパイルして生成した JS を読み込む。ビルド前に Emulator を起動すると `lib/functions/src/index.js does not exist` エラーになる。
+> Cloud Functions は TypeScript をコンパイルして生成した JS を読み込む。
+> ビルド前に Emulator を起動すると `lib/functions/src/index.js does not exist` エラーになる。
 
 ### 4. Firebase Emulator の起動
 
 ```bash
-firebase emulators:start
+# 初回またはデータをリセットしたいとき（エミュレータ起動 + シード自動投入）
+npm run emulator:reset
+
+# 2回目以降（前回の状態を復元して起動）
+npm run emulator
 ```
 
 Emulator UI: http://localhost:4000
 Firestore: http://localhost:8080
-Functions: http://localhost:5001
+Auth: http://localhost:9099
 
-> **注意: エミュレーターのデータは揮発性**。停止するたびに Firestore のデータが全消去される。起動のたびに次のシードスクリプトを実行する必要がある。
+**エミュレータのデータ保持について:**
+`npm run emulator` は起動時に `emulator-data/` から状態を復元し、Ctrl+C 終了時に保存する。
+`emulator-data/` は `.gitignore` 対象。リセットしたいときは `npm run emulator:reset` を使う。
 
-### 4.5. シードデータの投入（Emulator 起動後・毎回必須）
+### 4.5. シードデータの手動投入（起動済みエミュレータに流す場合のみ）
+
+`npm run emulator:reset` を使えば自動でシードが流れるため、通常は不要。
 
 ```bash
-cd functions
-FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 npx ts-node src/scripts/seed.ts
-cd ..
+npm run seed
 ```
 
 投入されるデータ:
-- `worlds/world-001` — ターンタイマー・行動予約に必要。**これがないと TurnTimer が「ワールド情報が取得できません」と表示される**
-- `maps/map-001` + `tiles`（100件）— マップ初期データ
-- テスト用スライム（野生2体含む計5件）
+- Auth Emulator: `test@slime.local` / `test1234` (uid: `test-user-001`)
+- `worlds/world-001` — ターンタイマー・行動予約に必要
+- `maps/map-001` + `tiles`（100件）
+- テスト用スライム 3体（インベントリ付き）+ 野生スライム 2体
 
-> ユーザー固有のマップ（`maps/{uid}-map` と `tiles`）は Auth Trigger（Cloud Function）がユーザー登録時に自動生成するため、シードスクリプトでは作成しない。
+> ユーザー固有のマップ（`maps/{uid}-map` と `tiles`）は Auth Trigger が
+> ユーザー登録時に自動生成するため、シードスクリプトでは作成しない。
 
-### 5. 開発サーバーの起動（`netlify dev`）
+### 5. 開発サーバーの起動（3ターミナル構成）
 
 ```bash
-# プロジェクトルートから実行すること（frontend/ ではない）
-netlify dev
+# Terminal 1（Emulator は手順 4 で起動済みであること）
+
+# Terminal 2: Netlify Functions（API ゲートウェイ、port 8888）
+npm run dev:functions
+
+# Terminal 3: フロントエンド Vite（port 5173）← ブラウザはここに接続
+npm run dev:frontend
 ```
 
-`netlify dev` は以下を同時に提供する:
-- **フロントエンド (Vite)**: `frontend/` で `npm run dev` を起動 → ポート 5173
-- **Netlify Functions** (`netlify/functions/api.ts`): `/.netlify/functions/api` で提供
-- **リダイレクトルール**: `/api/*` → `/.netlify/functions/api/:splat` が有効になる
+アクセス先: **http://localhost:5173**
 
-アクセス先: **http://localhost:8888**（Vite の 5173 ではなく 8888）
+> **重要: ブラウザで `localhost:8888` を開かない**
+> netlify dev (8888) は Functions 専用サーバー。フロントエンドを提供しない。
+> 8888 にアクセスすると `frontend/dist/`（production ビルド）が返り、
+> `VITE_USE_EMULATOR` が無効になって本番 Firebase Auth に繋がる。
 
-> **注意**: `npm run dev` だけでは Netlify Functions が起動せず、「スライムを呼び出す」等のボタンが 404 になる。
+**各サーバーの役割:**
 
-> **前提**: Netlify CLI のインストール: `npm install -g netlify-cli`
+| サーバー | ポート | 役割 |
+|---------|-------|------|
+| Firebase Emulator | 8080/9099/4000 | Firestore・Auth のモック |
+| netlify dev | 8888 | `/api/*` Netlify Functions のみ提供 |
+| Vite | 5173 | フロントエンドを配信。`/api/*` を 8888 へ転送 |
 
-### 6. テストの実行
+### 6. ログイン
+
+開発環境（`VITE_USE_EMULATOR=true`）のログイン画面には 2 種類のボタンが表示される:
+
+- **「テストユーザーでログイン（開発専用）」（amber）** — `test@slime.local` / `test1234` で即ログイン
+- **「Googleでログイン」** — Auth Emulator の偽 Google OAuth を経由してログイン
+
+> テストユーザーは `npm run seed`（または `npm run emulator:reset`）で作成される。
+
+### 7. テストの実行
 
 ```bash
 # Functions 単体テスト（Emulator 不要）
 cd functions && npm test
 
-# Functions 統合テスト（Emulator 起動後に実行）
-# GCLOUD_PROJECT はテスト用プロジェクトID（本番の slime-sim-prototype とは別）
-FIRESTORE_EMULATOR_HOST=localhost:8080 GCLOUD_PROJECT=slime-hakoniwa-test npx jest tests/integration --forceExit --verbose
+# Functions テスト + カバレッジ
+cd functions && npm run test:coverage
 
 # フロントエンドテスト
 cd frontend && npm test
+
+# Functions 統合テスト（Emulator 起動後に実行）
+FIRESTORE_EMULATOR_HOST=localhost:8080 GCLOUD_PROJECT=slime-hakoniwa-test \
+  npx jest tests/integration --forceExit --verbose
 ```
 
-> **統合テストの注意**: `GCLOUD_PROJECT=slime-hakoniwa-test` を指定することで、テスト用データが本番 (`slime-sim-prototype`) と分離される。`FIRESTORE_EMULATOR_HOST` も必須。
+> **統合テストの注意**: `GCLOUD_PROJECT=slime-hakoniwa-test` を指定して
+> テストデータを本番 (`slime-sim-prototype`) と分離すること。
 
 ## ブランチ戦略
 
-- `main`: 本番環境（PRのみマージ可）
+- `main`: 本番環境（PR のみマージ可）
 - `develop`: 開発統合ブランチ
 - `feature/*`: 機能開発
 - `fix/*`: バグ修正
 
 ---
 
-## 動作確認シナリオ（Phase 3 時点）
+## 動作確認シナリオ（Phase 4 Week 2 時点）
 
-Emulator + `netlify dev` を起動した状態（**http://localhost:8888** でアクセス）で以下のシナリオを順番に実行する。
-各ステップの「確認内容」を満たせば正常動作している。
+Emulator + 開発サーバーを起動した状態（**http://localhost:5173** でアクセス）で以下を順番に実行する。
 
 ### シナリオ 1: ログインと初期セットアップ
 
-1. ブラウザでフロントエンドにアクセスする
-2. Google アカウントでログインする
-3. **確認**: セットアップ画面（「箱庭を準備しています」）が表示される
-4. **確認**: 数秒後にゲーム画面（`/game`）に遷移し、「はじめてのスライムを迎えよう！」カードが表示される
-5. **確認（Emulator）**: Firestore の `users` コレクションにドキュメントが作成され、`mapId` フィールドが存在する。`maps` コレクションにマップが、`maps/{id}/tiles` に100件のタイルが存在する
+1. ブラウザで `http://localhost:5173` にアクセスする
+2. ログイン画面で「テストユーザーでログイン（開発専用）」ボタンを押す
+3. **確認**: セットアップ画面（`/setup`）が表示される
+4. **確認**: 数秒後にゲーム画面（`/game`）に遷移する
+5. **確認（Emulator UI）**: `users` に UID ドキュメント、`maps` にマップ、`tiles` に 100 件が作成される
 
-> セットアップが終わらない場合: Emulator が起動していない、または環境変数（Firebase プロジェクト設定）が誤っている可能性がある
-
-> シナリオ 2 以降でターンタイマーが「ワールド情報が取得できません」と表示される場合: シードスクリプト（手順 4.5）が未実行。`worlds/world-001` が存在しないため。
+> セットアップが終わらない場合: Emulator が起動していないか、`VITE_USE_EMULATOR=true` が未設定
 
 ### シナリオ 2: スライムの召喚
 
 1. ゲーム画面の「スライムを呼び出す」ボタンを押す
-2. **確認**: ボタンが「召喚中...」に変わり、しばらくするとスライムリストに「はじめてのスライム」が表示される
-3. **確認**: スライムリスト項目に満腹度バッジ（緑）と HP・ATK 数値が表示される
-4. **確認（Emulator）**: Firestore の `slimes` コレクションに `speciesId: "slime-001"` のドキュメントが作成されている
-5. ボタンをもう一度押した場合: 「すでにスライムがいます」エラーが表示される（2体目は作成されない）
+2. **確認**: スライムリストに「はじめてのスライム」が表示される
+3. ボタンをもう一度押した場合: 「すでにスライムがいます」エラーが表示される（冪等性確認）
 
-### シナリオ 3: 行動予約
+### シナリオ 3: 行動予約（gather / fish / hunt 含む）
 
-1. スライムリストからスライムを選択する（選択中は緑ハイライト）
-2. 「行動予約」フォームで「食事」を選び、食料を選択する
-3. **確認**: 食料詳細パネル（説明・ステータス変化・種族値変化）が表示される
-4. ターン番号に「現在のターン番号 + 1」以上の値を入力して送信する
-5. **確認**: 「予約を追加しました」等の成功応答があり、予約一覧（「現在の予約」セクション）に行が追加される
-6. **確認（Emulator）**: `actionReservations` コレクションに `status: "pending"` のドキュメントが作成されている
+1. 「アクション予約」フォームでアクション種別を選ぶ
+2. **gather**: パネルに採集の説明が表示され、予約できる
+3. **fish**: 水属性タイルでのみ成功する旨が表示される
+4. **hunt**: モンスター種別・強さを選択（強さ「普通」かつ低ステータスの場合は警告が出る）
+5. **eat**: インベントリの所持数が表示され、未所持の食料はグレーアウトされる
+6. **確認**: 実行タイミングのドロップダウンが「予約済みを除いた次の空き 5 枠」を表示する
+7. **確認**: 同一ターンに重複予約しようとすると 409 エラーになる
 
-> 過去のターン番号を入力した場合: バリデーションエラーが返る
+### シナリオ 4: ターン進行
 
-### シナリオ 4: ターン進行（Emulator での短縮確認）
+1. Emulator UI（Functions タブ）から `scheduledTurnProcessor` を手動トリガーする
+2. **確認**: `worlds/world-001` の `currentTurn` が増加する
+3. **確認**: `turnLogs` に `eventType: "gather_success"` や `eat` 等のドキュメントが作成される
+4. **確認**: gather/fish/hunt 成功後は `slimes/{id}` の `inventory` にアイテムが追加される
+5. **確認**: eat 実行後はインベントリの数が減り、ステータスが変化する
 
-本番では1時間ごとにターンが進むが、Emulator では Cloud Functions を直接呼び出して即時確認できる。
-
-1. Emulator UI（Functions タブ）から `scheduledTurnProcessor` を手動トリガーする、または Functions Emulator に HTTP リクエストを送る
-2. **確認**: Firestore の `worlds/{id}` の `currentTurn` が 1 増加している
-3. **確認**: `turnLogs` コレクションに `eventType: "eat"`（または `hunger_decrease` 等）のドキュメントが作成されている
-4. ゲーム画面の「ターンログ」セクションに、食事した食料名（例: 「食事した（スライムコア）」）が表示される
-5. **確認**: `actionReservations` の対象予約の `status` が `"executed"` になっている
-
-> ターンが進まない場合: `worlds/{id}` の `nextTurnAt` が未来になっているため turnProcessor がスキップしている。Emulator で `nextTurnAt` を過去の時刻に書き換えてから再実行する
+> ターンが進まない場合: Emulator UI で `worlds/world-001` の `nextTurnAt` を過去に書き換えてから再実行する
 
 ### シナリオ 5: マップ設定画面
 
 1. ヘッダーの「マップ設定」リンクをクリックする
 2. **確認**: タイルグリッド（10×10）が属性色付きで表示される
-3. タイルにホバーすると座標と属性値がツールチップで確認できる
 
 ---
 
-## 現時点で動作しない・確認できない機能
-
-Phase 3 完了時点では以下は未実装のため動作確認対象外。
+## 現時点で動作しない機能（Phase 4 Week 3 以降）
 
 | 機能 | 対応予定 |
 |------|---------|
-| 進化の画面通知（進化はバックエンドで自動処理されるが画面表示なし） | Phase 4 |
+| battle アクション | Phase 4 Week 3 |
+| スキルシステム | Phase 4 Week 3 |
+| 進化・分裂・融合 | Phase 4 Week 3 |
 | マップ上へのスライム位置表示 | Phase 5 |
 | 他プレイヤーのマップ閲覧・野生スライム | Phase 6 |
-
-進化自体はターン進行時に `checkEvolution` が自動判定し、条件を満たせば `speciesId` が更新される。
-Emulator の Firestore でスライムドキュメントを確認すると `speciesId` の変化は追える。
