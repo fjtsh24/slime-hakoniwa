@@ -96,10 +96,9 @@ function makeSlime(overrides?: Partial<Slime>): Slime {
     name: '食事テストスライム',
     stats: makeStats(),
     racialValues: makeRacialValues(),
-    // Phase 4 Week 1: インベントリフィールドを追加
-    // 既存テストは現在の実装（インベントリ未対応）でも通過できるよう、
-    // inventory は Slime 型の省略可能フィールドとして扱う
-    inventory: [{ foodId: 'food-plant-001', quantity: 3 }] as InventorySlot[],
+    // inventory は明示的に渡さない場合は undefined（インベントリチェックをスキップする）
+    // Phase 4 Week 2 追加テスト 9・10 では inventory を明示的に設定する
+    inventory: undefined,
     isWild: false,
     createdAt: new Date('2024-01-01T00:00:00Z'),
     updatedAt: new Date('2024-01-01T00:00:00Z'),
@@ -300,7 +299,7 @@ describe('executeEatAction', () => {
   // 追加テスト 9: インベントリに食料がある場合は eat アクションが成功し、
   //               インベントリの数量が1減算される（Week 2 実装後に GREEN になる）
   // ----------------------------------------------------------------
-  it.skip('[RED] インベントリに食料がある場合、eat アクション後にインベントリの数量が減る', async () => {
+  it('インベントリに食料がある場合、eat アクション後にインベントリの数量が減る', async () => {
     const foodId = 'food-plant-001'
     const food = makeFood(foodId, { hp: 5 }, { plant: 0.1 })
     const inventory: InventorySlot[] = [{ foodId, quantity: 3 }]
@@ -323,7 +322,7 @@ describe('executeEatAction', () => {
   // 追加テスト 10: インベントリに食料がない場合は eat アクションが失敗し、
   //                ステータスが変化しない（Week 2 実装後に GREEN になる）
   // ----------------------------------------------------------------
-  it.skip('[RED] インベントリに食料がない場合、eat アクションが失敗してステータスが変化しない', async () => {
+  it('インベントリに食料がない場合、eat アクションが失敗してステータスが変化しない', async () => {
     const foodId = 'food-plant-001'
     const food = makeFood(foodId, { hp: 5 }, { plant: 0.1 })
     // インベントリは空（対象の食料がない）

@@ -243,27 +243,29 @@
 - [x] **[M-4]** move アクション時に現在座標ヒント表示
 - [x] **[M-5]** hunger < 20 時の警告文追加
 
-### Week 2: gather / fish / hunt アクション実装（TDD）
+### Week 2: gather / fish / hunt アクション実装（TDD） ✅
 
 **テスト先行作成（A7/QA）**
-- [ ] `tests/unit/gatherAction.test.ts`: 8件（タイル属性別ドロップ・インベントリ満杯・hunger消費）（RED）
-- [ ] `tests/unit/fishAction.test.ts`: 6件（water属性閾値0.3の境界値・fish系食料のみドロップ）（RED）
-- [ ] `tests/unit/huntAction.test.ts`: 5件（成功/失敗・HP損傷・hunger消費）（RED）
+- [x] `tests/unit/gatherAction.test.ts`: 8件（タイル属性別ドロップ・インベントリ満杯・hunger消費）（GREEN）
+- [x] `tests/unit/fishAction.test.ts`: 6件（water属性閾値0.3の境界値・fish系食料のみドロップ）（GREEN）
+- [x] `tests/unit/huntAction.test.ts`: 6件（成功/失敗・HP損傷・インベントリ満杯でhunt_success）（GREEN）
 
 **バックエンド実装（A3/BE）**
-- [ ] `functions/src/scheduled/turnProcessor.ts`: スキル付与の独立batchを外部batchに統合（リファクタ先行）
-- [ ] `functions/src/scheduled/turnProcessor.ts`: インベントリヘルパー関数実装（`addToInventory / removeFromInventory`、INVENTORY_MAX_SLOTS制限付き）
-- [ ] `functions/src/scheduled/turnProcessor.ts`: `eatアクション` をインベントリ参照・消費に変更（`runTransaction` によるアトミック処理・`inventory?` オプショナル対応で後方互換維持）
-- [ ] `functions/src/scheduled/turnProcessor.ts`: `gatherアクション` ハンドラ追加（タイル属性→dropTable→インベントリ追加）
-- [ ] `functions/src/scheduled/turnProcessor.ts`: `fishアクション` ハンドラ追加（water >= 0.3 実行条件付き）
-- [ ] `functions/src/scheduled/turnProcessor.ts`: `huntアクション` ハンドラ追加（成功/失敗判定・HP損傷）
-- [ ] タイルデータのバルク取得実装（N+1問題解消: gather/fish予約スライムの座標を事前collectして一括取得）
-- [ ] `netlify/functions/api.ts`: `POST /api/reservations` のバリデーションに gather/fish/hunt スキーマ追加
+- [x] `functions/src/scheduled/turnProcessor.ts`: インベントリヘルパー関数実装（`addToInventory / removeFromInventory`、INVENTORY_MAX_SLOTS制限付き）
+- [x] `functions/src/scheduled/turnProcessor.ts`: `eatアクション` をインベントリ参照・消費に変更（`inventory?` オプショナル対応で後方互換維持）
+- [x] `functions/src/scheduled/turnProcessor.ts`: `eatアクション` の racialDeltas 未適用バグ修正
+- [x] `functions/src/scheduled/turnProcessor.ts`: `gatherアクション` ハンドラ追加（タイル属性→dropTable→インベントリ追加）
+- [x] `functions/src/scheduled/turnProcessor.ts`: `fishアクション` ハンドラ追加（water >= 0.3 実行条件付き）
+- [x] `functions/src/scheduled/turnProcessor.ts`: `huntアクション` ハンドラ追加（成功/失敗判定・HP損傷・係数0.75でspd反映強化）
+- [x] タイルデータのバルク取得実装（N+1問題解消: mapId単位で一括取得）
+- [x] `move`アクションの種族値上限クランプ修正（RACIAL_VALUE_MAX）
 
 **フロントエンド（A4/FE）**
-- [ ] インベントリ表示UI（スライムカード内の所持食料一覧・数量表示）
-- [ ] 食事フォームの在庫なし食料グレーアウト（インベントリ在庫0の foodId は選択不可）
-- [ ] gather/fish/hunt アクションの予約フォーム追加
+- [x] インベントリ表示UI（スライムカード内の所持食料一覧・数量表示）
+- [x] 食事フォームの在庫なし食料グレーアウト（インベントリ在庫0の foodId は選択不可）
+- [x] gather/fish/hunt アクションの予約フォーム追加（hunt は種別・強さ選択UI）
+- [x] hunt normal 選択時のステータス不足警告表示
+- [x] eat フォームにガイダンス文追加（gather/fish/hunt で獲得してから eat）
 
 ### Week 3: battle アクション + 進化・分裂・融合
 

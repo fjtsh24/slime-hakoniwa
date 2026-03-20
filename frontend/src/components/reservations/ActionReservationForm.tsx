@@ -38,7 +38,17 @@ const STAT_LABELS: Record<string, string> = {
   hunger: '満腹度',
 }
 
-const AVAILABLE_ACTIONS: ActionType[] = ['eat', 'move', 'rest']
+const AVAILABLE_ACTIONS: ActionType[] = ['eat', 'gather', 'fish', 'hunt', 'move', 'rest']
+
+const HUNT_CATEGORIES = [
+  { value: 'beast', label: '獣系' },
+  { value: 'plant', label: '植物系' },
+] as const
+
+const HUNT_STRENGTHS = [
+  { value: 'weak', label: '弱い（power 10）' },
+  { value: 'normal', label: '普通（power 30）' },
+] as const
 
 export function ActionReservationForm({
   slimes,
@@ -53,6 +63,8 @@ export function ActionReservationForm({
   const [foodId, setFoodId] = useState<string>(foods[0]?.id ?? '')
   const [targetX, setTargetX] = useState<number>(0)
   const [targetY, setTargetY] = useState<number>(0)
+  const [huntCategory, setHuntCategory] = useState<string>('beast')
+  const [huntStrength, setHuntStrength] = useState<string>('weak')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -93,6 +105,8 @@ export function ActionReservationForm({
         actionData = { foodId }
       } else if (actionType === 'move') {
         actionData = { targetX, targetY }
+      } else if (actionType === 'hunt') {
+        actionData = { targetCategory: huntCategory, targetStrength: huntStrength }
       }
 
       const body = {
@@ -198,20 +212,39 @@ export function ActionReservationForm({
       {actionType === 'eat' && (
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium text-gray-600">食料</label>
-          <select
-            value={foodId}
-            onChange={(e) => setFoodId(e.target.value)}
-            className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-            required
-          >
-            {foods.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}（{f.category}）
-              </option>
-            ))}
-          </select>
-          {/* 選択中の食料の詳細パネル */}
           {(() => {
+            const selectedSlime = slimes.find((s) => s.id === selectedSlimeId)
+            const inventory = selectedSlime?.inventory
+            return (
+              <>
+                {inventory !== undefined && (
+                  <p className="text-xs text-gray-500 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                    インベントリに所持している食料のみ食べられます。
+                    gather・fish・hunt で食料を獲得してから食べましょう。
+                  </p>
+                )}
+                <select
+                  value={foodId}
+                  onChange={(e) => setFoodId(e.target.value)}
+                  className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+                  required
+                >
+                  {foods.map((f) => {
+                    const qty = inventory?.find((s) => s.foodId === f.id)?.quantity ?? 0
+                    const hasItem = inventory === undefined || qty > 0
+                    return (
+                      <option key={f.id} value={f.id} disabled={!hasItem}>
+                        {f.name}（{f.category}）{inventory !== undefined ? ` ×${qty}` : ''}
+                        {!hasItem ? ' ─ 未所持' : ''}
+                      </option>
+                    )
+                  })}
+                </select>
+              </>
+            )
+          })()}
+          {/* 選択中の食料の詳細パネル */}
+          {actionType === 'eat' && (() => {
             const selected = foods.find((f) => f.id === foodId)
             if (!selected) return null
             const statLines = Object.entries(selected.statDeltas)
@@ -234,6 +267,68 @@ export function ActionReservationForm({
                 )}
               </div>
             )
+          })()}
+        </div>
+      )}
+
+      {actionType === 'gather' && (
+        <p className="text-xs text-gray-500 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+          現在地のタイル属性に応じた食料を採集します。属性値が高いほどレアな食料が採れます。
+        </p>
+      )}
+
+      {actionType === 'fish' && (
+        <p className="text-xs text-gray-500 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+          現在地のタイルで釣りをします。水属性 ≥ 0.3 のタイルでのみ成功します。
+        </p>
+      )}
+
+      {actionType === 'hunt' && (
+        <div className="flex flex-col gap-2">
+          <p className="text-xs text-gray-500 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
+            モンスターを狩猟します。勝利するとドロップアイテムと種族値が得られます。
+            敗北した場合は HP が減少します。gather や fish で食料を確保してから挑戦するのがおすすめです。
+          </p>
+          <div className="flex gap-3">
+            <div className="flex flex-col gap-1 flex-1">
+              <label className="text-sm font-medium text-gray-600">モンスター種別</label>
+              <select
+                value={huntCategory}
+                onChange={(e) => setHuntCategory(e.target.value)}
+                className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+              >
+                {HUNT_CATEGORIES.map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1 flex-1">
+              <label className="text-sm font-medium text-gray-600">強さ</label>
+              <select
+                value={huntStrength}
+                onChange={(e) => setHuntStrength(e.target.value)}
+                className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+              >
+                {HUNT_STRENGTHS.map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {huntStrength === 'normal' && (() => {
+            const selectedSlime = slimes.find((s) => s.id === selectedSlimeId)
+            const estimatedMax = selectedSlime
+              ? selectedSlime.stats.atk + Math.floor(selectedSlime.stats.spd * 0.75)
+              : 0
+            if (estimatedMax <= 30) {
+              return (
+                <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  ⚠️ 普通強度のモンスター（power 30）は現在のステータスでは勝てない可能性が高いです。
+                  ATK + SPD をさらに上げてから挑戦することをおすすめします。
+                </p>
+              )
+            }
+            return null
           })()}
         </div>
       )}

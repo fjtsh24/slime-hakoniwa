@@ -7,9 +7,14 @@ import { FieldValue } from 'firebase-admin/firestore'
 import type { Slime, SlimeStats, RacialValues, SlimeSpecies, InventorySlot } from '../../../shared/types/slime'
 import type { ActionReservation } from '../../../shared/types/action'
 import type { Food } from '../../../shared/types/food'
-import type { Tile } from '../../../shared/types/map'
+import type { Tile, TileAttributes } from '../../../shared/types/map'
 import type { TurnLog, TurnEventType } from '../../../shared/types/turnLog'
 import { slimeSpecies } from '../../../shared/data/slimeSpecies'
+import { foods as staticFoods } from '../../../shared/data/foods'
+import { dropTables } from '../../../shared/data/dropTable'
+import { wildMonsters } from '../../../shared/data/wildMonsters'
+import type { DropEntry } from '../../../shared/types/dropTable'
+import { INVENTORY_MAX_SLOTS, RACIAL_VALUE_MAX } from '../../../shared/constants/game'
 
 // ----------------------------------------------------------------
 // 型定義
@@ -164,20 +169,18 @@ export async function processWorldTurn(worldId: string): Promise<void> {
     const slimeDocs = Array.isArray(slimesSnap?.docs) ? slimesSnap.docs : []
     if (slimeDocs.length === 0) return
 
-    // 予約と食料を並列取得
-    const [reservationsSnap, foodsSnap] = await Promise.all([
-      db()
-        .collection('actionReservations')
-        .where('worldId', '==', worldId)
-        .where('turnNumber', '==', newTurn)
-        .where('status', '==', 'pending')
-        .get(),
-      db().collection('foods').get(),
-    ])
+    // 予約を取得
+    // 食料マスタは静的ファイル（shared/data/foods.ts）を唯一の参照元とする。
+    // Firestore の foods コレクションは使用しない（設計方針: マスタデータは静的バンドル）。
+    // 将来イベント食料が必要になった場合は Phase 5-6 で staticFoods ∪ firestoreEventFoods に移行する。
+    const reservationsSnap = await db()
+      .collection('actionReservations')
+      .where('worldId', '==', worldId)
+      .where('turnNumber', '==', newTurn)
+      .where('status', '==', 'pending')
+      .get()
 
-    const foods: Food[] = Array.isArray(foodsSnap?.docs)
-      ? foodsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Food))
-      : []
+    const foods: Food[] = staticFoods
 
     // 予約をスライムID別にグループ化
     const reservationsBySlime = new Map<string, ActionReservation[]>()
@@ -190,6 +193,34 @@ export async function processWorldTurn(worldId: string): Promise<void> {
       }
     }
 
+    // gather/fish 予約を持つスライムのタイルをバルク取得（N+1 解消）
+    const mapIdToCoords = new Map<string, Set<string>>()
+    for (const slimeDoc of slimeDocs) {
+      const slime = { id: slimeDoc.id, ...slimeDoc.data() } as Slime
+      const slimeReservations = reservationsBySlime.get(slime.id) ?? []
+      const needsTile = slimeReservations.some(
+        (r) => r.status === 'pending' && (r.actionType === 'gather' || r.actionType === 'fish')
+      )
+      if (needsTile) {
+        const coords = mapIdToCoords.get(slime.mapId) ?? new Set<string>()
+        coords.add(`${slime.tileX},${slime.tileY}`)
+        mapIdToCoords.set(slime.mapId, coords)
+      }
+    }
+
+    const worldTiles: Tile[] = []
+    for (const [mapId, coordSet] of mapIdToCoords.entries()) {
+      try {
+        const tilesSnap = await db().collection('tiles').where('mapId', '==', mapId).get()
+        const filtered = tilesSnap.docs
+          .map((d) => ({ id: d.id, ...d.data() } as Tile))
+          .filter((t) => coordSet.has(`${t.x},${t.y}`))
+        worldTiles.push(...filtered)
+      } catch {
+        // タイル取得失敗は無視（gather/fish は tile なし扱いになる）
+      }
+    }
+
     const BATCH_SIZE = 500
     let batch = db().batch()
     let batchCount = 0
@@ -199,18 +230,22 @@ export async function processWorldTurn(worldId: string): Promise<void> {
       const slime = { id: slimeDoc.id, ...slimeDoc.data() } as Slime
       const reservations = reservationsBySlime.get(slime.id) ?? []
 
-      const result = await processSlimeTurn(slime, reservations, newTurn, batch, foods)
+      const result = await processSlimeTurn(slime, reservations, newTurn, batch, foods, worldTiles)
 
-      // スライム更新
+      // スライム更新（inventory フィールドも含めて書き込む）
       const slimeRef = db().collection('slimes').doc(slime.id)
-      batch.update(slimeRef, {
+      const slimeUpdate: Record<string, unknown> = {
         stats: result.updatedSlime.stats,
         racialValues: result.updatedSlime.racialValues,
         tileX: result.updatedSlime.tileX,
         tileY: result.updatedSlime.tileY,
         speciesId: result.updatedSlime.speciesId,
         updatedAt: admin.firestore.Timestamp.now(),
-      })
+      }
+      if (result.updatedSlime.inventory !== undefined) {
+        slimeUpdate['inventory'] = result.updatedSlime.inventory
+      }
+      batch.update(slimeRef, slimeUpdate)
       batchCount++
 
       // 予約ステータス更新
@@ -303,25 +338,24 @@ export async function processSlimeTurn(
   reservations: ActionReservation[],
   currentTurn: number,
   _batch?: FirebaseFirestore.WriteBatch,
-  foods?: Food[]
+  foods?: Food[],
+  tiles?: Tile[]
 ): Promise<TurnResult> {
   void _batch
   void currentTurn
 
-  // 使用する食料リスト（引数がなければFirestoreから取得）
-  let foodList: Food[] = foods ?? []
-  if (!foods) {
-    try {
-      const foodsSnap = await db().collection('foods').get()
-      foodList = foodsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Food))
-    } catch {
-      foodList = []
-    }
-  }
+  // 食料マスタは静的ファイルを SoT とする（Firestore は使用しない）
+  const foodList: Food[] = foods ?? staticFoods
+  const tileList: Tile[] = tiles ?? []
 
   const events: TurnResult['events'] = []
   const updatedReservations: ActionReservation[] = []
-  let currentSlime: Slime = { ...slime, stats: { ...slime.stats }, racialValues: { ...slime.racialValues } }
+  let currentSlime: Slime = {
+    ...slime,
+    stats: { ...slime.stats },
+    racialValues: { ...slime.racialValues },
+    inventory: slime.inventory ? slime.inventory.map((s) => ({ ...s })) : undefined,
+  }
 
   // 予約アクションの実行
   const pendingReservations = reservations.filter((r) => r.status === 'pending')
@@ -329,7 +363,7 @@ export async function processSlimeTurn(
   if (pendingReservations.length > 0) {
     // 最初の予約を実行
     const reservation = pendingReservations[0]
-    const actionResult = await executeReservedAction(currentSlime, reservation, foodList, [])
+    const actionResult = await executeReservedAction(currentSlime, reservation, foodList, tileList)
     currentSlime = actionResult.updatedSlime
     events.push(...actionResult.events)
 
@@ -386,6 +420,62 @@ export async function processSlimeTurn(
 }
 
 // ----------------------------------------------------------------
+// アクション共通ヘルパー
+// ----------------------------------------------------------------
+
+/** 食料の statDeltas を slime.stats に適用する（eat/hunt 共通） */
+function applyFoodEffects(slime: Slime, food: Food): Slime {
+  const s = { ...slime, stats: { ...slime.stats }, racialValues: { ...slime.racialValues } }
+  const d = food.statDeltas
+  if (d.hp !== undefined) s.stats.hp = Math.max(0, s.stats.hp + d.hp)
+  if (d.atk !== undefined) s.stats.atk = Math.max(0, s.stats.atk + d.atk)
+  if (d.def !== undefined) s.stats.def = Math.max(0, s.stats.def + d.def)
+  if (d.spd !== undefined) s.stats.spd = Math.max(0, s.stats.spd + d.spd)
+  if (d.exp !== undefined) s.stats.exp = Math.max(0, s.stats.exp + d.exp)
+  return s
+}
+
+/** 食料の racialDeltas を slime.racialValues に適用する（RACIAL_VALUE_MAX でクランプ） */
+function applyRacialDeltas(slime: Slime, racialDeltas: Food['racialDeltas']): Slime {
+  const s = { ...slime, racialValues: { ...slime.racialValues } }
+  const r = racialDeltas
+  const cap = (v: number, d: number | undefined) =>
+    d !== undefined ? Math.min(Math.max(0, v + d), RACIAL_VALUE_MAX) : v
+  s.racialValues.fire = cap(s.racialValues.fire, r.fire)
+  s.racialValues.water = cap(s.racialValues.water, r.water)
+  s.racialValues.earth = cap(s.racialValues.earth, r.earth)
+  s.racialValues.wind = cap(s.racialValues.wind, r.wind)
+  s.racialValues.slime = cap(s.racialValues.slime, r.slime)
+  s.racialValues.plant = cap(s.racialValues.plant, r.plant)
+  s.racialValues.human = cap(s.racialValues.human, r.human)
+  s.racialValues.beast = cap(s.racialValues.beast, r.beast)
+  s.racialValues.spirit = cap(s.racialValues.spirit, r.spirit)
+  s.racialValues.fish = cap(s.racialValues.fish, r.fish)
+  return s
+}
+
+/**
+ * 重み付きランダムドロップ
+ * @returns { foodId, quantity } または null（drops が空の場合）
+ */
+function weightedDrop(drops: DropEntry[]): { foodId: string; quantity: number } | null {
+  if (drops.length === 0) return null
+  const totalWeight = drops.reduce((sum, d) => sum + d.weight, 0)
+  let rand = Math.random() * totalWeight
+  for (const drop of drops) {
+    rand -= drop.weight
+    if (rand <= 0) {
+      const quantity = drop.minQty + Math.floor(Math.random() * (drop.maxQty - drop.minQty + 1))
+      return { foodId: drop.foodId, quantity }
+    }
+  }
+  // フォールバック（浮動小数点誤差対策）
+  const last = drops[drops.length - 1]
+  const quantity = last.minQty + Math.floor(Math.random() * (last.maxQty - last.minQty + 1))
+  return { foodId: last.foodId, quantity }
+}
+
+// ----------------------------------------------------------------
 // executeReservedAction
 // ----------------------------------------------------------------
 
@@ -398,10 +488,11 @@ export async function executeReservedAction(
   foods?: Food[],
   _tiles?: Tile[]
 ): Promise<ActionResult> {
-  const updatedSlime: Slime = {
+  let updatedSlime: Slime = {
     ...slime,
     stats: { ...slime.stats },
     racialValues: { ...slime.racialValues },
+    inventory: slime.inventory ? slime.inventory.map((s) => ({ ...s })) : undefined,
   }
   const events: ActionResult['events'] = []
 
@@ -412,49 +503,33 @@ export async function executeReservedAction(
 
       if (!foodId) break
 
-      // 食料リストから検索
+      // インベントリが定義されている場合はインベントリから消費する
+      if (updatedSlime.inventory !== undefined) {
+        const removeResult = removeFromInventory(updatedSlime.inventory, foodId, 1)
+        if (!removeResult.success) {
+          // インベントリに食料がない → スキップ
+          events.push({ eventType: 'inventory_not_found', eventData: { foodId } })
+          break
+        }
+        updatedSlime = { ...updatedSlime, inventory: removeResult.inventory }
+      }
+
+      // 食料マスタを検索
       let food: Food | undefined
       if (foods && foods.length > 0) {
         food = foods.find((f) => f.id === foodId)
       }
-
-      // Firestoreから取得（引数がない場合）
       if (!food) {
-        try {
-          const foodDoc = await db().collection('foods').doc(foodId).get()
-          if (foodDoc.exists) {
-            food = { id: foodDoc.id, ...foodDoc.data() } as Food
-          }
-        } catch {
-          // フォールバック: 食料が見つからない
-        }
+        food = staticFoods.find((f) => f.id === foodId)
       }
-
       if (!food) break
 
-      // statDeltas を適用
-      const statDeltas = food.statDeltas
-      if (statDeltas.hp !== undefined) updatedSlime.stats.hp = Math.max(0, updatedSlime.stats.hp + statDeltas.hp)
-      if (statDeltas.atk !== undefined) updatedSlime.stats.atk = Math.max(0, updatedSlime.stats.atk + statDeltas.atk)
-      if (statDeltas.def !== undefined) updatedSlime.stats.def = Math.max(0, updatedSlime.stats.def + statDeltas.def)
-      if (statDeltas.spd !== undefined) updatedSlime.stats.spd = Math.max(0, updatedSlime.stats.spd + statDeltas.spd)
-      if (statDeltas.exp !== undefined) updatedSlime.stats.exp = Math.max(0, updatedSlime.stats.exp + statDeltas.exp)
+      // 食料効果を適用
+      updatedSlime = applyFoodEffects(updatedSlime, food)
+      updatedSlime = applyRacialDeltas(updatedSlime, food.racialDeltas)
 
       // hunger +30 (上限100)
       updatedSlime.stats.hunger = clamp(updatedSlime.stats.hunger + 30, 0, 100)
-
-      // racialDeltas を適用
-      const racialDeltas = food.racialDeltas
-      if (racialDeltas.fire !== undefined) updatedSlime.racialValues.fire = Math.max(0, updatedSlime.racialValues.fire + racialDeltas.fire)
-      if (racialDeltas.water !== undefined) updatedSlime.racialValues.water = Math.max(0, updatedSlime.racialValues.water + racialDeltas.water)
-      if (racialDeltas.earth !== undefined) updatedSlime.racialValues.earth = Math.max(0, updatedSlime.racialValues.earth + racialDeltas.earth)
-      if (racialDeltas.wind !== undefined) updatedSlime.racialValues.wind = Math.max(0, updatedSlime.racialValues.wind + racialDeltas.wind)
-      if (racialDeltas.slime !== undefined) updatedSlime.racialValues.slime = Math.max(0, updatedSlime.racialValues.slime + racialDeltas.slime)
-      if (racialDeltas.plant !== undefined) updatedSlime.racialValues.plant = Math.max(0, updatedSlime.racialValues.plant + racialDeltas.plant)
-      if (racialDeltas.human !== undefined) updatedSlime.racialValues.human = Math.max(0, updatedSlime.racialValues.human + racialDeltas.human)
-      if (racialDeltas.beast !== undefined) updatedSlime.racialValues.beast = Math.max(0, updatedSlime.racialValues.beast + racialDeltas.beast)
-      if (racialDeltas.spirit !== undefined) updatedSlime.racialValues.spirit = Math.max(0, updatedSlime.racialValues.spirit + racialDeltas.spirit)
-      if (racialDeltas.fish !== undefined) updatedSlime.racialValues.fish = Math.max(0, updatedSlime.racialValues.fish + racialDeltas.fish)
 
       // スキル付与チェック
       if (food.skillGrantId && food.skillGrantProb > 0 && Math.random() < food.skillGrantProb) {
@@ -464,22 +539,150 @@ export async function executeReservedAction(
             .doc(slime.id)
             .collection('skills')
             .doc(food.skillGrantId)
-          const batch = db().batch()
-          batch.set(skillDocRef, {
+          const skillBatch = db().batch()
+          skillBatch.set(skillDocRef, {
             id: food.skillGrantId,
             slimeId: slime.id,
             skillDefinitionId: food.skillGrantId,
             acquiredAt: FieldValue.serverTimestamp(),
           })
-          await batch.commit()
+          await skillBatch.commit()
         } catch (skillError) {
-          // スキル付与失敗は無視（ログ記録のみ）
           console.warn(`[turnProcessor] スキル付与失敗: slimeId=${slime.id}, skillId=${food.skillGrantId}`, skillError)
         }
         events.push({ eventType: 'skill_grant', eventData: { skillId: food.skillGrantId, foodId } })
       }
 
       events.push({ eventType: 'eat', eventData: { foodId, food: food.name } })
+      break
+    }
+
+    case 'gather': {
+      // タイル情報を取得
+      const gatherTile = (_tiles ?? []).find((t) => t.x === slime.tileX && t.y === slime.tileY)
+
+      // タイル属性条件に合致する gather テーブルを選択（属性値が高い順に優先）
+      const gatherTables = dropTables.filter((dt) => dt.actionType === 'gather')
+      const attributes = (gatherTile?.attributes ?? {}) as TileAttributes
+      const attrOrder: Array<keyof TileAttributes> = ['earth', 'water', 'fire', 'wind']
+      let chosenTable = gatherTables.find((dt) => dt.tileCondition === null) // default fallback
+
+      for (const attr of attrOrder) {
+        const val = (attributes[attr] as number | undefined) ?? 0
+        const match = gatherTables.find(
+          (dt) => dt.tileCondition !== null && dt.tileCondition.attribute === attr && val >= dt.tileCondition.minValue
+        )
+        if (match) { chosenTable = match; break }
+      }
+
+      if (!chosenTable || chosenTable.drops.length === 0) {
+        events.push({ eventType: 'gather_fail', eventData: { tileX: slime.tileX, tileY: slime.tileY } })
+        break
+      }
+
+      const dropped = weightedDrop(chosenTable.drops)
+      if (!dropped) {
+        events.push({ eventType: 'gather_fail', eventData: { tileX: slime.tileX, tileY: slime.tileY } })
+        break
+      }
+
+      const gatherInv = updatedSlime.inventory ?? []
+      const addResult = addToInventory(gatherInv, dropped.foodId, dropped.quantity)
+      if (!addResult.success) {
+        events.push({ eventType: 'inventory_full', eventData: { foodId: dropped.foodId } })
+        break
+      }
+      updatedSlime = { ...updatedSlime, inventory: addResult.inventory }
+      events.push({ eventType: 'gather_success', eventData: { foodId: dropped.foodId, quantity: dropped.quantity, tableId: chosenTable.id } })
+      break
+    }
+
+    case 'fish': {
+      // タイル情報を取得して water 属性を確認
+      const fishTile = (_tiles ?? []).find((t) => t.x === slime.tileX && t.y === slime.tileY)
+      const waterVal = (fishTile?.attributes?.water as number | undefined) ?? 0
+
+      if (waterVal < 0.3) {
+        events.push({ eventType: 'fish_fail', eventData: { tileX: slime.tileX, tileY: slime.tileY, reason: 'water_too_low' } })
+        break
+      }
+
+      const fishTable = dropTables.find((dt) => dt.actionType === 'fish' && dt.tileCondition?.attribute === 'water')
+      if (!fishTable || fishTable.drops.length === 0) {
+        events.push({ eventType: 'fish_fail', eventData: { tileX: slime.tileX, tileY: slime.tileY, reason: 'no_table' } })
+        break
+      }
+
+      const fishDropped = weightedDrop(fishTable.drops)
+      if (!fishDropped) {
+        events.push({ eventType: 'fish_fail', eventData: { tileX: slime.tileX, tileY: slime.tileY, reason: 'no_drop' } })
+        break
+      }
+
+      const fishInv = updatedSlime.inventory ?? []
+      const fishAddResult = addToInventory(fishInv, fishDropped.foodId, fishDropped.quantity)
+      if (!fishAddResult.success) {
+        events.push({ eventType: 'inventory_full', eventData: { foodId: fishDropped.foodId } })
+        break
+      }
+      updatedSlime = { ...updatedSlime, inventory: fishAddResult.inventory }
+      events.push({ eventType: 'fish_success', eventData: { foodId: fishDropped.foodId, quantity: fishDropped.quantity } })
+      break
+    }
+
+    case 'hunt': {
+      const huntData = reservation.actionData as { targetCategory?: string; targetStrength?: string }
+      const targetCategory = huntData.targetCategory
+      const targetStrength = huntData.targetStrength
+
+      if (!targetCategory || !targetStrength) break
+
+      // マスタからモンスターを取得（ランダムに1体選択）
+      const candidates = wildMonsters.filter(
+        (m) => m.category === targetCategory && m.strength === targetStrength
+      )
+      if (candidates.length === 0) break
+      const monster = candidates[Math.floor(Math.random() * candidates.length)]
+
+      // 勝敗判定: atk + floor(random * spd * 0.5) > monster.power
+      // 勝敗判定: atk + floor(random * spd * 0.75) > monster.power
+      // 速度値をより反映させるため係数 0.75 を使用
+      const attackRoll = updatedSlime.stats.atk + Math.floor(Math.random() * updatedSlime.stats.spd * 0.75)
+      const huntSuccess = attackRoll > monster.power
+
+      if (!huntSuccess) {
+        // 敗北: HP 減少
+        const damage = Math.ceil(monster.power * 0.5)
+        updatedSlime.stats.hp = Math.max(0, updatedSlime.stats.hp - damage)
+        events.push({ eventType: 'hunt_fail', eventData: { monsterName: monster.name, damage, monsterId: monster.id } })
+        break
+      }
+
+      // 勝利: ドロップアイテム取得 + 種族値加算
+      const huntTable = dropTables.find((dt) => dt.id === monster.dropTableId)
+      let huntFoodId: string | null = null
+
+      if (huntTable && huntTable.drops.length > 0) {
+        const huntDropped = weightedDrop(huntTable.drops)
+        if (huntDropped) {
+          huntFoodId = huntDropped.foodId
+          // 種族値加算（食料の racialDeltas を参照）
+          const huntFood = staticFoods.find((f) => f.id === huntDropped.foodId)
+          if (huntFood) {
+            updatedSlime = applyRacialDeltas(updatedSlime, huntFood.racialDeltas)
+          }
+          // インベントリに追加（満杯でも hunt_success は記録する）
+          const huntInv = updatedSlime.inventory ?? []
+          const huntAddResult = addToInventory(huntInv, huntDropped.foodId, huntDropped.quantity)
+          if (huntAddResult.success) {
+            updatedSlime = { ...updatedSlime, inventory: huntAddResult.inventory }
+          } else {
+            events.push({ eventType: 'inventory_full', eventData: { foodId: huntDropped.foodId } })
+          }
+        }
+      }
+
+      events.push({ eventType: 'hunt_success', eventData: { monsterName: monster.name, monsterId: monster.id, dropFoodId: huntFoodId } })
       break
     }
 
@@ -516,10 +719,12 @@ export async function executeReservedAction(
       }
 
       if (tile) {
-        updatedSlime.racialValues.fire = Math.max(0, updatedSlime.racialValues.fire + tile.attributes.fire * 0.1)
-        updatedSlime.racialValues.water = Math.max(0, updatedSlime.racialValues.water + tile.attributes.water * 0.1)
-        updatedSlime.racialValues.earth = Math.max(0, updatedSlime.racialValues.earth + tile.attributes.earth * 0.1)
-        updatedSlime.racialValues.wind = Math.max(0, updatedSlime.racialValues.wind + tile.attributes.wind * 0.1)
+        const capRacial = (v: number, delta: number) =>
+          Math.min(Math.max(0, v + delta), RACIAL_VALUE_MAX)
+        updatedSlime.racialValues.fire = capRacial(updatedSlime.racialValues.fire, tile.attributes.fire * 0.1)
+        updatedSlime.racialValues.water = capRacial(updatedSlime.racialValues.water, tile.attributes.water * 0.1)
+        updatedSlime.racialValues.earth = capRacial(updatedSlime.racialValues.earth, tile.attributes.earth * 0.1)
+        updatedSlime.racialValues.wind = capRacial(updatedSlime.racialValues.wind, tile.attributes.wind * 0.1)
       }
 
       events.push({ eventType: 'move', eventData: { targetX, targetY } })
@@ -725,23 +930,53 @@ export async function createInitialSlime(
 }
 
 // ----------------------------------------------------------------
-// インベントリ操作ヘルパー（Week 2 で本実装予定 — スタブ export）
+// インベントリ操作ヘルパー（export: テスト・外部利用向け）
 // ----------------------------------------------------------------
 
-/** インベントリにアイテムを追加する（Week 2 実装予定） */
+/**
+ * インベントリにアイテムを追加する。
+ * - 既存スロットがあれば数量を加算する。
+ * - 新規スロットが必要で INVENTORY_MAX_SLOTS を超える場合は失敗する。
+ */
 export function addToInventory(
-  _inventory: InventorySlot[],
-  _foodId: string,
-  _qty: number
+  inventory: InventorySlot[],
+  foodId: string,
+  qty: number
 ): { success: boolean; inventory?: InventorySlot[]; event?: 'inventory_full' } {
-  throw new Error('addToInventory: not implemented yet (Week 2)')
+  const existingIdx = inventory.findIndex((s) => s.foodId === foodId)
+  if (existingIdx >= 0) {
+    // 既存スロットに加算（スロット数は変わらない）
+    const updated = inventory.map((s, i) =>
+      i === existingIdx ? { ...s, quantity: s.quantity + qty } : { ...s }
+    )
+    return { success: true, inventory: updated }
+  }
+  // 新規スロット追加
+  if (inventory.length >= INVENTORY_MAX_SLOTS) {
+    return { success: false, event: 'inventory_full' }
+  }
+  return { success: true, inventory: [...inventory.map((s) => ({ ...s })), { foodId, quantity: qty }] }
 }
 
-/** インベントリからアイテムを消費する（Week 2 実装予定） */
+/**
+ * インベントリからアイテムを消費する。
+ * - 数量が 0 になったスロットは削除する。
+ * - 存在しない foodId または数量不足の場合は失敗する。
+ */
 export function removeFromInventory(
-  _inventory: InventorySlot[],
-  _foodId: string,
-  _qty: number
+  inventory: InventorySlot[],
+  foodId: string,
+  qty: number
 ): { success: boolean; inventory?: InventorySlot[]; error?: string } {
-  throw new Error('removeFromInventory: not implemented yet (Week 2)')
+  const slot = inventory.find((s) => s.foodId === foodId)
+  if (!slot) {
+    return { success: false, error: `食料が見つかりません: ${foodId}` }
+  }
+  if (slot.quantity < qty) {
+    return { success: false, error: `在庫不足: ${foodId} (在庫=${slot.quantity}, 要求=${qty})` }
+  }
+  const updated = inventory
+    .map((s) => (s.foodId === foodId ? { ...s, quantity: s.quantity - qty } : { ...s }))
+    .filter((s) => s.quantity > 0)
+  return { success: true, inventory: updated }
 }

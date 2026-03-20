@@ -2,6 +2,7 @@
 // 本番環境では絶対に実行しないこと
 
 import * as admin from "firebase-admin";
+import { foods as masterFoods } from "../../../shared/data/foods";
 
 // Firebase Admin SDK の初期化
 // エミュレータ環境では credential は不要
@@ -177,6 +178,17 @@ async function seed(): Promise<void> {
 
   await slimesBatch.commit();
   console.log("テストスライム3件 + 野生スライム2件を作成しました");
+
+  // ===== 6. 食料マスタ（静的ファイルから upsert） =====
+  // エミュレータでの開発・デバッグ用途。本番では Cloud Functions が staticFoods を直接参照するため不要だが、
+  // Firestore コンソールでデータを確認したい場合に役立てる。
+  const foodsBatch = db.batch();
+  for (const food of masterFoods) {
+    const ref = db.collection("foods").doc(food.id);
+    foodsBatch.set(ref, food);
+  }
+  await foodsBatch.commit();
+  console.log(`食料マスタ ${masterFoods.length} 件を投入しました`);
 
   console.log("\nシードデータの投入が完了しました！");
   console.log("投入件数:");
