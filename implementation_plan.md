@@ -348,11 +348,40 @@
 
 ## Phase 6: ソーシャル・野生スライム ＋ アクション拡張（spirit/slime系）
 
-### 実装内容
+> **設計書**: `docs/phase6_social_design.md` を参照（A1/Fun + A2/Sec レビュー済み、2026-03-20）
 
-**ソーシャル機能（A4/FE）**
-- [ ] 他プレイヤーのマップ閲覧機能（読み取り専用）
-- [ ] プレイヤー一覧表示
+### Week 1: ソーシャル基盤・ログイン不要公開ページ
+
+**課題**: アカウント登録しないとゲームの面白さが全く分からない → 公開ページで解決
+
+**データ基盤（A5/DB・A2/Sec）**
+- [ ] `publicProfiles/{uid}` コレクション設計（publicHandle / displayName / slimeSummaries）
+  - 書き込みは Cloud Functions（Admin SDK）のみ（`allow write: if false` in rules）
+  - `slimes` 更新トリガーで自動同期
+- [ ] `publicHandle` の登録フロー追加（初回ゲーム画面）
+  - バリデーション: `^[a-zA-Z0-9_-]{3,32}$`、lowercase 正規化、30日変更制限
+
+**公開API（A3/BE・A2/Sec必須事項確認後実装）**
+- [ ] `netlify/functions/api.ts` に `/api/public/*` ルート追加（認証不要）
+  - **必須**: 全レスポンスをホワイトリスト方式でフィールドフィルタリング（MUST-1）
+  - **必須**: `racialValues`・`exp`・`hunger`・`skillIds` を非公開に（MUST-2）
+  - **必須**: Firebase UID をレスポンスに含めない（識別子は publicHandle のみ）
+  - `Cache-Control: public, max-age=60` でCDNキャッシュ活用
+- [ ] `GET /api/public/encyclopedia` — スライム図鑑データ
+- [ ] `GET /api/public/players/:handle` — プレイヤープロフィール
+- [ ] `GET /api/public/live` — ライブ観戦フィード（eventData もホワイトリスト適用・MUST-5）
+
+**フロントエンド（A4/FE）**
+- [ ] `/encyclopedia` スライム図鑑ページ（全種族・進化ルートツリー・育成中プレイヤー数）
+- [ ] `/players/:handle` プレイヤー公開プロフィールページ（スライム一覧・特別イベント直近5件）
+  - 最下部に「このゲームを始める」CTAボタン
+- [ ] トップページにスライム図鑑・ライブフィードへのリンク追加（ログイン前のユーザー向け）
+
+### Week 2: ソーシャル拡張・野生スライム・ワールドイベント
+
+**ソーシャル拡張（A4/FE）**
+- [ ] `/players/:handle/map` 他プレイヤーのマップ閲覧（読み取り専用・Phase 5 マップ完成が前提）
+- [ ] `/live` ライブ観戦フィードページ
 
 **野生スライム・モンスター拡張（A3/BE）**
 - [ ] 野生スライムのAI自律行動ロジック（ターン進行時に処理）
