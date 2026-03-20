@@ -151,10 +151,14 @@ const handler: Handler = async (event): Promise<HandlerResponse> => {
       const body = JSON.parse(event.body ?? '{}') as { worldId?: string }
       if (!body.worldId) return json(400, { error: 'worldId が必要です' })
 
-      const worldSnap = await db.collection('worlds').doc(body.worldId).get()
+      const worldRef = db.collection('worlds').doc(body.worldId)
+      const worldSnap = await worldRef.get()
       if (!worldSnap.exists) return json(404, { error: 'ワールドが見つかりません' })
 
       const before = worldSnap.data()!['currentTurn'] as number
+
+      // nextTurnAt を過去に書き換えて「時間未到達」ガードを回避する
+      await worldRef.update({ nextTurnAt: new Date(0) })
 
       logger.info('[dev-cheat] force-turn 開始', { worldId: body.worldId, currentTurn: before })
       await processWorldTurn(body.worldId)
