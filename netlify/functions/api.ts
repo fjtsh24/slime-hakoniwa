@@ -1,11 +1,84 @@
-import type { Handler } from '@netlify/functions'
+import type { Handler, HandlerResponse } from '@netlify/functions'
 import * as admin from 'firebase-admin'
+import { FieldValue } from 'firebase-admin/firestore'
+import type { Slime, SlimeStats, RacialValues } from '../../shared/types/slime'
+import { slimeSpecies } from '../../shared/data/slimeSpecies'
 import { verifyIdToken } from './helpers/auth'
 import {
   createReservationSchema,
   deleteReservationSchema,
 } from './helpers/validation'
-import { createInitialSlime } from '../../functions/src/scheduled/turnProcessor'
+
+interface CreateInitialSlimeRequest {
+  ownerUid: string
+  mapId: string
+  worldId: string
+}
+
+async function createInitialSlime(
+  request: CreateInitialSlimeRequest
+): Promise<Slime | null> {
+  const { ownerUid, mapId, worldId } = request
+  const initialSpecies = slimeSpecies.find((s) => s.id === 'slime-001')
+  if (!initialSpecies) {
+    throw new Error('slime-001 の種族データが見つかりません')
+  }
+
+  const userRef = admin.firestore().collection('users').doc(ownerUid)
+  const slimeRef = admin.firestore().collection('slimes').doc()
+  const slimeId = slimeRef.id
+  const now = FieldValue.serverTimestamp()
+
+  const racialValues: RacialValues = {
+    fire: 0, water: 0, earth: 0, wind: 0,
+    slime: 0, plant: 0, human: 0, beast: 0, spirit: 0, fish: 0,
+  }
+  const stats: SlimeStats = { ...initialSpecies.baseStats }
+
+  const slimeData = {
+    id: slimeId,
+    ownerUid,
+    mapId,
+    worldId,
+    speciesId: 'slime-001',
+    name: 'はじめてのスライム',
+    tileX: 0,
+    tileY: 0,
+    isWild: false,
+    stats,
+    racialValues,
+    createdAt: now,
+    updatedAt: now,
+  }
+
+  const created = await admin.firestore().runTransaction(async (tx) => {
+    const userDoc = await tx.get(userRef)
+    if (userDoc.exists && (userDoc.data() as Record<string, unknown>)['hasSlime'] === true) {
+      return false
+    }
+    tx.set(slimeRef, slimeData)
+    tx.set(userRef, { hasSlime: true }, { merge: true })
+    return true
+  })
+
+  if (!created) return null
+
+  return {
+    id: slimeId,
+    ownerUid,
+    mapId,
+    worldId,
+    speciesId: 'slime-001',
+    name: 'はじめてのスライム',
+    tileX: 0,
+    tileY: 0,
+    isWild: false,
+    stats,
+    racialValues,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }
+}
 
 // Firebase Admin SDK の初期化（二重初期化を防ぐ）
 if (admin.apps.length === 0) {
@@ -18,7 +91,7 @@ const db = admin.firestore()
 function jsonResponse(
   statusCode: number,
   body: unknown
-): ReturnType<Handler> {
+): HandlerResponse {
   return {
     statusCode,
     headers: { 'Content-Type': 'application/json' },
@@ -26,7 +99,7 @@ function jsonResponse(
   }
 }
 
-const handler: Handler = async (event) => {
+const handler: Handler = async (event): Promise<HandlerResponse> => {
   try {
   // /.netlify/functions/api プレフィックスを除去し、さらに /api プレフィックスも正規化する
   // リダイレクト経由: /api/reservations → /.netlify/functions/api/reservations → path=/reservations

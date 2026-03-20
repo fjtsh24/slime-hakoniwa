@@ -1,13 +1,16 @@
 [build]
-  base = "frontend"
-  publish = "dist"
-  command = "npm run build"
+  base = "."
+  publish = "frontend/dist"
+  command = "npm ci --prefix netlify/functions && npm ci --prefix frontend && npm run build --prefix frontend"
 
 [build.environment]
   NODE_VERSION = "20"
+  # VITE_FIREBASE_* はFirebaseクライアント設定で意図的に公開される値のため
+  # シークレットスキャンの対象から除外する
+  SECRETS_SCAN_OMIT_KEYS = "VITE_FIREBASE_API_KEY,VITE_FIREBASE_AUTH_DOMAIN,VITE_FIREBASE_PROJECT_ID,VITE_FIREBASE_STORAGE_BUCKET,VITE_FIREBASE_MESSAGING_SENDER_ID,VITE_FIREBASE_APP_ID,VITE_GA_MEASUREMENT_ID,FIREBASE_PROJECT_ID,GCLOUD_PROJECT"
 
 [functions]
-  directory = "../netlify/functions"
+  directory = "netlify/functions"
 
 # ローカル開発: `netlify dev` を使うとフロントエンド(Vite) + Netlify Functions が同時に起動する
 # フロントエンドは frontend/ ディレクトリで `npm run dev` を実行し Vite を 5173 番で起動する
