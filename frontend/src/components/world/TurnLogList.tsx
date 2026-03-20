@@ -15,6 +15,7 @@ import type { TurnLog, TurnEventType } from '../../../../shared/types/turnLog'
 interface TurnLogListProps {
   slimeId: string
   worldId: string
+  slimeName?: string
 }
 
 function convertTurnLog(id: string, data: Record<string, unknown>): TurnLog {
@@ -67,8 +68,10 @@ function formatEvent(eventType: TurnEventType, eventData: Record<string, unknown
       return '自律行動'
     }
     case 'hunger_decrease': {
-      const delta = eventData.delta as number | undefined
-      return `hunger が ${delta !== undefined ? Math.abs(delta) : '?'} 減少した`
+      const before = eventData.before as number | undefined
+      const after = eventData.after as number | undefined
+      const delta = before !== undefined && after !== undefined ? before - after : undefined
+      return `hunger が ${delta !== undefined ? delta : '?'} 減少した`
     }
     case 'skill_grant': {
       const skillId = eventData.skillId as string | undefined
@@ -93,7 +96,7 @@ const EVENT_COLORS: Record<TurnEventType, string> = {
   skill_grant: 'bg-purple-50 text-purple-600',
 }
 
-export function TurnLogList({ slimeId, worldId }: TurnLogListProps) {
+export function TurnLogList({ slimeId, worldId, slimeName }: TurnLogListProps) {
   const [logs, setLogs] = useState<TurnLog[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -142,7 +145,10 @@ export function TurnLogList({ slimeId, worldId }: TurnLogListProps) {
 
   return (
     <div className="bg-white rounded-xl shadow p-4 flex flex-col gap-3">
-      <h2 className="text-base font-bold text-gray-700">ターンログ（直近{logs.length}件）</h2>
+      <h2 className="text-base font-bold text-gray-700">
+        {slimeName ? `${slimeName} のターンログ` : 'ターンログ'}
+        <span className="text-sm font-normal text-gray-400 ml-1">（直近{logs.length}件）</span>
+      </h2>
       <ul className="flex flex-col gap-2">
         {logs.map((log) => (
           <li key={log.id} className="flex items-start gap-2 text-sm">

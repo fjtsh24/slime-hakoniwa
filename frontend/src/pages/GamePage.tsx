@@ -223,7 +223,7 @@ export function GamePage() {
 
         {/* 選択中スライムのターンログ */}
         {selectedSlimeId && (
-          <TurnLogList slimeId={selectedSlimeId} worldId={WORLD_ID} />
+          <TurnLogList slimeId={selectedSlimeId} worldId={WORLD_ID} slimeName={selectedSlime?.name} />
         )}
       </main>
     </div>

@@ -40,13 +40,6 @@ export function TurnTimer({ worldId: _worldId }: TurnTimerProps) {
     const tick = () => {
       const diff = Math.max(0, Math.floor((world.nextTurnAt.getTime() - Date.now()) / 1000))
       setRemainingSec(diff)
-
-      // カウントダウンが0になった瞬間にメッセージ表示
-      if (diff === 0 && prevTurnRef.current !== null) {
-        setTurnAdvancedMsg(true)
-        const timer = setTimeout(() => setTurnAdvancedMsg(false), 5000)
-        return () => clearTimeout(timer)
-      }
     }
 
     tick()
@@ -79,9 +72,13 @@ export function TurnTimer({ worldId: _worldId }: TurnTimerProps) {
       </div>
       <div className="flex items-center justify-between">
         <span className="text-sm text-gray-500 font-medium">次のターンまで</span>
-        <span className="text-2xl font-mono font-bold text-gray-800">
-          {formatCountdown(remainingSec)}
-        </span>
+        {remainingSec === 0 ? (
+          <span className="text-sm font-medium text-gray-400 animate-pulse">ターン処理中...</span>
+        ) : (
+          <span className="text-2xl font-mono font-bold text-gray-800">
+            {formatCountdown(remainingSec)}
+          </span>
+        )}
       </div>
       {turnAdvancedMsg && (
         <div className="mt-1 text-center text-green-600 font-semibold animate-pulse">
