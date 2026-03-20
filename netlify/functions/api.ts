@@ -8,6 +8,7 @@ import {
   createReservationSchema,
   deleteReservationSchema,
 } from './helpers/validation'
+import { logger } from '../../shared/lib/logger'
 
 interface CreateInitialSlimeRequest {
   ownerUid: string
@@ -109,13 +110,14 @@ function jsonResponse(
 }
 
 const handler: Handler = async (event): Promise<HandlerResponse> => {
-  try {
-  // /.netlify/functions/api プレフィックスを除去し、さらに /api プレフィックスも正規化する
-  // リダイレクト経由: /api/reservations → /.netlify/functions/api/reservations → path=/reservations
-  // 直接呼び出し:   /.netlify/functions/api/api/reservations → path=/api/reservations → /reservations
+  const startMs = Date.now()
   const funcPath = event.path.replace(/^\/.netlify\/functions\/[^/]+/, '')
   const path = funcPath.replace(/^\/api/, '') || '/'
   const method = event.httpMethod
+
+  try {
+
+  logger.info('[API] リクエスト受信', { method, path })
 
   // =========================================================
   // POST /reservations — 行動予約作成
@@ -129,7 +131,7 @@ const handler: Handler = async (event): Promise<HandlerResponse> => {
       )
       uid = result.uid
     } catch (authError) {
-      console.error('[API] 認証エラー:', authError)
+      logger.error('[API] 認証エラー', { method, path, error: String(authError) })
       return jsonResponse(401, { error: '認証に失敗しました' })
     }
 
@@ -138,7 +140,7 @@ const handler: Handler = async (event): Promise<HandlerResponse> => {
     try {
       body = JSON.parse(event.body ?? '{}')
     } catch (parseError) {
-      console.error('[API] JSON パースエラー:', parseError)
+      logger.error('[API] JSON パースエラー', { method, path, error: String(parseError) })
       return jsonResponse(400, { error: 'リクエストボディが不正な JSON です' })
     }
 
@@ -222,6 +224,7 @@ const handler: Handler = async (event): Promise<HandlerResponse> => {
     await reservationRef.set(reservation)
 
     // 7. 作成した予約を返す（201）
+    logger.info('[API] 予約作成完了', { method, path, uid, slimeId, worldId, turnNumber, actionType, durationMs: Date.now() - startMs })
     return jsonResponse(201, {
       ...reservation,
       createdAt: now.toDate().toISOString(),
@@ -241,7 +244,7 @@ const handler: Handler = async (event): Promise<HandlerResponse> => {
       )
       uid = result.uid
     } catch (authError) {
-      console.error('[API] 認証エラー:', authError)
+      logger.error('[API] 認証エラー', { method, path, error: String(authError) })
       return jsonResponse(401, { error: '認証に失敗しました' })
     }
 
@@ -285,6 +288,7 @@ const handler: Handler = async (event): Promise<HandlerResponse> => {
     await reservationDoc.ref.update({ status: 'cancelled' })
 
     // 6. 204 を返す
+    logger.info('[API] 予約キャンセル完了', { method, path, uid, reservationId: id, durationMs: Date.now() - startMs })
     return {
       statusCode: 204,
       headers: { 'Content-Type': 'application/json' },
@@ -319,6 +323,7 @@ const handler: Handler = async (event): Promise<HandlerResponse> => {
     )
 
     // 3. WorldStatus を返す（200）
+    logger.info('[API] ワールド状態取得', { method, path, worldId, currentTurn: worldData.currentTurn, durationMs: Date.now() - startMs })
     return jsonResponse(200, {
       worldId,
       currentTurn: worldData.currentTurn,
@@ -339,7 +344,7 @@ const handler: Handler = async (event): Promise<HandlerResponse> => {
       )
       uid = result.uid
     } catch (authError) {
-      console.error('[API/slimes/initial] 認証エラー:', authError)
+      logger.error('[API] 認証エラー', { method, path, error: String(authError) })
       return jsonResponse(401, { error: '認証に失敗しました' })
     }
 
@@ -356,13 +361,14 @@ const handler: Handler = async (event): Promise<HandlerResponse> => {
       }
 
       // 5. 作成したスライムデータを返す（201）
+      logger.info('[API] 初期スライム作成完了', { method, path, uid, slimeId: newSlime.id, durationMs: Date.now() - startMs })
       return jsonResponse(201, {
         ...newSlime,
         createdAt: newSlime.createdAt instanceof Date ? newSlime.createdAt.toISOString() : String(newSlime.createdAt),
         updatedAt: newSlime.updatedAt instanceof Date ? newSlime.updatedAt.toISOString() : String(newSlime.updatedAt),
       })
     } catch (slimeError) {
-      console.error('[API/slimes/initial] エラー:', slimeError)
+      logger.error('[API] 初期スライム作成エラー', { method, path, uid, error: String(slimeError) })
       return jsonResponse(500, { error: 'サーバーエラーが発生しました' })
     }
   }
@@ -370,10 +376,11 @@ const handler: Handler = async (event): Promise<HandlerResponse> => {
   // =========================================================
   // 404 フォールバック
   // =========================================================
+  logger.warn('[API] 404 Not Found', { method, path, durationMs: Date.now() - startMs })
   return jsonResponse(404, { error: `Not found: ${method} ${path}` })
 
   } catch (error) {
-    console.error('[API] 予期しないエラー:', error)
+    logger.error('[API] 予期しないエラー', { method, path, error: String(error), durationMs: Date.now() - startMs })
     return jsonResponse(500, { error: 'サーバーエラーが発生しました' })
   }
 }
