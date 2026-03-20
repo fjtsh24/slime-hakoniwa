@@ -52,6 +52,7 @@ async function createInitialSlime(
     isWild: false,
     stats,
     racialValues,
+    inventory: [],
     createdAt: now,
     updatedAt: now,
   }
@@ -80,6 +81,7 @@ async function createInitialSlime(
     isWild: false,
     stats,
     racialValues,
+    inventory: [],
     createdAt: new Date(),
     updatedAt: new Date(),
   }

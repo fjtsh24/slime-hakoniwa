@@ -236,7 +236,7 @@ export function ActionReservationForm({
                 >
                   {foods.map((f) => {
                     const qty = inventory?.find((s) => s.foodId === f.id)?.quantity ?? 0
-                    const hasItem = inventory === undefined || qty > 0
+                    const hasItem = inventory === undefined || qty > 0 || f.alwaysAvailable === true
                     return (
                       <option key={f.id} value={f.id} disabled={!hasItem}>
                         {f.name}（{f.category}）{inventory !== undefined ? ` ×${qty}` : ''}
