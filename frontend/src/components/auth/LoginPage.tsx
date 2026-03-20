@@ -1,6 +1,10 @@
 import { useState } from 'react'
-import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth'
-import { auth } from '../../lib/firebase'
+import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword } from 'firebase/auth'
+import { auth, USE_EMULATOR } from '../../lib/firebase'
+
+// 開発用テストアカウント（Auth Emulator + seed.ts で作成）
+const DEV_EMAIL = 'test@slime.local'
+const DEV_PASSWORD = 'test1234'
 
 export function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -20,19 +24,60 @@ export function LoginPage() {
     }
   }
 
+  const handleDevLogin = async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      await signInWithEmailAndPassword(auth, DEV_EMAIL, DEV_PASSWORD)
+    } catch (err) {
+      console.error('LoginPage: dev login error', err)
+      setError(
+        `開発ログイン失敗: ${err instanceof Error ? err.message : String(err)}\n` +
+          'Firebase Emulator (port 9099) が起動しているか、npm run seed を実行済みか確認してください。'
+      )
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-green-50">
       <div className="bg-white rounded-2xl shadow-lg p-10 max-w-sm w-full flex flex-col items-center gap-6">
         <div className="text-5xl">🟢</div>
         <h1 className="text-2xl font-bold text-green-700">スライム箱庭</h1>
+
+        {USE_EMULATOR && (
+          <div className="w-full bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700">
+            🔧 開発環境（Firebase Emulator）
+          </div>
+        )}
+
         <p className="text-gray-500 text-sm text-center">
-          Googleアカウントでログインしてゲームを始めましょう
+          {USE_EMULATOR
+            ? 'テストアカウントでログインするか、Googleアカウント（エミュレータ）でログインしてください'
+            : 'Googleアカウントでログインしてゲームを始めましょう'}
         </p>
 
         {error && (
-          <div className="w-full bg-red-100 text-red-700 rounded-lg px-4 py-2 text-sm">
+          <div className="w-full bg-red-100 text-red-700 rounded-lg px-4 py-2 text-sm whitespace-pre-line">
             {error}
           </div>
+        )}
+
+        {/* 開発環境専用: テストアカウントでワンクリックログイン */}
+        {USE_EMULATOR && (
+          <button
+            onClick={handleDevLogin}
+            disabled={isLoading}
+            className="w-full flex items-center justify-center gap-2 bg-amber-500 text-white rounded-lg py-3 px-4 font-medium hover:bg-amber-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? (
+              <span className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+            ) : (
+              '🧪'
+            )}
+            {isLoading ? 'ログイン中...' : 'テストユーザーでログイン（開発専用）'}
+          </button>
         )}
 
         <button
@@ -46,7 +91,7 @@ export function LoginPage() {
             <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
               <path
                 fill="#4285F4"
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.77c2.08-1.92 3.28-4.74 3.28-8.09z"
               />
               <path
                 fill="#34A853"

@@ -40,6 +40,24 @@ function defaultRacialValues() {
 async function seed(): Promise<void> {
   console.log("シードデータの投入を開始します...");
 
+  // ===== 0. Auth Emulator にテストユーザーを作成 =====
+  try {
+    await admin.auth().createUser({
+      uid: "test-user-001",
+      email: "test@slime.local",
+      password: "test1234",
+      displayName: "テストユーザー",
+    });
+    console.log("Auth Emulator にテストユーザーを作成しました: test@slime.local / test1234");
+  } catch (e) {
+    const code = (e as { code?: string }).code;
+    if (code === "auth/uid-already-exists" || code === "auth/email-already-exists") {
+      console.log("テストユーザーは既に存在します（スキップ）");
+    } else {
+      throw e;
+    }
+  }
+
   const now = new Date();
   const oneHourLater = new Date(now.getTime() + 3600 * 1000);
 

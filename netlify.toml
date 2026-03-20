@@ -13,13 +13,15 @@
   directory = "netlify/functions"
 
 # ローカル開発: 2ターミナル構成
-#   Terminal 1: netlify dev              → Functions を 8888 番で提供（Functions専用）
-#   Terminal 2: cd frontend && npm run dev → Vite を 5173 番で起動。ブラウザはこちらに接続
+#   Terminal 1: npm run dev:functions  → netlify dev (Functions専用, port 8888)
+#   Terminal 2: npm run dev:frontend   → Vite (port 5173) ← ブラウザはここに接続
 #
-# Vite の server.proxy で /api/* を localhost:8888 へ転送するため、
-# netlify.toml の catch-all redirect (/* → index.html) が Vite モジュールに干渉しない。
+# publish = ".netlify/dev-static" により frontend/dist/ を配信しない。
+# （prod ビルドを dev で誤配信すると import.meta.env.DEV=false になり
+#   connectAuthEmulator が呼ばれず本番 Firebase に繋がるため）
 [dev]
   port = 8888
+  publish = ".netlify/dev-static"
   autoLaunch = false
   functions = "netlify/functions"
 

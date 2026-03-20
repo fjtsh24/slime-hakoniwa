@@ -103,7 +103,7 @@ slime-hakoniwa/
 ```bash
 # Terminal 1: Firebase Emulator（Firestore・Auth・Functions）
 npm run emulator          # 前回の状態を復元して起動
-# npm run emulator:reset  # シードデータにリセットしたい場合
+# npm run emulator:reset  # シードデータにリセットしたい場合（初回は必須）
 
 # Terminal 2: Netlify Functions（APIゲートウェイ、port 8888）
 npm run dev:functions
@@ -112,10 +112,23 @@ npm run dev:functions
 npm run dev:frontend
 ```
 
-> **注意**: `netlify dev` はフロントエンドのプロキシとして使わない。
-> catch-all redirect (`/* → index.html`) が Vite のモジュールリクエストに干渉し
-> MIME type エラーが発生するため、Vite を直接起動する構成にしている。
-> Vite の `/api/*` プロキシが netlify dev (8888) に転送する。
+> **重要: ブラウザは必ず `http://localhost:5173` で開くこと**
+> `localhost:8888`（netlify dev）はFunctions専用。フロントエンドを提供しない。
+> 8888 でアクセスすると production ビルドが返り `VITE_USE_EMULATOR` が無効になる。
+
+#### 開発環境のログイン
+- ログイン画面に「テストユーザーでログイン（開発専用）」ボタンが表示される
+- `test@slime.local` / `test1234` で Auth Emulator に直接ログイン
+- エミュレータ未起動・seed 未実行の場合は Firebase Emulator (port 9099) のエラーが出る
+
+#### dev/prod 環境の切り分け
+
+| 設定 | 開発 (`frontend/.env.local`) | 本番 (Netlify 環境変数) |
+|------|----------------------------|-----------------------|
+| `VITE_USE_EMULATOR` | `true` | 設定しない |
+| Auth | Firebase Auth Emulator (9099) | 本番 Firebase Auth |
+| Firestore | Firestore Emulator (8080) | 本番 Firestore |
+| ログイン | テストボタン + Google(Emulator) | Google OAuth のみ |
 
 ```bash
 # テスト
