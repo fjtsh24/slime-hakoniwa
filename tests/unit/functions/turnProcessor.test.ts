@@ -480,53 +480,7 @@ describe('executeReservedAction - eat', () => {
     )
   })
 
-  // ================================================================
-  // Phase 4 Week 1 追加テスト（RED: 現在の実装では失敗する）
-  // ================================================================
-
-  // ----------------------------------------------------------------
-  // 追加テスト: インベントリに食料がある場合は eat 後に数量が減る
-  // ----------------------------------------------------------------
-  it.skip('[RED] インベントリに food-herb が3個あるとき、eat 後に2個になる', async () => {
-    const inventory: InventorySlot[] = [{ foodId, quantity: 3 }]
-    const slime = createTestSlime({ inventory })
-    const reservation = createTestReservation({
-      actionType: 'eat',
-      actionData: { foodId } as EatActionData,
-    })
-
-    const result = await executeReservedAction(slime, reservation)
-
-    // インベントリの数量が1減算されていること（3 → 2）
-    expect(result.updatedSlime.inventory).toBeDefined()
-    const slot = result.updatedSlime.inventory!.find((s: InventorySlot) => s.foodId === foodId)
-    expect(slot).toBeDefined()
-    expect(slot!.quantity).toBe(2)
-  })
-
-  // ----------------------------------------------------------------
-  // 追加テスト: インベントリに食料がない場合は eat が失敗しステータス不変
-  // ----------------------------------------------------------------
-  it.skip('[RED] インベントリが空のとき、eat アクションが失敗してステータスが変化しない', async () => {
-    const inventory: InventorySlot[] = [] // food-herb なし
-    const slime = createTestSlime({
-      inventory,
-      stats: { hp: 80, atk: 20, def: 15, spd: 10, exp: 0, hunger: 60 },
-    })
-    const reservation = createTestReservation({
-      actionType: 'eat',
-      actionData: { foodId } as EatActionData,
-    })
-
-    const result = await executeReservedAction(slime, reservation)
-
-    // インベントリに食料がないため hunger・hp は変化しない
-    expect(result.updatedSlime.stats.hunger).toBe(60)
-    expect(result.updatedSlime.stats.hp).toBe(80)
-    // eat イベントは記録されない
-    const eatEvent = result.events.find((e) => e.eventType === 'eat')
-    expect(eatEvent).toBeUndefined()
-  })
+  // インベントリ連動テストは tests/unit/eatAction.test.ts に移行済み
 })
 
 // ================================================================

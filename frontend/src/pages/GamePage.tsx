@@ -205,6 +205,15 @@ export function GamePage() {
                         次ターン後: {Math.max(0, s.stats.hunger - 5)}
                       </span>
                     </div>
+                    {s.inventory && s.inventory.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {s.inventory.map((slot) => (
+                          <span key={slot.foodId} className="text-xs bg-amber-50 border border-amber-200 text-amber-700 rounded px-1.5 py-0.5">
+                            {slot.foodId} ×{slot.quantity}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </button>
                 </li>
               ))}
