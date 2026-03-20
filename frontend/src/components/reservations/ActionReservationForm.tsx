@@ -51,6 +51,7 @@ const ACTION_LABELS: Record<ActionType, string> = {
   gather: '採集',
   fish: '釣り',
   hunt: '狩猟',
+  merge: '融合',
 }
 
 const STAT_LABELS: Record<string, string> = {

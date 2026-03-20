@@ -13,7 +13,9 @@ import { slimeSpecies } from '../../../shared/data/slimeSpecies'
 import { foods as staticFoods } from '../../../shared/data/foods'
 import { dropTables } from '../../../shared/data/dropTable'
 import { wildMonsters } from '../../../shared/data/wildMonsters'
+import { skillDefinitions } from '../../../shared/data/skillDefinitions'
 import type { DropEntry } from '../../../shared/types/dropTable'
+import type { SkillDefinition } from '../../../shared/types/skill'
 import { INVENTORY_MAX_SLOTS, RACIAL_VALUE_MAX } from '../../../shared/constants/game'
 import { logger } from '../../../shared/lib/logger'
 
@@ -32,12 +34,20 @@ export interface SlimeUpdate {
 export interface ActionResult {
   updatedSlime: Slime
   events: Array<{ eventType: TurnEventType; eventData: Record<string, unknown> }>
+  /** battle 敗北で HP=0 になったとき 2 を返す。processSlimeTurn が incapacitatedUntilTurn を設定する。 */
+  incapacitatedTurns?: number
+  /** 融合（merge）で削除すべきスライムID一覧 */
+  slimesToDelete?: string[]
 }
 
 export interface TurnResult {
   updatedSlime: Slime
   updatedReservations: ActionReservation[]
   events: Array<{ eventType: TurnEventType; eventData: Record<string, unknown> }>
+  /** 分裂時に生成する新スライム一覧 */
+  newSlimesToCreate?: Slime[]
+  /** 融合時に削除するスライムID一覧 */
+  slimesToDelete?: string[]
 }
 
 export interface EvolutionResult {
@@ -79,6 +89,28 @@ const getTimestamp = (): any => {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
+}
+
+/**
+ * スライムの習得済みスキル定義リストを返す。
+ * `slime.skillIds` が未定義の場合は空配列を返す。
+ */
+function getSlimeSkills(slime: Slime): SkillDefinition[] {
+  const ids = slime.skillIds ?? []
+  return ids
+    .map((id) => skillDefinitions.find((s) => s.id === id))
+    .filter((s): s is SkillDefinition => s !== undefined)
+}
+
+/**
+ * スライムの action_bonus スキルを targetAction でフィルタして返す。
+ */
+function getActionBonusSkills(slime: Slime, targetAction: string): SkillDefinition[] {
+  return getSlimeSkills(slime).filter(
+    (s) =>
+      s.effectType === 'action_bonus' &&
+      (s.effectData as Record<string, unknown>)['targetAction'] === targetAction
+  )
 }
 
 // ----------------------------------------------------------------
@@ -229,6 +261,8 @@ export async function processWorldTurn(worldId: string): Promise<void> {
     let batch = db().batch()
     let batchCount = 0
     const turnLogs: Array<{ log: TurnLog }> = []
+    const allNewSlimes: Slime[] = []
+    const allSlimesToDelete: string[] = []
 
     for (const slimeDoc of slimeDocs) {
       const slime = { id: slimeDoc.id, ...slimeDoc.data() } as Slime
@@ -287,6 +321,9 @@ export async function processWorldTurn(worldId: string): Promise<void> {
       if (result.updatedSlime.inventory !== undefined) {
         slimeUpdate['inventory'] = result.updatedSlime.inventory
       }
+      if (result.updatedSlime.incapacitatedUntilTurn !== undefined) {
+        slimeUpdate['incapacitatedUntilTurn'] = result.updatedSlime.incapacitatedUntilTurn
+      }
       batch.update(slimeRef, slimeUpdate)
       batchCount++
 
@@ -301,6 +338,10 @@ export async function processWorldTurn(worldId: string): Promise<void> {
         })
         batchCount++
       }
+
+      // 分裂・融合データを収集
+      if (result.newSlimesToCreate) allNewSlimes.push(...result.newSlimesToCreate)
+      if (result.slimesToDelete) allSlimesToDelete.push(...result.slimesToDelete)
 
       // ターンログを収集
       for (const event of result.events) {
@@ -331,6 +372,30 @@ export async function processWorldTurn(worldId: string): Promise<void> {
     // 残りのバッチをコミット
     if (batchCount > 0) {
       await batch.commit()
+    }
+
+    // 分裂・融合の後処理（メインバッチ後に実行）
+    for (const newSlime of allNewSlimes) {
+      try {
+        const newSlimeRef = db().collection('slimes').doc(newSlime.id)
+        const Timestamp = getTimestamp()
+        await newSlimeRef.set({
+          ...newSlime,
+          createdAt: Timestamp.fromDate(newSlime.createdAt),
+          updatedAt: Timestamp.fromDate(newSlime.updatedAt),
+        })
+        logger.info('[turnProcessor] 分裂スライム生成', { worldId, newSlimeId: newSlime.id })
+      } catch (e) {
+        logger.error('[turnProcessor] 分裂スライム生成失敗', { worldId, error: String(e) })
+      }
+    }
+    for (const deleteId of allSlimesToDelete) {
+      try {
+        await db().collection('slimes').doc(deleteId).delete()
+        logger.info('[turnProcessor] 融合スライム削除', { worldId, deletedSlimeId: deleteId })
+      } catch (e) {
+        logger.error('[turnProcessor] 融合スライム削除失敗', { worldId, error: String(e) })
+      }
     }
 
     // ターンログを別バッチで書き込む
@@ -399,7 +464,6 @@ export async function processSlimeTurn(
   tiles?: Tile[]
 ): Promise<TurnResult> {
   void _batch
-  void currentTurn
 
   // 食料マスタは静的ファイルを SoT とする（Firestore は使用しない）
   const foodList: Food[] = foods ?? staticFoods
@@ -407,6 +471,8 @@ export async function processSlimeTurn(
 
   const events: TurnResult['events'] = []
   const updatedReservations: ActionReservation[] = []
+  const newSlimesToCreate: Slime[] = []
+  const slimesToDelete: string[] = []
   let currentSlime: Slime = {
     ...slime,
     stats: { ...slime.stats },
@@ -414,15 +480,41 @@ export async function processSlimeTurn(
     inventory: slime.inventory ? slime.inventory.map((s) => ({ ...s })) : undefined,
   }
 
+  // 戦闘不能チェック: incapacitatedUntilTurn が現在ターン以上なら行動不能
+  const isIncapacitated =
+    slime.incapacitatedUntilTurn !== undefined && currentTurn <= slime.incapacitatedUntilTurn
+
   // 予約アクションの実行
   const pendingReservations = reservations.filter((r) => r.status === 'pending')
 
-  if (pendingReservations.length > 0) {
+  if (isIncapacitated) {
+    // 戦闘不能: 予約はスキップ（consumed 扱い）、行動不能イベントを記録
+    events.push({
+      eventType: 'battle_incapacitated',
+      eventData: { incapacitatedUntilTurn: slime.incapacitatedUntilTurn },
+    })
+    for (const r of pendingReservations) {
+      updatedReservations.push({ ...r, status: 'executed', executedAt: new Date() })
+    }
+  } else if (pendingReservations.length > 0) {
     // 最初の予約を実行
     const reservation = pendingReservations[0]
     const actionResult = await executeReservedAction(currentSlime, reservation, foodList, tileList)
     currentSlime = actionResult.updatedSlime
     events.push(...actionResult.events)
+
+    // battle 敗北で HP=0 → 戦闘不能フラグ設定
+    if (actionResult.incapacitatedTurns) {
+      currentSlime = {
+        ...currentSlime,
+        incapacitatedUntilTurn: currentTurn + actionResult.incapacitatedTurns,
+      }
+    }
+
+    // 融合で削除すべきスライムを引き継ぐ
+    if (actionResult.slimesToDelete?.length) {
+      slimesToDelete.push(...actionResult.slimesToDelete)
+    }
 
     // 予約ステータスを executed に更新
     const executedReservation: ActionReservation = {
@@ -462,17 +554,36 @@ export async function processSlimeTurn(
       const evolutionResult = checkEvolution(currentSlime, speciesData)
       if (evolutionResult.evolved) {
         currentSlime = evolutionResult.updatedSlime
-        events.push({ eventType: 'evolve', eventData: { newSpeciesId: currentSlime.speciesId } })
+        const toSpecies = slimeSpecies.find((s) => s.id === currentSlime.speciesId)
+        events.push({
+          eventType: 'evolve',
+          eventData: {
+            newSpeciesId: currentSlime.speciesId,
+            newSpeciesName: toSpecies?.name ?? currentSlime.speciesId,
+          },
+        })
       }
     }
   } catch {
     // 進化チェック失敗は無視（Firestoreモック環境など）
   }
 
+  // 分裂チェック（条件: exp>=500 かつ 任意の種族値>=0.7 かつ 15%確率）
+  const splitResult = checkSplit(currentSlime)
+  if (splitResult.split && splitResult.newSlime) {
+    newSlimesToCreate.push(splitResult.newSlime)
+    events.push({
+      eventType: 'split',
+      eventData: { newSlimeId: splitResult.newSlime.id, speciesId: splitResult.newSlime.speciesId },
+    })
+  }
+
   return {
     updatedSlime: currentSlime,
     updatedReservations,
     events,
+    newSlimesToCreate: newSlimesToCreate.length > 0 ? newSlimesToCreate : undefined,
+    slimesToDelete: slimesToDelete.length > 0 ? slimesToDelete : undefined,
   }
 }
 
@@ -585,33 +696,68 @@ export async function executeReservedAction(
       updatedSlime = applyFoodEffects(updatedSlime, food)
       updatedSlime = applyRacialDeltas(updatedSlime, food.racialDeltas)
 
-      // hunger +30 (上限100)
-      updatedSlime.stats.hunger = clamp(updatedSlime.stats.hunger + 30, 0, 100)
+      // cooking スキル効果の計算（hunger ボーナス・EXP 倍率）
+      const cookingSkills = getSlimeSkills(updatedSlime).filter((s) => s.effectType === 'cooking')
+      let cookingHungerBonus = 0
+      let cookingExpMultiplier = 1.0
+      for (const skill of cookingSkills) {
+        const d = skill.effectData as Record<string, unknown>
+        cookingHungerBonus += (d['eatHungerBonus'] as number | undefined) ?? 0
+        // categoryBonus: food.category と一致する場合はカテゴリ倍率で上書き
+        const categoryBonus = d['categoryBonus'] as { category?: string; eatExpMultiplier?: number } | undefined
+        if (categoryBonus && categoryBonus.category === food.category && categoryBonus.eatExpMultiplier) {
+          cookingExpMultiplier = Math.max(cookingExpMultiplier, categoryBonus.eatExpMultiplier)
+        } else {
+          cookingExpMultiplier *= (d['eatExpMultiplier'] as number | undefined) ?? 1.0
+        }
+      }
+      // EXP に倍率を適用（statDeltas.exp が既に加算済みのため差分を計算）
+      if (cookingExpMultiplier > 1.0 && food.statDeltas.exp) {
+        const expBonus = Math.floor(food.statDeltas.exp * (cookingExpMultiplier - 1.0))
+        updatedSlime.stats.exp = Math.max(0, updatedSlime.stats.exp + expBonus)
+      }
+
+      // hunger +30 + cooking ボーナス (上限100)
+      updatedSlime.stats.hunger = clamp(updatedSlime.stats.hunger + 30 + cookingHungerBonus, 0, 100)
 
       // スキル付与チェック
       if (food.skillGrantId && food.skillGrantProb > 0 && Math.random() < food.skillGrantProb) {
-        try {
-          const skillDocRef = db()
-            .collection('slimes')
-            .doc(slime.id)
-            .collection('skills')
-            .doc(food.skillGrantId)
-          const skillBatch = db().batch()
-          skillBatch.set(skillDocRef, {
-            id: food.skillGrantId,
-            slimeId: slime.id,
-            skillDefinitionId: food.skillGrantId,
-            acquiredAt: FieldValue.serverTimestamp(),
-          })
-          await skillBatch.commit()
-        } catch (skillError) {
-          logger.warn('[turnProcessor] スキル付与失敗', {
-            slimeId: slime.id,
-            skillId: food.skillGrantId,
-            error: skillError instanceof Error ? skillError.message : String(skillError),
-          })
+        const newSkillId = food.skillGrantId
+        // 未習得の場合のみ付与
+        const alreadyHas = (updatedSlime.skillIds ?? []).includes(newSkillId)
+        if (!alreadyHas) {
+          try {
+            const skillDocRef = db()
+              .collection('slimes')
+              .doc(slime.id)
+              .collection('skills')
+              .doc(newSkillId)
+            const skillBatch = db().batch()
+            skillBatch.set(skillDocRef, {
+              id: newSkillId,
+              slimeId: slime.id,
+              skillDefinitionId: newSkillId,
+              acquiredAt: FieldValue.serverTimestamp(),
+            })
+            // skillIds に追加（デノーマライズ）
+            const slimeRef = db().collection('slimes').doc(slime.id)
+            skillBatch.update(slimeRef, {
+              skillIds: admin.firestore.FieldValue.arrayUnion(newSkillId),
+            })
+            await skillBatch.commit()
+            updatedSlime = {
+              ...updatedSlime,
+              skillIds: [...(updatedSlime.skillIds ?? []), newSkillId],
+            }
+          } catch (skillError) {
+            logger.warn('[turnProcessor] スキル付与失敗', {
+              slimeId: slime.id,
+              skillId: newSkillId,
+              error: skillError instanceof Error ? skillError.message : String(skillError),
+            })
+          }
+          events.push({ eventType: 'skill_grant', eventData: { skillId: newSkillId, foodId } })
         }
-        events.push({ eventType: 'skill_grant', eventData: { skillId: food.skillGrantId, foodId } })
       }
 
       events.push({ eventType: 'eat', eventData: { foodId, food: food.name } })
@@ -647,14 +793,22 @@ export async function executeReservedAction(
         break
       }
 
+      // action_bonus スキル（gather）: ドロップ量倍率を適用
+      const gatherBonusSkills = getActionBonusSkills(updatedSlime, 'gather')
+      let gatherQty = dropped.quantity
+      for (const skill of gatherBonusSkills) {
+        const mult = (skill.effectData as Record<string, unknown>)['dropQuantityMultiplier'] as number | undefined
+        if (mult) gatherQty = Math.max(1, Math.floor(gatherQty * mult))
+      }
+
       const gatherInv = updatedSlime.inventory ?? []
-      const addResult = addToInventory(gatherInv, dropped.foodId, dropped.quantity)
+      const addResult = addToInventory(gatherInv, dropped.foodId, gatherQty)
       if (!addResult.success) {
         events.push({ eventType: 'inventory_full', eventData: { foodId: dropped.foodId } })
         break
       }
       updatedSlime = { ...updatedSlime, inventory: addResult.inventory }
-      events.push({ eventType: 'gather_success', eventData: { foodId: dropped.foodId, quantity: dropped.quantity, tableId: chosenTable.id } })
+      events.push({ eventType: 'gather_success', eventData: { foodId: dropped.foodId, quantity: gatherQty, tableId: chosenTable.id } })
       break
     }
 
@@ -663,7 +817,15 @@ export async function executeReservedAction(
       const fishTile = (_tiles ?? []).find((t) => t.x === slime.tileX && t.y === slime.tileY)
       const waterVal = (fishTile?.attributes?.water as number | undefined) ?? 0
 
-      if (waterVal < 0.3) {
+      // action_bonus スキル（fish）: waterThresholdReduction で閾値を下げる
+      const fishBonusSkills = getActionBonusSkills(updatedSlime, 'fish')
+      let fishWaterThreshold = 0.3
+      for (const skill of fishBonusSkills) {
+        const reduction = (skill.effectData as Record<string, unknown>)['waterThresholdReduction'] as number | undefined
+        if (reduction) fishWaterThreshold = Math.max(0, fishWaterThreshold - reduction)
+      }
+
+      if (waterVal < fishWaterThreshold) {
         events.push({ eventType: 'fish_fail', eventData: { tileX: slime.tileX, tileY: slime.tileY, reason: 'water_too_low' } })
         break
       }
@@ -680,14 +842,21 @@ export async function executeReservedAction(
         break
       }
 
+      // action_bonus スキル（fish）: ドロップ量倍率を適用
+      let fishQty = fishDropped.quantity
+      for (const skill of fishBonusSkills) {
+        const mult = (skill.effectData as Record<string, unknown>)['dropQuantityMultiplier'] as number | undefined
+        if (mult) fishQty = Math.max(1, Math.floor(fishQty * mult))
+      }
+
       const fishInv = updatedSlime.inventory ?? []
-      const fishAddResult = addToInventory(fishInv, fishDropped.foodId, fishDropped.quantity)
+      const fishAddResult = addToInventory(fishInv, fishDropped.foodId, fishQty)
       if (!fishAddResult.success) {
         events.push({ eventType: 'inventory_full', eventData: { foodId: fishDropped.foodId } })
         break
       }
       updatedSlime = { ...updatedSlime, inventory: fishAddResult.inventory }
-      events.push({ eventType: 'fish_success', eventData: { foodId: fishDropped.foodId, quantity: fishDropped.quantity } })
+      events.push({ eventType: 'fish_success', eventData: { foodId: fishDropped.foodId, quantity: fishQty } })
       break
     }
 
@@ -705,10 +874,15 @@ export async function executeReservedAction(
       if (candidates.length === 0) break
       const monster = candidates[Math.floor(Math.random() * candidates.length)]
 
-      // 勝敗判定: atk + floor(random * spd * 0.5) > monster.power
-      // 勝敗判定: atk + floor(random * spd * 0.75) > monster.power
-      // 速度値をより反映させるため係数 0.75 を使用
-      const attackRoll = updatedSlime.stats.atk + Math.floor(Math.random() * updatedSlime.stats.spd * 0.75)
+      // action_bonus スキル（hunt）: atkBonus を加算
+      const huntBonusSkills = getActionBonusSkills(updatedSlime, 'hunt')
+      let huntAtkBonus = 0
+      for (const skill of huntBonusSkills) {
+        huntAtkBonus += (skill.effectData as Record<string, unknown>)['atkBonus'] as number ?? 0
+      }
+
+      // 勝敗判定: atk + atkBonus + floor(random * spd * 0.75) > monster.power
+      const attackRoll = updatedSlime.stats.atk + huntAtkBonus + Math.floor(Math.random() * updatedSlime.stats.spd * 0.75)
       const huntSuccess = attackRoll > monster.power
 
       if (!huntSuccess) {
@@ -792,6 +966,76 @@ export async function executeReservedAction(
       break
     }
 
+    case 'battle': {
+      const battleData = reservation.actionData as { targetCategory?: string; targetStrength?: string }
+      const bTargetCategory = battleData.targetCategory
+      const bTargetStrength = battleData.targetStrength
+
+      if (!bTargetCategory || !bTargetStrength) break
+
+      // マスタからモンスターを取得（ランダムに1体選択）
+      const bCandidates = wildMonsters.filter(
+        (m) => m.category === bTargetCategory && m.strength === bTargetStrength
+      )
+      if (bCandidates.length === 0) break
+      const bMonster = bCandidates[Math.floor(Math.random() * bCandidates.length)]
+
+      // 勝敗判定: atk + random * spd * 0.5 > monster.power（仕様通り float）
+      const bAttackRoll = updatedSlime.stats.atk + Math.random() * updatedSlime.stats.spd * 0.5
+      const battleSuccess = bAttackRoll > bMonster.power
+
+      if (!battleSuccess) {
+        // 敗北: HP 大ダメージ（hunt の倍: power そのもの）
+        const bDamage = bMonster.power
+        const hpBefore = updatedSlime.stats.hp
+        updatedSlime.stats.hp = Math.max(0, updatedSlime.stats.hp - bDamage)
+        events.push({
+          eventType: 'battle_lose',
+          eventData: { monsterName: bMonster.name, damage: bDamage, monsterId: bMonster.id },
+        })
+        // HP=0 → 戦闘不能フラグ（incapacitatedTurns を ActionResult に返す）
+        if (hpBefore > 0 && updatedSlime.stats.hp === 0) {
+          return { updatedSlime, events, incapacitatedTurns: 2 }
+        }
+        break
+      }
+
+      // 勝利: 食料ドロップ + 種族値加算 + EXP ボーナス
+      const bTableId = `drop-battle-${bTargetCategory}-${bTargetStrength}`
+      const bTable = dropTables.find((dt) => dt.id === bTableId)
+      let bFoodId: string | null = null
+
+      if (bTable && bTable.drops.length > 0) {
+        const bDropped = weightedDrop(bTable.drops)
+        if (bDropped) {
+          bFoodId = bDropped.foodId
+          // ドロップした食料の種族値加算
+          const bFood = staticFoods.find((f) => f.id === bDropped.foodId)
+          if (bFood) {
+            updatedSlime = applyRacialDeltas(updatedSlime, bFood.racialDeltas)
+          }
+          // インベントリに追加（満杯でも battle_success は記録する）
+          const bInv = updatedSlime.inventory ?? []
+          const bAddResult = addToInventory(bInv, bDropped.foodId, bDropped.quantity)
+          if (bAddResult.success) {
+            updatedSlime = { ...updatedSlime, inventory: bAddResult.inventory }
+          } else {
+            events.push({ eventType: 'inventory_full', eventData: { foodId: bDropped.foodId } })
+          }
+        }
+      }
+
+      // EXP ボーナス: monster.power × (1.5〜2)
+      const bExpBonus = Math.floor(bMonster.power * (1.5 + Math.random() * 0.5))
+      updatedSlime.stats.exp = Math.max(0, updatedSlime.stats.exp + bExpBonus)
+
+      events.push({
+        eventType: 'battle_win',
+        eventData: { monsterName: bMonster.name, monsterId: bMonster.id, dropFoodId: bFoodId, expBonus: bExpBonus },
+      })
+      break
+    }
+
     case 'rest': {
       const maxHp = updatedSlime.stats.atk + updatedSlime.stats.def + 50
       const healAmount = Math.floor(maxHp * 0.2)
@@ -801,6 +1045,41 @@ export async function executeReservedAction(
       updatedSlime.stats.hunger = clamp(updatedSlime.stats.hunger + 10, 0, 100)
 
       events.push({ eventType: 'rest', eventData: { healAmount } })
+      break
+    }
+
+    case 'merge': {
+      // 融合アクション（Phase 4 追加）
+      // 同オーナーの別スライムを吸収し、ATK・DEF の 30% を引き継ぐ
+      const targetSlimeId = (reservation.actionData as { targetSlimeId?: string }).targetSlimeId
+      if (!targetSlimeId) break
+
+      // 自己融合は禁止
+      if (targetSlimeId === updatedSlime.id) break
+
+      try {
+        const targetSnap = await db().collection('slimes').doc(targetSlimeId).get()
+        if (!targetSnap.exists) break
+
+        const targetSlime = { id: targetSnap.id, ...targetSnap.data() } as Slime
+
+        // 同オーナーのみ融合可能
+        if (targetSlime.ownerUid !== updatedSlime.ownerUid) break
+
+        const atkAbsorb = Math.floor(targetSlime.stats.atk * 0.3)
+        const defAbsorb = Math.floor(targetSlime.stats.def * 0.3)
+        updatedSlime.stats.atk = updatedSlime.stats.atk + atkAbsorb
+        updatedSlime.stats.def = updatedSlime.stats.def + defAbsorb
+
+        events.push({
+          eventType: 'merge',
+          eventData: { targetSlimeId, atkAbsorb, defAbsorb },
+        })
+
+        return { updatedSlime, events, slimesToDelete: [targetSlimeId] }
+      } catch {
+        // 融合失敗は無視（ターゲット取得失敗など）
+      }
       break
     }
 
@@ -839,6 +1118,47 @@ export async function executeAutonomousAction(slime: Slime): Promise<ActionResul
   events.push({ eventType: 'autonomous', eventData: { hunger: slime.stats.hunger } })
 
   return { updatedSlime, events }
+}
+
+// ----------------------------------------------------------------
+// checkSplit
+// ----------------------------------------------------------------
+
+/**
+ * 分裂条件を確認する（Phase 4 追加）
+ * 条件: exp>=500 かつ 任意の種族値>=0.7 かつ 15%確率
+ * 成立時: 同種族・初期ステータスの子スライムを生成して返す
+ */
+export function checkSplit(slime: Slime): { split: boolean; newSlime?: Slime } {
+  if (slime.stats.exp < 500) return { split: false }
+
+  const racialMax = Math.max(...Object.values(slime.racialValues))
+  if (racialMax < 0.7) return { split: false }
+
+  if (Math.random() > 0.15) return { split: false }
+
+  const parentSpecies = slimeSpecies.find((s) => s.id === slime.speciesId)
+  if (!parentSpecies) return { split: false }
+
+  const now = new Date()
+  const newSlime: Slime = {
+    id: randomUUID(),
+    ownerUid: slime.ownerUid,
+    mapId: slime.mapId,
+    worldId: slime.worldId,
+    speciesId: slime.speciesId,
+    tileX: slime.tileX,
+    tileY: slime.tileY,
+    name: `${parentSpecies.name}の子`,
+    stats: { ...parentSpecies.baseStats },
+    racialValues: { fire: 0, water: 0, earth: 0, wind: 0, slime: 0, plant: 0, human: 0, beast: 0, spirit: 0, fish: 0 },
+    inventory: [],
+    isWild: slime.isWild,
+    createdAt: now,
+    updatedAt: now,
+  }
+
+  return { split: true, newSlime }
 }
 
 // ----------------------------------------------------------------

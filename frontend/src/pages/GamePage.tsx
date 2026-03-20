@@ -16,6 +16,7 @@ import { TurnLogList } from '../components/world/TurnLogList'
 import { ActionReservationForm } from '../components/reservations/ActionReservationForm'
 import { ReservationList } from '../components/reservations/ReservationList'
 import type { Slime } from '../../../shared/types/slime'
+import { skillDefinitions } from '../../../shared/data/skillDefinitions'
 
 const WORLD_ID = 'world-001'
 
@@ -212,6 +213,22 @@ export function GamePage() {
                             {slot.foodId} ×{slot.quantity}
                           </span>
                         ))}
+                      </div>
+                    )}
+                    {s.skillIds && s.skillIds.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {s.skillIds.map((skillId) => {
+                          const skill = skillDefinitions.find((d) => d.id === skillId)
+                          return skill ? (
+                            <span
+                              key={skillId}
+                              title={skill.description}
+                              className="text-xs bg-purple-50 border border-purple-200 text-purple-700 rounded px-1.5 py-0.5 cursor-help"
+                            >
+                              ✨ {skill.name}
+                            </span>
+                          ) : null
+                        })}
                       </div>
                     )}
                   </button>

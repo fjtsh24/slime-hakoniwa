@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { foods } from '../../../../shared/data/foods'
+import { slimeSpecies } from '../../../../shared/data/slimeSpecies'
 import type { TurnLog, TurnEventType } from '../../../../shared/types/turnLog'
 
 interface TurnLogListProps {
@@ -54,13 +55,21 @@ function formatEvent(eventType: TurnEventType, eventData: Record<string, unknown
     case 'battle_lose':
       return '戦闘に敗北した'
     case 'evolve': {
-      const to = eventData.toSpeciesId as string | undefined
-      return `進化した${to ? `（→ ${to}）` : ''}`
+      const newSpeciesName = eventData.newSpeciesName as string | undefined
+      const newSpeciesId = eventData.newSpeciesId as string | undefined
+      const name = newSpeciesName ?? slimeSpecies.find((s) => s.id === newSpeciesId)?.name ?? newSpeciesId
+      return `★ 進化した！${name ? `（→ ${name}）` : ''}`
     }
-    case 'split':
-      return '分裂した'
-    case 'merge':
-      return '融合した'
+    case 'split': {
+      const splitSpeciesId = eventData.speciesId as string | undefined
+      const splitSpeciesName = slimeSpecies.find((s) => s.id === splitSpeciesId)?.name ?? splitSpeciesId
+      return `分裂した${splitSpeciesName ? `（${splitSpeciesName}の子を生成）` : ''}`
+    }
+    case 'merge': {
+      const atkAbsorb = eventData.atkAbsorb as number | undefined
+      const defAbsorb = eventData.defAbsorb as number | undefined
+      return `融合した${atkAbsorb !== undefined ? `（ATK+${atkAbsorb}, DEF+${defAbsorb}）` : ''}`
+    }
     case 'autonomous': {
       const action = eventData.action as string | undefined
       if (action === 'wander') return '自律：歩き回った'
@@ -76,7 +85,7 @@ function formatEvent(eventType: TurnEventType, eventData: Record<string, unknown
     }
     case 'skill_grant': {
       const skillId = eventData.skillId as string | undefined
-      return `スキルを習得した${skillId ? `（${skillId}）` : ''}`
+      return `✨ スキルを習得した${skillId ? `（${skillId}）` : ''}`
     }
     default:
       return String(eventType)
@@ -89,9 +98,9 @@ const EVENT_COLORS: Record<TurnEventType, string> = {
   rest: 'bg-yellow-100 text-yellow-700',
   battle_win: 'bg-purple-100 text-purple-700',
   battle_lose: 'bg-red-100 text-red-700',
-  evolve: 'bg-orange-100 text-orange-700',
-  split: 'bg-pink-100 text-pink-700',
-  merge: 'bg-indigo-100 text-indigo-700',
+  evolve: 'bg-yellow-200 text-orange-800 font-bold border border-orange-300',
+  split: 'bg-pink-100 text-pink-700 font-bold border border-pink-300',
+  merge: 'bg-indigo-100 text-indigo-700 font-bold border border-indigo-300',
   autonomous: 'bg-gray-100 text-gray-600',
   hunger_decrease: 'bg-red-50 text-red-500',
   skill_grant: 'bg-purple-50 text-purple-600',

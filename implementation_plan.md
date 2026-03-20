@@ -286,21 +286,21 @@
 > 現状: `shared/types/skill.ts` に型定義あり、`turnProcessor.ts` にスキル付与ロジックあり。
 > しかしスキルマスタデータ（`skill-def-001〜006` の実体）と効果発動ロジックが未実装。
 
-- [ ] `shared/data/skillDefinitions.ts` 作成（skill-def-001〜006 の実体定義）
+- [x] `shared/data/skillDefinitions.ts` 作成（skill-def-001〜006 の実体定義）
   - effectType別の effectData 構造を確定する（A1/Fun が内容を決定）
   - 例: `cooking` → `{ eatHungerBonus: 10, eatExpMultiplier: 1.5 }`
-- [ ] スキル効果の発動ロジック設計・実装（A3/BE）
+- [ ] スキル効果の発動ロジック設計・実装（A3/BE）【Phase 5 以降】
   - `effectType: "cooking"` — eatアクション時に所持スキルを参照して食事効果（hunger回復・EXP）を増幅
   - `effectType: "stat_boost"` — ターン開始時に恒常的なステータス加算
   - `effectType: "action_bonus"` — gather/hunt等の特定アクションの成功率・ドロップ量を増加
   - スキル効果の適用はターン処理側（`turnProcessor.ts`）で行う（クライアント側での計算は不可）
-- [ ] スキル確認UI（スライムカードへの習得スキル一覧・効果説明表示）（A4/FE）
+- [x] スキル確認UI（スライムカードへの習得スキル一覧・効果説明表示）（A4/FE）
 
 **進化・分裂・融合（A3/BE）**
-- [ ] 進化UIの実装（`checkEvolution` は Phase 1 で実装済み）
-- [ ] 分裂ロジック（条件達成時に新スライムを生成）
-- [ ] 分裂による別種族スライム生成条件の実装
-- [ ] 融合アクションの実装（他スライムを吸収・ステータス強化）
+- [x] 進化UIの実装（`TurnLogList.tsx` に種族名表示・evolveイベント色強調）
+- [x] 分裂ロジック（条件達成時に新スライムを生成）（`checkSplit()` 実装: exp≥500 + racialMax≥0.7 + 15%確率）
+- [x] 分裂による別種族スライム生成条件の実装（親と同種族・baseStats継承）
+- [x] 融合アクションの実装（他スライムを吸収・ステータス強化）（ATK/DEF×30%吸収、自己融合防止、オーナー一致チェック）
 
 ### Phase 4 残課題（Phase 5 以降で対応）
 
