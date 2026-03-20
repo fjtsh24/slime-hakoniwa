@@ -18,8 +18,8 @@ const WORLD_ID = 'world-001'
 
 // よく使うプリセット
 const STAT_PRESETS = [
-  { label: '進化直前 (exp=490)', stats: { exp: 490 } },
-  { label: '分裂直前 (exp=490, beast=0.71)', stats: { exp: 490 }, racialValues: { beast: 0.71 } },
+  { label: '進化直前 (exp=490, fire=0.5)', stats: { exp: 490 }, racialValues: { fire: 0.5 } },
+  { label: '分裂直前 (exp=500, beast=0.71)', stats: { exp: 500 }, racialValues: { beast: 0.71 } },
   { label: '融合テスト用 (atk=100, def=80)', stats: { atk: 100, def: 80 } },
   { label: 'hunger=0 (空腹)', stats: { hunger: 0 } },
   { label: 'HP=1 (瀕死)', stats: { hp: 1 } },

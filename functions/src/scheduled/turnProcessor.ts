@@ -546,11 +546,13 @@ export async function processSlimeTurn(
   }
   events.push({ eventType: 'hunger_decrease', eventData: { before: slime.stats.hunger, after: newHunger } })
 
-  // 進化チェック（Firestoreからspeciesデータを取得して確認）
+  // 進化チェック（Firestoreからspeciesデータを取得、なければ静的データにフォールバック）
   try {
     const speciesSnap = await db().collection('slimeSpecies').doc(currentSlime.speciesId).get()
-    if (speciesSnap.exists) {
-      const speciesData = { id: speciesSnap.id, ...speciesSnap.data() } as SlimeSpecies
+    const speciesData: SlimeSpecies | undefined = speciesSnap.exists
+      ? ({ id: speciesSnap.id, ...speciesSnap.data() } as SlimeSpecies)
+      : slimeSpecies.find((s) => s.id === currentSlime.speciesId)
+    if (speciesData) {
       const evolutionResult = checkEvolution(currentSlime, speciesData)
       if (evolutionResult.evolved) {
         currentSlime = evolutionResult.updatedSlime
@@ -671,18 +673,7 @@ export async function executeReservedAction(
 
       if (!foodId) break
 
-      // インベントリが定義されている場合はインベントリから消費する
-      if (updatedSlime.inventory !== undefined) {
-        const removeResult = removeFromInventory(updatedSlime.inventory, foodId, 1)
-        if (!removeResult.success) {
-          // インベントリに食料がない → スキップ
-          events.push({ eventType: 'inventory_not_found', eventData: { foodId } })
-          break
-        }
-        updatedSlime = { ...updatedSlime, inventory: removeResult.inventory }
-      }
-
-      // 食料マスタを検索
+      // 食料マスタを先に検索（alwaysAvailable チェックのため）
       let food: Food | undefined
       if (foods && foods.length > 0) {
         food = foods.find((f) => f.id === foodId)
@@ -691,6 +682,17 @@ export async function executeReservedAction(
         food = staticFoods.find((f) => f.id === foodId)
       }
       if (!food) break
+
+      // インベントリが定義されており、かつ alwaysAvailable でない場合のみ消費する
+      if (updatedSlime.inventory !== undefined && !food.alwaysAvailable) {
+        const removeResult = removeFromInventory(updatedSlime.inventory, foodId, 1)
+        if (!removeResult.success) {
+          // インベントリに食料がない → スキップ
+          events.push({ eventType: 'inventory_not_found', eventData: { foodId } })
+          break
+        }
+        updatedSlime = { ...updatedSlime, inventory: removeResult.inventory }
+      }
 
       // 食料効果を適用
       updatedSlime = applyFoodEffects(updatedSlime, food)
