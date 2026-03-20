@@ -207,34 +207,41 @@
 > **A7/QA先行**: 型定義確定後にテストを先行作成してから実装する
 
 **型定義拡張（A5/DB・A3/BE）**
-- [ ] `shared/types/action.ts`: `ActionType` に `"gather" | "fish" | "hunt"` 追加、`BattleActionData / GatherActionData / FishActionData / HuntActionData` 型追加
-- [ ] `shared/types/slime.ts`: `InventorySlot { foodId: string, quantity: number }` 型追加
-- [ ] `shared/types/turnLog.ts`: 以下を変更（A5/DB 設計済み・後方互換）
+- [x] `shared/types/action.ts`: `ActionType` に `"gather" | "fish" | "hunt"` 追加、`BattleActionData / GatherActionData / FishActionData / HuntActionData` 型追加
+- [x] `shared/types/slime.ts`: `InventorySlot { foodId: string, quantity: number }` 型追加・`inventory?: InventorySlot[]`・`color?: string` 追加
+- [x] `shared/types/turnLog.ts`: 以下を変更（A5/DB 設計済み・後方互換）
   - `slimeId: string` → `slimeId: string | null`（ワールドイベント対応・既存ドキュメント影響なし）
   - `actorType: 'slime' | 'world'` フィールド追加（既存ドキュメントはデフォルト `'slime'` で扱う）
-  - `TurnEventType` に `gather_success / gather_fail / fish_success / fish_fail / hunt_success / hunt_fail / inventory_full / battle_incapacitated` 追加
+  - `TurnEventType` に `gather_success / gather_fail / fish_success / fish_fail / hunt_success / hunt_fail / inventory_full / inventory_not_found / battle_incapacitated` 追加
   - `TurnEventType` にワールドイベント種別を予約列挙: `season_change / weather_change / area_unlock / item_spawn`（Phase 6で実装、型定義のみ先行）
-- [ ] `shared/types/wildMonster.ts`: `WildMonsterSpecies / MonsterStrength` 型定義（新規）
-- [ ] `shared/types/dropTable.ts`: `DropEntry / TileCondition / DropTableEntry` 型定義（新規）
-- [ ] `shared/constants/game.ts`（新規または既存）: `RACIAL_VALUE_MAX = 1.0`、`INVENTORY_MAX_SLOTS = 10` 定数追加
+- [x] `shared/types/wildMonster.ts`: `WildMonsterSpecies / MonsterStrength` 型定義（新規）
+- [x] `shared/types/dropTable.ts`: `DropEntry / TileCondition / DropTableEntry` 型定義（新規）
+- [x] `shared/constants/game.ts`（新規または既存）: `RACIAL_VALUE_MAX = 1.0`、`INVENTORY_MAX_SLOTS = 10` 定数追加
 
 **マスタデータ作成（A3/BE・A1/Fun確認）**
-- [ ] `shared/data/wildMonsters.ts`: 6種族 × 2強度（weak/normal）= 最低12エントリ定義（beast/plant系を先行）
-- [ ] `shared/data/dropTable.ts`: gather・fish・hunt・battleのドロップテーブル定義（タイル属性条件・weight・minQty/maxQty）
+- [x] `shared/data/wildMonsters.ts`: beast/plant × weak/normal 12エントリ定義
+- [x] `shared/data/dropTable.ts`: gather/fish/hunt/battle 14ドロップテーブル定義
 
 **インベントリAPI・バリデーション（A3/BE・A2/Sec）**
-- [ ] `netlify/functions/helpers/validation.ts`: `BattleActionData / HuntActionData` の zodスキーマ追加（targetStrength は `"weak" | "normal"` のみ、`"strong"` は Phase 4 除外）
-- [ ] `GatherActionData / FishActionData` は空オブジェクト（zod `.strict()` で余分なキーを拒否）
-- [ ] `firestore.rules`: `slimes/{slimeId}/inventory` サブコレクションのアクセス制御追加（ownerUid == request.auth.uid のみ読み書き可）
-- [ ] `firestore.indexes.json`: 4インデックス追加
+- [x] `netlify/functions/helpers/validation.ts`: `BattleActionData / HuntActionData` の zodスキーマ追加（targetStrength は `"weak" | "normal"` のみ、`"strong"` は Phase 4 除外）
+- [x] `GatherActionData / FishActionData` は空オブジェクト（zod `.strict()` で余分なキーを拒否）
+- [x] `firestore.rules`: `slimes/{slimeId}/inventory` サブコレクションのアクセス制御追加（ownerUid == request.auth.uid のみ読み書き可）
+- [x] `firestore.indexes.json`: 3インデックス追加
   - `turnLogs`: `slimeId ASC + turnNumber DESC`
   - `turnLogs`: `worldId ASC + eventType ASC + turnNumber DESC`（WorldLogPanel のイベント種別フィルタ用）
   - `slimes`: `mapId ASC + tileX ASC + tileY ASC`
 
 **テスト先行作成（A7/QA）**
-- [ ] `tests/unit/inventoryOps.test.ts`: インベントリ操作ヘルパー 7〜8件（RED）
-- [ ] `tests/unit/eatAction.test.ts`: 既存8件をインベントリ参照形式に修正（フィクスチャに `inventory` 追加）
-- [ ] `tests/unit/functions/turnProcessor.test.ts`: eatブロック4件をインベントリ形式に修正
+- [x] `tests/unit/inventoryOps.test.ts`: インベントリ操作ヘルパー 8件（RED）
+- [x] `tests/unit/eatAction.test.ts`: インベントリ連動ケース 2件追加（RED）、既存8件 GREEN 維持
+- [x] `tests/unit/functions/turnProcessor.test.ts`: eatブロック修正・`actorType:'slime'` 欠落バグ修正
+
+**Phase 3残課題 UI改善（A4/FE）**
+- [x] **[M-1]** ウェルカムカード文言を設計書準拠に修正
+- [x] **[M-2]** 食料詳細パネルのステータスラベル日本語化（hp→HP 等）
+- [x] **[M-3]** 行動予約フォームのターン番号入力を相対ターン選択UIに変更
+- [x] **[M-4]** move アクション時に現在座標ヒント表示
+- [x] **[M-5]** hunger < 20 時の警告文追加
 
 ### Week 2: gather / fish / hunt アクション実装（TDD）
 
