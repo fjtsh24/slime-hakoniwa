@@ -9,6 +9,10 @@ import {
   deleteReservationSchema,
 } from './helpers/validation'
 import { logger } from '../../shared/lib/logger'
+import {
+  MAX_PENDING_RESERVATIONS,
+  MAX_RESERVATION_TURN_DISTANCE,
+} from '../../shared/constants/game'
 
 interface CreateInitialSlimeRequest {
   ownerUid: string
@@ -178,9 +182,9 @@ const handler: Handler = async (event): Promise<HandlerResponse> => {
         error: '過去のターンには予約できません',
       })
     }
-    if (turnNumber > worldData.currentTurn + 50) {
+    if (turnNumber > worldData.currentTurn + MAX_RESERVATION_TURN_DISTANCE) {
       return jsonResponse(400, {
-        error: '50ターン先までしか予約できません',
+        error: `${MAX_RESERVATION_TURN_DISTANCE}ターン先までしか予約できません`,
       })
     }
 
@@ -205,9 +209,9 @@ const handler: Handler = async (event): Promise<HandlerResponse> => {
       .where('status', '==', 'pending')
       .count()
       .get()
-    if (pendingCount.data().count >= 50) {
+    if (pendingCount.data().count >= MAX_PENDING_RESERVATIONS) {
       return jsonResponse(400, {
-        error: '1スライムあたりの予約は最大50件までです',
+        error: `1スライムあたりの予約は最大${MAX_PENDING_RESERVATIONS}件までです`,
       })
     }
 
