@@ -242,6 +242,7 @@ export function GamePage() {
         {/* 選択中スライムのアクション予約フォーム */}
         {selectedSlime && world && (
           <ActionReservationForm
+            key={selectedSlime.id}
             slimes={[selectedSlime]}
             worldId={WORLD_ID}
             currentTurn={world.currentTurn}
