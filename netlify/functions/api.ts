@@ -178,6 +178,11 @@ const handler: Handler = async (event): Promise<HandlerResponse> => {
         error: '過去のターンには予約できません',
       })
     }
+    if (turnNumber > worldData.currentTurn + 50) {
+      return jsonResponse(400, {
+        error: '50ターン先までしか予約できません',
+      })
+    }
 
     // 5-b. 同一スライム・同一ターンへの pending 予約が既に存在しないか確認（1ターン1行動制約）
     const duplicateSnap = await db
@@ -193,16 +198,16 @@ const handler: Handler = async (event): Promise<HandlerResponse> => {
       })
     }
 
-    // 5-c. 1スライムあたりの pending 予約数が上限（10件）に達していないか確認
+    // 5-c. 1スライムあたりの pending 予約数が上限（50件）に達していないか確認
     const pendingCount = await db
       .collection('actionReservations')
       .where('slimeId', '==', slimeId)
       .where('status', '==', 'pending')
       .count()
       .get()
-    if (pendingCount.data().count >= 10) {
+    if (pendingCount.data().count >= 50) {
       return jsonResponse(400, {
-        error: '1スライムあたりの予約は最大10件までです',
+        error: '1スライムあたりの予約は最大50件までです',
       })
     }
 

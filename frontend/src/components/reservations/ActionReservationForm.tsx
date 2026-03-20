@@ -5,11 +5,12 @@ import { foods } from '../../../../shared/data/foods'
 import type { Slime } from '../../../../shared/types/slime'
 import type { ActionType } from '../../../../shared/types/action'
 
-function nextAvailableTurns(from: number, reserved: number[], count: number): number[] {
+function nextAvailableTurns(from: number, reserved: number[], count: number, maxTurn?: number): number[] {
   const set = new Set(reserved)
   const turns: number[] = []
   let t = from
   while (turns.length < count) {
+    if (maxTurn !== undefined && t > maxTurn) break
     if (!set.has(t)) turns.push(t)
     t++
   }
@@ -87,7 +88,7 @@ export function ActionReservationForm({
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const turns = snapshot.docs.map((d) => d.data().turnNumber as number)
       setReservedTurns(turns)
-      setTurnNumber(nextAvailableTurns(currentTurn + 1, turns, 1)[0])
+      setTurnNumber(nextAvailableTurns(currentTurn + 1, turns, 1, currentTurn + 50)[0])
     })
 
     return () => unsubscribe()
@@ -136,7 +137,7 @@ export function ActionReservationForm({
       }
 
       // フォームリセット（予約済みターンを除いた次の空きターンへ）
-      setTurnNumber(nextAvailableTurns(currentTurn + 1, [...reservedTurns, turnNumber], 1)[0])
+      setTurnNumber(nextAvailableTurns(currentTurn + 1, [...reservedTurns, turnNumber], 1, currentTurn + 50)[0])
       setActionType('eat')
       setFoodId(foods[0]?.id ?? '')
       setTargetX(0)
@@ -200,7 +201,7 @@ export function ActionReservationForm({
           className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
           required
         >
-          {nextAvailableTurns(currentTurn + 1, reservedTurns, 5).map((t) => (
+          {nextAvailableTurns(currentTurn + 1, reservedTurns, 5, currentTurn + 50).map((t) => (
             <option key={t} value={t}>
               {t - currentTurn}ターン後（Turn {t}）
             </option>
