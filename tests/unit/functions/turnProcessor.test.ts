@@ -5,8 +5,9 @@
  * import エラーは実装完了後に解消される（TDDの正しい姿）。
  */
 
-import type { Slime, SlimeSpecies, RacialValues, SlimeStats, InventorySlot } from '../../../shared/types/slime'
+import type { Slime, SlimeSpecies, InventorySlot } from '../../../shared/types/slime'
 import type { ActionReservation, EatActionData, MoveActionData } from '../../../shared/types/action'
+import type { Food } from '../../../shared/types/food'
 import type { World } from '../../../shared/types/world'
 
 // ---- Firestore / firebase-admin モック ----
@@ -415,20 +416,17 @@ describe('processSlimeTurn', () => {
 // ================================================================
 describe('executeReservedAction - eat', () => {
   const foodId = 'food-herb'
-  const food = {
+  // 食料マスタは静的ファイルが SoT のため、テストでも foods 引数で直接渡す（Firestore モック不要）
+  const food: Food = {
     id: foodId,
     name: 'ハーブ',
-    statDeltas: { hp: 5, atk: 2, def: 0, spd: 1, exp: 10, hunger: 0 } as Partial<SlimeStats>,
-    racialDeltas: { plant: 0.1 } as Partial<RacialValues>,
+    description: 'テスト用ハーブ',
+    category: 'plant',
+    statDeltas: { hp: 5, atk: 2, def: 0, spd: 1, exp: 10 },
+    racialDeltas: { plant: 0.1 },
+    skillGrantId: null,
+    skillGrantProb: 0,
   }
-
-  beforeEach(() => {
-    // foods コレクション取得をモック
-    const foodDocSnap = { exists: true, data: () => food }
-    mockGet.mockResolvedValue(foodDocSnap)
-    mockDoc.mockReturnValue({ get: mockGet })
-    mockCollection.mockReturnValue({ doc: mockDoc, where: mockWhere, get: mockGet })
-  })
 
   it('food の statDeltas が slime.stats に加算される', async () => {
     const slime = createTestSlime()
@@ -437,7 +435,7 @@ describe('executeReservedAction - eat', () => {
       actionData: { foodId } as EatActionData,
     })
 
-    const result = await executeReservedAction(slime, reservation)
+    const result = await executeReservedAction(slime, reservation, [food])
 
     expect(result.updatedSlime.stats.hp).toBe(slime.stats.hp + (food.statDeltas.hp ?? 0))
     expect(result.updatedSlime.stats.atk).toBe(slime.stats.atk + (food.statDeltas.atk ?? 0))
@@ -450,7 +448,7 @@ describe('executeReservedAction - eat', () => {
       actionData: { foodId } as EatActionData,
     })
 
-    const result = await executeReservedAction(slime, reservation)
+    const result = await executeReservedAction(slime, reservation, [food])
 
     expect(result.updatedSlime.stats.hunger).toBe(80)
   })
@@ -462,7 +460,7 @@ describe('executeReservedAction - eat', () => {
       actionData: { foodId } as EatActionData,
     })
 
-    const result = await executeReservedAction(slime, reservation)
+    const result = await executeReservedAction(slime, reservation, [food])
 
     expect(result.updatedSlime.stats.hunger).toBe(100)
   })
@@ -474,7 +472,7 @@ describe('executeReservedAction - eat', () => {
       actionData: { foodId } as EatActionData,
     })
 
-    const result = await executeReservedAction(slime, reservation)
+    const result = await executeReservedAction(slime, reservation, [food])
 
     expect(result.updatedSlime.racialValues.plant).toBeCloseTo(
       slime.racialValues.plant + (food.racialDeltas.plant ?? 0),

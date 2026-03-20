@@ -10,6 +10,7 @@ import type { Food } from '../../../shared/types/food'
 import type { Tile } from '../../../shared/types/map'
 import type { TurnLog, TurnEventType } from '../../../shared/types/turnLog'
 import { slimeSpecies } from '../../../shared/data/slimeSpecies'
+import { foods as staticFoods } from '../../../shared/data/foods'
 
 // ----------------------------------------------------------------
 // 型定義
@@ -164,20 +165,18 @@ export async function processWorldTurn(worldId: string): Promise<void> {
     const slimeDocs = Array.isArray(slimesSnap?.docs) ? slimesSnap.docs : []
     if (slimeDocs.length === 0) return
 
-    // 予約と食料を並列取得
-    const [reservationsSnap, foodsSnap] = await Promise.all([
-      db()
-        .collection('actionReservations')
-        .where('worldId', '==', worldId)
-        .where('turnNumber', '==', newTurn)
-        .where('status', '==', 'pending')
-        .get(),
-      db().collection('foods').get(),
-    ])
+    // 予約を取得
+    // 食料マスタは静的ファイル（shared/data/foods.ts）を唯一の参照元とする。
+    // Firestore の foods コレクションは使用しない（設計方針: マスタデータは静的バンドル）。
+    // 将来イベント食料が必要になった場合は Phase 5-6 で staticFoods ∪ firestoreEventFoods に移行する。
+    const reservationsSnap = await db()
+      .collection('actionReservations')
+      .where('worldId', '==', worldId)
+      .where('turnNumber', '==', newTurn)
+      .where('status', '==', 'pending')
+      .get()
 
-    const foods: Food[] = Array.isArray(foodsSnap?.docs)
-      ? foodsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Food))
-      : []
+    const foods: Food[] = staticFoods
 
     // 予約をスライムID別にグループ化
     const reservationsBySlime = new Map<string, ActionReservation[]>()
@@ -308,16 +307,8 @@ export async function processSlimeTurn(
   void _batch
   void currentTurn
 
-  // 使用する食料リスト（引数がなければFirestoreから取得）
-  let foodList: Food[] = foods ?? []
-  if (!foods) {
-    try {
-      const foodsSnap = await db().collection('foods').get()
-      foodList = foodsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Food))
-    } catch {
-      foodList = []
-    }
-  }
+  // 食料マスタは静的ファイルを SoT とする（Firestore は使用しない）
+  const foodList: Food[] = foods ?? staticFoods
 
   const events: TurnResult['events'] = []
   const updatedReservations: ActionReservation[] = []
@@ -418,16 +409,9 @@ export async function executeReservedAction(
         food = foods.find((f) => f.id === foodId)
       }
 
-      // Firestoreから取得（引数がない場合）
+      // foods 引数に含まれない場合は静的マスタから検索（直接呼び出し時のフォールバック）
       if (!food) {
-        try {
-          const foodDoc = await db().collection('foods').doc(foodId).get()
-          if (foodDoc.exists) {
-            food = { id: foodDoc.id, ...foodDoc.data() } as Food
-          }
-        } catch {
-          // フォールバック: 食料が見つからない
-        }
+        food = staticFoods.find((f) => f.id === foodId)
       }
 
       if (!food) break
