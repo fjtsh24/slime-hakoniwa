@@ -201,7 +201,7 @@ export function ActionReservationForm({
           className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
           required
         >
-          {nextAvailableTurns(currentTurn + 1, reservedTurns, 5, currentTurn + 50).map((t) => (
+          {nextAvailableTurns(currentTurn + 1, reservedTurns, 50, currentTurn + 50).map((t) => (
             <option key={t} value={t}>
               {t - currentTurn}ターン後（Turn {t}）
             </option>
