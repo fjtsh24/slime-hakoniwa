@@ -717,10 +717,12 @@ export async function executeReservedAction(
       }
 
       if (tile) {
-        updatedSlime.racialValues.fire = Math.max(0, updatedSlime.racialValues.fire + tile.attributes.fire * 0.1)
-        updatedSlime.racialValues.water = Math.max(0, updatedSlime.racialValues.water + tile.attributes.water * 0.1)
-        updatedSlime.racialValues.earth = Math.max(0, updatedSlime.racialValues.earth + tile.attributes.earth * 0.1)
-        updatedSlime.racialValues.wind = Math.max(0, updatedSlime.racialValues.wind + tile.attributes.wind * 0.1)
+        const capRacial = (v: number, delta: number) =>
+          Math.min(Math.max(0, v + delta), RACIAL_VALUE_MAX)
+        updatedSlime.racialValues.fire = capRacial(updatedSlime.racialValues.fire, tile.attributes.fire * 0.1)
+        updatedSlime.racialValues.water = capRacial(updatedSlime.racialValues.water, tile.attributes.water * 0.1)
+        updatedSlime.racialValues.earth = capRacial(updatedSlime.racialValues.earth, tile.attributes.earth * 0.1)
+        updatedSlime.racialValues.wind = capRacial(updatedSlime.racialValues.wind, tile.attributes.wind * 0.1)
       }
 
       events.push({ eventType: 'move', eventData: { targetX, targetY } })
