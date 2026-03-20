@@ -18,6 +18,7 @@
 | A5 | データモデル・DB担当 | DB | Phase 1〜3 |
 | A6 | インフラ・CI/CD担当 | Infra | Phase 1・7 |
 | A7 | テスト・品質管理担当 | QA | 全フェーズ |
+| A8 | 分析・モニタリング担当 | Analytics | Phase 5〜7 |
 
 ---
 
@@ -226,6 +227,45 @@
 - `tests/unit/` および `tests/integration/` のテストファイル
 - `tests/reports/` のカバレッジレポート
 - テスト戦略書（`docs/test_strategy.md`）
+
+---
+
+### A8: 分析・モニタリング担当（Analytics）
+
+**ミッション**：プレイヤー行動データと運用メトリクスを設計・収集・分析し、「また明日もログインしたい」という体験品質を数値で裏付ける。
+
+**役割と責務**
+
+- Analytics イベント設計（どのユーザー行動を・いつ・何の目的で計測するかの定義）
+- Google Analytics / Firebase Analytics のタグ実装レビュー（A4/FE の実装を監修）
+- Cloud Logging を用いたターン処理の実行時間・エラー率モニタリング設計
+- Firestore 読み書きコストのフェーズごとの試算と超過警告（A5/DB と連携）
+- Cloud Functions タイムアウトリスクの継続監視（スライム数増加に伴うスケール試算）
+- プレイヤー定着率・離脱点の分析観点をレビューとして A1/Fun に提供
+- 本番運用後の異常検知アラート設計（コスト急増・エラースパイク）
+
+**主な成果物**
+
+- Analytics イベント設計書（`docs/analytics_plan.md`）
+- モニタリング設計書（`docs/monitoring.md`）
+- 各フェーズのコスト試算レポート（`docs/cost_estimate/phase_N.md`）
+
+**参加すべきレビュー**
+
+- Phase 5（マップ描画・UI完成）: Analytics イベント設計レビュー 必須参加
+- Phase 7（チューニング・リリース準備）: パフォーマンス計測・最適化を主導
+- Phase 4 以降の各フェーズ: Firestore コスト試算レビュー 参加推奨
+
+**他エージェントとの連携**
+
+| 連携先 | 内容 |
+|--------|------|
+| Fun (A1) | プレイヤー行動データを分析し「面白いか」の客観的根拠を提供する |
+| FE (A4) | Google Analytics タグ・Firebase Analytics イベント実装をレビューする |
+| BE (A3) | Cloud Functions 実行時間・エラーログの計測ポイントを提案する |
+| DB (A5) | Firestore 読み書きコストの試算と最適化方針を共同検討する |
+| Infra (A6) | Cloud Logging アラート設定・監視ダッシュボード構築を依頼する |
+| Sec (A2) | 監査ログ（スライム作成・認証イベント）の設計を共同で行う |
 
 ---
 
