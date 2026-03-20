@@ -546,28 +546,21 @@ export async function processSlimeTurn(
   }
   events.push({ eventType: 'hunger_decrease', eventData: { before: slime.stats.hunger, after: newHunger } })
 
-  // 進化チェック（Firestoreからspeciesデータを取得、なければ静的データにフォールバック）
-  try {
-    const speciesSnap = await db().collection('slimeSpecies').doc(currentSlime.speciesId).get()
-    const speciesData: SlimeSpecies | undefined = speciesSnap.exists
-      ? ({ id: speciesSnap.id, ...speciesSnap.data() } as SlimeSpecies)
-      : slimeSpecies.find((s) => s.id === currentSlime.speciesId)
-    if (speciesData) {
-      const evolutionResult = checkEvolution(currentSlime, speciesData)
-      if (evolutionResult.evolved) {
-        currentSlime = evolutionResult.updatedSlime
-        const toSpecies = slimeSpecies.find((s) => s.id === currentSlime.speciesId)
-        events.push({
-          eventType: 'evolve',
-          eventData: {
-            newSpeciesId: currentSlime.speciesId,
-            newSpeciesName: toSpecies?.name ?? currentSlime.speciesId,
-          },
-        })
-      }
+  // 進化チェック（静的マスタデータを唯一の参照元とする。foods/dropTables/wildMonstersと同方針）
+  const speciesData = slimeSpecies.find((s) => s.id === currentSlime.speciesId)
+  if (speciesData) {
+    const evolutionResult = checkEvolution(currentSlime, speciesData)
+    if (evolutionResult.evolved) {
+      currentSlime = evolutionResult.updatedSlime
+      const toSpecies = slimeSpecies.find((s) => s.id === currentSlime.speciesId)
+      events.push({
+        eventType: 'evolve',
+        eventData: {
+          newSpeciesId: currentSlime.speciesId,
+          newSpeciesName: toSpecies?.name ?? currentSlime.speciesId,
+        },
+      })
     }
-  } catch {
-    // 進化チェック失敗は無視（Firestoreモック環境など）
   }
 
   // 分裂チェック（条件: exp>=500 かつ 任意の種族値>=0.7 かつ 15%確率）
