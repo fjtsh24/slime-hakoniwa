@@ -218,8 +218,9 @@ export function ActionReservationForm({
             return (
               <>
                 {inventory !== undefined && (
-                  <p className="text-xs text-gray-500">
-                    インベントリ内の食料のみ選択できます（所持していない食料はグレーアウト）
+                  <p className="text-xs text-gray-500 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                    インベントリに所持している食料のみ食べられます。
+                    gather・fish・hunt で食料を獲得してから食べましょう。
                   </p>
                 )}
                 <select
@@ -286,6 +287,7 @@ export function ActionReservationForm({
         <div className="flex flex-col gap-2">
           <p className="text-xs text-gray-500 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
             モンスターを狩猟します。勝利するとドロップアイテムと種族値が得られます。
+            敗北した場合は HP が減少します。gather や fish で食料を確保してから挑戦するのがおすすめです。
           </p>
           <div className="flex gap-3">
             <div className="flex flex-col gap-1 flex-1">
@@ -313,6 +315,21 @@ export function ActionReservationForm({
               </select>
             </div>
           </div>
+          {huntStrength === 'normal' && (() => {
+            const selectedSlime = slimes.find((s) => s.id === selectedSlimeId)
+            const estimatedMax = selectedSlime
+              ? selectedSlime.stats.atk + Math.floor(selectedSlime.stats.spd * 0.75)
+              : 0
+            if (estimatedMax <= 30) {
+              return (
+                <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  ⚠️ 普通強度のモンスター（power 30）は現在のステータスでは勝てない可能性が高いです。
+                  ATK + SPD をさらに上げてから挑戦することをおすすめします。
+                </p>
+              )
+            }
+            return null
+          })()}
         </div>
       )}
 

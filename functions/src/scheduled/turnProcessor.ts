@@ -645,7 +645,9 @@ export async function executeReservedAction(
       const monster = candidates[Math.floor(Math.random() * candidates.length)]
 
       // 勝敗判定: atk + floor(random * spd * 0.5) > monster.power
-      const attackRoll = updatedSlime.stats.atk + Math.floor(Math.random() * updatedSlime.stats.spd * 0.5)
+      // 勝敗判定: atk + floor(random * spd * 0.75) > monster.power
+      // 速度値をより反映させるため係数 0.75 を使用
+      const attackRoll = updatedSlime.stats.atk + Math.floor(Math.random() * updatedSlime.stats.spd * 0.75)
       const huntSuccess = attackRoll > monster.power
 
       if (!huntSuccess) {
