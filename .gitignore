@@ -16,3 +16,4 @@ tests/reports/*.json
 *.json.bak
 *.bak
 slime-sim-prototype-firebase-adminsdk-*.json
+coverage/

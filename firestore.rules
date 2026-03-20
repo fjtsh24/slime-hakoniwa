@@ -72,6 +72,14 @@ service cloud.firestore {
         allow read:  if request.auth != null;
         allow write: if false;
       }
+
+      // inventory サブコレクション（オーナーのみ読み取り可・非公開）
+      match /inventory/{itemId} {
+        // オーナーのみ読み取り可（インベントリは非公開）
+        allow read: if request.auth != null
+                    && get(/databases/$(database)/documents/slimes/$(slimeId)).data.ownerUid == request.auth.uid;
+        allow write: if false;
+      }
     }
 
     // =========================================================

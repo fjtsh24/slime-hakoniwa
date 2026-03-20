@@ -24,6 +24,18 @@ const ACTION_LABELS: Record<ActionType, string> = {
   move: '移動',
   rest: '休息',
   battle: '戦闘',
+  gather: '採集',
+  fish: '釣り',
+  hunt: '狩猟',
+}
+
+const STAT_LABELS: Record<string, string> = {
+  hp: 'HP',
+  atk: '攻撃力',
+  def: '防御力',
+  spd: '素早さ',
+  exp: 'EXP',
+  hunger: '満腹度',
 }
 
 const AVAILABLE_ACTIONS: ActionType[] = ['eat', 'move', 'rest']
@@ -161,17 +173,25 @@ export function ActionReservationForm({
         </select>
       </div>
 
-      {/* ターン番号 */}
+      {/* ターン番号（相対ターン選択） */}
       <div className="flex flex-col gap-1">
-        <label className="text-sm font-medium text-gray-600">実行ターン番号</label>
-        <input
-          type="number"
+        <label className="text-sm font-medium text-gray-600">実行タイミング</label>
+        <select
           value={turnNumber}
-          min={currentTurn + 1}
           onChange={(e) => setTurnNumber(Number(e.target.value))}
           className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
           required
-        />
+        >
+          {[1, 2, 3, 4, 5].map((offset) => {
+            const t = currentTurn + offset
+            const isReserved = reservedTurns.includes(t)
+            return (
+              <option key={offset} value={t} disabled={isReserved}>
+                {offset}ターン後（Turn {t}）{isReserved ? ' ─ 予約済み' : ''}
+              </option>
+            )
+          })}
+        </select>
       </div>
 
       {/* アクション別追加入力 */}
@@ -196,7 +216,7 @@ export function ActionReservationForm({
             if (!selected) return null
             const statLines = Object.entries(selected.statDeltas)
               .filter(([, v]) => v !== undefined && v !== 0)
-              .map(([k, v]) => `${k}+${v}`)
+              .map(([k, v]) => `${STAT_LABELS[k] ?? k}+${v}`)
             const racialLines = Object.entries(selected.racialDeltas)
               .filter(([, v]) => v !== undefined && v !== 0)
               .map(([k, v]) => `${k}+${v}`)
@@ -218,30 +238,40 @@ export function ActionReservationForm({
         </div>
       )}
 
-      {actionType === 'move' && (
-        <div className="flex gap-3">
-          <div className="flex flex-col gap-1 flex-1">
-            <label className="text-sm font-medium text-gray-600">目標X</label>
-            <input
-              type="number"
-              value={targetX}
-              onChange={(e) => setTargetX(Number(e.target.value))}
-              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-              required
-            />
-          </div>
-          <div className="flex flex-col gap-1 flex-1">
-            <label className="text-sm font-medium text-gray-600">目標Y</label>
-            <input
-              type="number"
-              value={targetY}
-              onChange={(e) => setTargetY(Number(e.target.value))}
-              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-              required
-            />
-          </div>
-        </div>
-      )}
+      {actionType === 'move' && (() => {
+        const currentSlime = slimes.find((s) => s.id === selectedSlimeId)
+        return (
+          <>
+            {currentSlime && (
+              <p className="text-xs text-gray-500">
+                現在地: ({currentSlime.tileX}, {currentSlime.tileY})
+              </p>
+            )}
+            <div className="flex gap-3">
+              <div className="flex flex-col gap-1 flex-1">
+                <label className="text-sm font-medium text-gray-600">目標X</label>
+                <input
+                  type="number"
+                  value={targetX}
+                  onChange={(e) => setTargetX(Number(e.target.value))}
+                  className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-1 flex-1">
+                <label className="text-sm font-medium text-gray-600">目標Y</label>
+                <input
+                  type="number"
+                  value={targetY}
+                  onChange={(e) => setTargetY(Number(e.target.value))}
+                  className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+                  required
+                />
+              </div>
+            </div>
+          </>
+        )
+      })()}
 
       <button
         type="submit"

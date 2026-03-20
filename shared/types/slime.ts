@@ -44,6 +44,12 @@ export interface RacialValues {
   fish: number;
 }
 
+/** インベントリの1スロット */
+export interface InventorySlot {
+  foodId: string;
+  quantity: number;
+}
+
 export interface Slime {
   id: string;
   /** オーナーのUID（null の場合は野生スライム） */
@@ -57,8 +63,15 @@ export interface Slime {
   /** 現在いるタイルのY座標 */
   tileY: number;
   name: string;
+  /** スライムカラー（WorldLogPanelで使用・Phase 5） */
+  color?: string;
   stats: SlimeStats;
   racialValues: RacialValues;
+  /**
+   * 所持アイテムのスロット一覧（Phase 4 追加）
+   * 最大スロット数は INVENTORY_MAX_SLOTS（shared/constants/game.ts）を参照
+   */
+  inventory?: InventorySlot[];
   /** 野生スライムかどうか */
   isWild: boolean;
   createdAt: Date;

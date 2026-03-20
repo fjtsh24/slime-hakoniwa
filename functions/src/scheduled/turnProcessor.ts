@@ -4,7 +4,7 @@
 import { randomUUID } from 'crypto'
 import * as admin from 'firebase-admin'
 import { FieldValue } from 'firebase-admin/firestore'
-import type { Slime, SlimeStats, RacialValues, SlimeSpecies } from '../../../shared/types/slime'
+import type { Slime, SlimeStats, RacialValues, SlimeSpecies, InventorySlot } from '../../../shared/types/slime'
 import type { ActionReservation } from '../../../shared/types/action'
 import type { Food } from '../../../shared/types/food'
 import type { Tile } from '../../../shared/types/map'
@@ -234,6 +234,7 @@ export async function processWorldTurn(worldId: string): Promise<void> {
             id: logId,
             worldId,
             slimeId,
+            actorType: 'slime' as const,
             turnNumber: newTurn,
             eventType: event.eventType,
             eventData: event.eventData,
@@ -721,4 +722,26 @@ export async function createInitialSlime(
     createdAt: new Date(),
     updatedAt: new Date(),
   }
+}
+
+// ----------------------------------------------------------------
+// インベントリ操作ヘルパー（Week 2 で本実装予定 — スタブ export）
+// ----------------------------------------------------------------
+
+/** インベントリにアイテムを追加する（Week 2 実装予定） */
+export function addToInventory(
+  _inventory: InventorySlot[],
+  _foodId: string,
+  _qty: number
+): { success: boolean; inventory?: InventorySlot[]; event?: 'inventory_full' } {
+  throw new Error('addToInventory: not implemented yet (Week 2)')
+}
+
+/** インベントリからアイテムを消費する（Week 2 実装予定） */
+export function removeFromInventory(
+  _inventory: InventorySlot[],
+  _foodId: string,
+  _qty: number
+): { success: boolean; inventory?: InventorySlot[]; error?: string } {
+  throw new Error('removeFromInventory: not implemented yet (Week 2)')
 }

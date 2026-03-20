@@ -11,3 +11,5 @@ export * from "./food";
 export * from "./skill";
 export * from "./turnLog";
 export * from "./user";
+export * from "./wildMonster";
+export * from "./dropTable";

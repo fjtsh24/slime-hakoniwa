@@ -146,9 +146,14 @@ export function GamePage() {
           <h2 className="text-base font-bold text-gray-700">マイスライム</h2>
           {slimes.length === 0 ? (
             <div className="rounded-xl bg-green-50 border border-green-200 p-6 text-center flex flex-col gap-3">
-              <p className="text-lg font-bold text-green-800">はじめてのスライムを迎えよう！</p>
+              <p className="text-lg font-bold text-green-800">🌿 はじめての箱庭へようこそ</p>
               <p className="text-sm text-green-700">
-                スライムを育てて進化させましょう。まず最初の1体を召喚してください。
+                まだスライムがいません。<br />
+                あなたの最初のスライムを迎えてみましょう。
+              </p>
+              <p className="text-sm text-green-700">
+                スライムは毎時間行動します。<br />
+                食事や移動を予約して、一緒に育てていきましょう。
               </p>
               {summonError && (
                 <p className="text-sm text-red-500">{summonError}</p>
@@ -158,7 +163,7 @@ export function GamePage() {
                 disabled={isSummoning}
                 className="mx-auto px-5 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50 transition"
               >
-                {isSummoning ? '召喚中...' : 'スライムを呼び出す'}
+                {isSummoning ? '召喚中...' : 'はじめてのスライムを迎える'}
               </button>
             </div>
           ) : (
@@ -187,6 +192,11 @@ export function GamePage() {
                         満腹度: {s.stats.hunger}/100
                       </span>
                     </div>
+                    {s.stats.hunger < 20 && (
+                      <p className="text-xs text-red-600 font-medium mt-0.5">
+                        ⚠️ 空腹です！食事を予約してください
+                      </p>
+                    )}
                     <div className="flex gap-3 mt-0.5">
                       <span className="text-xs text-gray-400">
                         HP:{s.stats.hp} ATK:{s.stats.atk} ({s.tileX},{s.tileY})
@@ -223,7 +233,7 @@ export function GamePage() {
 
         {/* 選択中スライムのターンログ */}
         {selectedSlimeId && (
-          <TurnLogList slimeId={selectedSlimeId} worldId={WORLD_ID} />
+          <TurnLogList slimeId={selectedSlimeId} worldId={WORLD_ID} slimeName={selectedSlime?.name} />
         )}
       </main>
     </div>

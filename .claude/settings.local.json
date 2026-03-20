@@ -36,7 +36,13 @@
       "Bash(git -C /home/fjsth24/workspace/slime_hakoniwa show 42dd1df --name-only)",
       "Bash(git:*)",
       "Bash(gh repo:*)",
-      "Bash(gh run:*)"
+      "Bash(gh run:*)",
+      "Bash(npx tsc:*)",
+      "Bash(gh pr:*)",
+      "Skill(update-config)",
+      "Write",
+      "Edit",
+      "Bash(functions/node_modules/.bin/jest --config functions/jest.config.js --no-coverage --testPathPattern=\"turnProcessor.test.ts|eatAction.test.ts|inventoryOps.test.ts\")"
     ]
   }
 }

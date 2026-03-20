@@ -5,7 +5,7 @@
  * import エラーは実装完了後に解消される（TDDの正しい姿）。
  */
 
-import type { Slime, SlimeSpecies, RacialValues, SlimeStats } from '../../../shared/types/slime'
+import type { Slime, SlimeSpecies, RacialValues, SlimeStats, InventorySlot } from '../../../shared/types/slime'
 import type { ActionReservation, EatActionData, MoveActionData } from '../../../shared/types/action'
 import type { World } from '../../../shared/types/world'
 
@@ -84,6 +84,10 @@ function createTestSlime(overrides?: Partial<Slime>): Slime {
       spirit: 0,
       fish: 0,
     },
+    // Phase 4 Week 1: インベントリフィールドを追加
+    // 既存テストは現在の実装（インベントリ未対応）でも通過できるよう、
+    // inventory は Slime 型の省略可能フィールドとして扱う
+    inventory: [{ foodId: 'food-herb', quantity: 3 }] as InventorySlot[],
     isWild: false,
     createdAt: new Date('2024-01-01T00:00:00Z'),
     updatedAt: new Date('2024-01-01T00:00:00Z'),
@@ -476,6 +480,54 @@ describe('executeReservedAction - eat', () => {
       slime.racialValues.plant + (food.racialDeltas.plant ?? 0),
       5
     )
+  })
+
+  // ================================================================
+  // Phase 4 Week 1 追加テスト（RED: 現在の実装では失敗する）
+  // ================================================================
+
+  // ----------------------------------------------------------------
+  // 追加テスト: インベントリに食料がある場合は eat 後に数量が減る
+  // ----------------------------------------------------------------
+  it.skip('[RED] インベントリに food-herb が3個あるとき、eat 後に2個になる', async () => {
+    const inventory: InventorySlot[] = [{ foodId, quantity: 3 }]
+    const slime = createTestSlime({ inventory })
+    const reservation = createTestReservation({
+      actionType: 'eat',
+      actionData: { foodId } as EatActionData,
+    })
+
+    const result = await executeReservedAction(slime, reservation)
+
+    // インベントリの数量が1減算されていること（3 → 2）
+    expect(result.updatedSlime.inventory).toBeDefined()
+    const slot = result.updatedSlime.inventory!.find((s: InventorySlot) => s.foodId === foodId)
+    expect(slot).toBeDefined()
+    expect(slot!.quantity).toBe(2)
+  })
+
+  // ----------------------------------------------------------------
+  // 追加テスト: インベントリに食料がない場合は eat が失敗しステータス不変
+  // ----------------------------------------------------------------
+  it.skip('[RED] インベントリが空のとき、eat アクションが失敗してステータスが変化しない', async () => {
+    const inventory: InventorySlot[] = [] // food-herb なし
+    const slime = createTestSlime({
+      inventory,
+      stats: { hp: 80, atk: 20, def: 15, spd: 10, exp: 0, hunger: 60 },
+    })
+    const reservation = createTestReservation({
+      actionType: 'eat',
+      actionData: { foodId } as EatActionData,
+    })
+
+    const result = await executeReservedAction(slime, reservation)
+
+    // インベントリに食料がないため hunger・hp は変化しない
+    expect(result.updatedSlime.stats.hunger).toBe(60)
+    expect(result.updatedSlime.stats.hp).toBe(80)
+    // eat イベントは記録されない
+    const eatEvent = result.events.find((e) => e.eventType === 'eat')
+    expect(eatEvent).toBeUndefined()
   })
 })
 
