@@ -1,13 +1,13 @@
 [build]
-  base = "frontend"
-  publish = "dist"
-  command = "npm run build"
+  base = "."
+  publish = "frontend/dist"
+  command = "npm ci --prefix netlify/functions && npm run build --prefix frontend"
 
 [build.environment]
   NODE_VERSION = "20"
 
 [functions]
-  directory = "../netlify/functions"
+  directory = "netlify/functions"
 
 # ローカル開発: `netlify dev` を使うとフロントエンド(Vite) + Netlify Functions が同時に起動する
 # フロントエンドは frontend/ ディレクトリで `npm run dev` を実行し Vite を 5173 番で起動する
