@@ -7,6 +7,8 @@ import { GamePage } from './pages/GamePage'
 import { SetupPage } from './pages/SetupPage'
 import { MapSettingsPage } from './pages/MapSettingsPage'
 import { CreditsPage } from './pages/CreditsPage'
+import { EncyclopediaPage } from './pages/EncyclopediaPage'
+import { PlayerProfilePage } from './pages/PlayerProfilePage'
 
 function AppRoutes() {
   const user = useAuthStore((s) => s.user)
@@ -33,11 +35,13 @@ function AppRoutes() {
     )
   }
 
-  // 2. 未認証 → /login にリダイレクト
+  // 2. 未認証 → 公開ページはそのまま表示、それ以外は /login にリダイレクト
   if (!user) {
     return (
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/encyclopedia" element={<EncyclopediaPage />} />
+        <Route path="/players/:handle" element={<PlayerProfilePage />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     )
@@ -79,6 +83,8 @@ function AppRoutes() {
         element={<Navigate to={hasMap ? '/game' : '/setup'} replace />}
       />
       <Route path="/credits" element={<CreditsPage />} />
+      <Route path="/encyclopedia" element={<EncyclopediaPage />} />
+      <Route path="/players/:handle" element={<PlayerProfilePage />} />
       <Route
         path="*"
         element={<Navigate to={hasMap ? '/game' : '/setup'} replace />}

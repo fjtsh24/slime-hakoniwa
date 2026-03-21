@@ -27,6 +27,7 @@ import { foods } from '../../../shared/data/foods'
 import { DEFAULT_SLIME_COLOR } from '../components/world/turnLogUtils'
 import { DevPanel } from '../components/dev/DevPanel'
 import { getFoodIconUrl } from '../lib/foodIconMap'
+import { HandleSetupModal } from '../components/profile/HandleSetupModal'
 
 const WORLD_ID = 'world-001'
 
@@ -56,6 +57,11 @@ export function GamePage() {
   const [clickedTile, setClickedTile] = useState<{ x: number; y: number } | null>(null)
   const [tutorialDismissed, setTutorialDismissed] = useState(
     () => localStorage.getItem('slime_tutorial_v1') === 'done'
+  )
+  const [publicHandle, setPublicHandle] = useState<string | null>(null)
+  const [showHandleModal, setShowHandleModal] = useState(false)
+  const [handlePromptDismissed, setHandlePromptDismissed] = useState(
+    () => localStorage.getItem('slime_handle_prompt_dismissed') === 'true'
   )
 
   // ワールド購読
@@ -161,6 +167,12 @@ export function GamePage() {
             マップ設定
           </Link>
           <Link
+            to="/encyclopedia"
+            className="text-xs bg-green-600 hover:bg-green-500 px-3 py-1.5 rounded transition"
+          >
+            図鑑
+          </Link>
+          <Link
             to="/credits"
             className="text-xs opacity-60 hover:opacity-90 transition"
           >
@@ -175,7 +187,59 @@ export function GamePage() {
         </div>
       </header>
 
+      {/* ハンドル登録モーダル */}
+      {showHandleModal && (
+        <HandleSetupModal
+          onComplete={(h) => {
+            setPublicHandle(h)
+            setShowHandleModal(false)
+          }}
+          onDismiss={() => {
+            setShowHandleModal(false)
+            setHandlePromptDismissed(true)
+            localStorage.setItem('slime_handle_prompt_dismissed', 'true')
+          }}
+        />
+      )}
+
       <main className="max-w-5xl mx-auto px-4 py-6">
+        {/* ハンドル未設定のプロンプト */}
+        {!publicHandle && !handlePromptDismissed && (
+          <div className="mb-4 bg-green-100 border border-green-300 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+            <p className="text-sm text-green-800">
+              ハンドル名を設定すると、あなたのスライムを公開プロフィールで他のプレイヤーに見せられます。
+            </p>
+            <div className="flex gap-2 flex-shrink-0">
+              <button
+                onClick={() => setShowHandleModal(true)}
+                className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded font-medium transition"
+              >
+                設定する
+              </button>
+              <button
+                onClick={() => {
+                  setHandlePromptDismissed(true)
+                  localStorage.setItem('slime_handle_prompt_dismissed', 'true')
+                }}
+                className="text-xs text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+        {/* ハンドル設定済みの表示 */}
+        {publicHandle && (
+          <div className="mb-4 bg-white border border-green-200 rounded-xl px-4 py-2 flex items-center gap-2 text-sm text-gray-600">
+            <span>あなたの公開ページ:</span>
+            <Link
+              to={`/players/${publicHandle}`}
+              className="text-green-600 hover:underline font-medium"
+            >
+              @{publicHandle}
+            </Link>
+          </div>
+        )}
         {/* PC: 左右2カラム（md以上） / SP: 縦積み */}
         <div className="flex flex-col md:flex-row gap-4 items-start">
 

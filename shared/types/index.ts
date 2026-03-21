@@ -13,3 +13,4 @@ export * from "./turnLog";
 export * from "./user";
 export * from "./wildMonster";
 export * from "./dropTable";
+export * from "./publicProfile";

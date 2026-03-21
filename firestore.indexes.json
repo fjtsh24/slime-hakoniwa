@@ -92,6 +92,15 @@
         { "fieldPath": "tileX", "order": "ASCENDING" },
         { "fieldPath": "tileY", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "turnLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "actorType",  "order": "ASCENDING" },
+        { "fieldPath": "eventType",  "order": "ASCENDING" },
+        { "fieldPath": "processedAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

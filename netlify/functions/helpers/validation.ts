@@ -134,3 +134,33 @@ export const deleteReservationSchema = z.object({
 })
 
 export type DeleteReservationInput = z.infer<typeof deleteReservationSchema>
+
+/**
+ * publicHandle 登録・変更リクエストのバリデーションスキーマ（Phase 6）
+ * - 3〜32文字・英数字・ハイフン・アンダースコアのみ
+ * - lowercase に正規化
+ */
+export const registerHandleSchema = z.object({
+  handle: z
+    .string()
+    .min(3, '3文字以上必要です')
+    .max(32, '32文字以下にしてください')
+    .regex(/^[a-zA-Z0-9_-]+$/, '英数字・ハイフン・アンダースコアのみ使用できます')
+    .transform((s) => s.toLowerCase()),
+})
+
+export type RegisterHandleInput = z.infer<typeof registerHandleSchema>
+
+/**
+ * /api/public/players/:handle パスパラメータのバリデーションスキーマ
+ */
+export const publicHandleParamSchema = z.object({
+  handle: z
+    .string()
+    .min(3)
+    .max(32)
+    .regex(/^[a-zA-Z0-9_-]+$/, 'handleは英数字・ハイフン・アンダースコアのみ')
+    .transform((s) => s.toLowerCase()),
+})
+
+export type PublicHandleParam = z.infer<typeof publicHandleParamSchema>

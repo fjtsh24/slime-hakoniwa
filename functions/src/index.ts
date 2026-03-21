@@ -15,3 +15,4 @@ export const scheduledTurnProcessor = functions
   })
 
 export { onUserCreate } from './triggers/authTrigger'
+export { onSlimeWrite } from './triggers/slimeTrigger'

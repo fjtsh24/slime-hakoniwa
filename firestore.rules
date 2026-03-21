@@ -114,6 +114,30 @@ service cloud.firestore {
     }
 
     // =========================================================
+    // publicProfiles: 認証済み全員読み取り可、書き込みは Admin SDK のみ
+    // =========================================================
+    match /publicProfiles/{uid} {
+      allow read: if request.auth != null;
+      allow create: if false;  // Cloud Functions（Admin SDK）のみ作成可
+      // displayName のみ本人が更新可（publicHandle・lastHandleChangedAt・slimeSummaries は Admin SDK のみ）
+      // publicHandle の変更は /api/users/handle (Netlify Functions) 経由のみ許可し、
+      // クライアントSDK から 30日制限を迂回する直接書き込みを防ぐ（A2/Sec M-2）
+      allow update: if request.auth != null
+                    && request.auth.uid == uid
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['displayName', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    // =========================================================
+    // publicHandles: 認証済み読み取り可（空き確認用）、書き込みは Admin SDK のみ
+    // =========================================================
+    match /publicHandles/{handle} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // =========================================================
     // マスタデータ: 認証済み読み取り可、書き込み禁止
     // =========================================================
     match /skillDefinitions/{skillId} {

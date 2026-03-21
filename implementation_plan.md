@@ -368,27 +368,41 @@
 **課題**: アカウント登録しないとゲームの面白さが全く分からない → 公開ページで解決
 
 **データ基盤（A5/DB・A2/Sec）**
-- [ ] `publicProfiles/{uid}` コレクション設計（publicHandle / displayName / slimeSummaries）
+- [x] `publicProfiles/{uid}` コレクション設計（publicHandle / displayName / slimeSummaries）
   - 書き込みは Cloud Functions（Admin SDK）のみ（`allow write: if false` in rules）
-  - `slimes` 更新トリガーで自動同期
-- [ ] `publicHandle` の登録フロー追加（初回ゲーム画面）
+  - `slimes` 更新トリガー（`onSlimeWrite`）で自動同期 → `functions/src/triggers/slimeTrigger.ts`
+  - 全スライム削除後も publicHandle は保持。ハンドル解除は別途変更APIが必要（仕様）
+- [x] `publicHandle` の登録フロー追加（初回ゲーム画面）
   - バリデーション: `^[a-zA-Z0-9_-]{3,32}$`、lowercase 正規化、30日変更制限
+  - `HandleSetupModal.tsx` + `POST /api/users/handle` で実装
 
 **公開API（A3/BE・A2/Sec必須事項確認後実装）**
-- [ ] `netlify/functions/api.ts` に `/api/public/*` ルート追加（認証不要）
-  - **必須**: 全レスポンスをホワイトリスト方式でフィールドフィルタリング（MUST-1）
-  - **必須**: `racialValues`・`exp`・`hunger`・`skillIds` を非公開に（MUST-2）
-  - **必須**: Firebase UID をレスポンスに含めない（識別子は publicHandle のみ）
+- [x] `netlify/functions/api.ts` に `/api/public/*` ルート追加（認証不要）
+  - ✅ MUST-1: 全レスポンスをホワイトリスト方式でフィールドフィルタリング
+  - ✅ MUST-2: `racialValues`・`exp`・`hunger`・`skillIds`・`incapacitatedUntilTurn` を非公開
+  - ✅ Firebase UID をレスポンスに含めない（識別子は publicHandle のみ）
   - `Cache-Control: public, max-age=60` でCDNキャッシュ活用
-- [ ] `GET /api/public/encyclopedia` — スライム図鑑データ
-- [ ] `GET /api/public/players/:handle` — プレイヤープロフィール
-- [ ] `GET /api/public/live` — ライブ観戦フィード（eventData もホワイトリスト適用・MUST-5）
+- [x] `GET /api/public/encyclopedia` — スライム図鑑データ
+- [x] `GET /api/public/players/:handle` — プレイヤープロフィール
+- [x] `GET /api/public/live` — ライブ観戦フィード（eventData もホワイトリスト適用・MUST-5）
 
 **フロントエンド（A4/FE）**
-- [ ] `/encyclopedia` スライム図鑑ページ（全種族・進化ルートツリー・育成中プレイヤー数）
-- [ ] `/players/:handle` プレイヤー公開プロフィールページ（スライム一覧・特別イベント直近5件）
-  - 最下部に「このゲームを始める」CTAボタン
-- [ ] トップページにスライム図鑑・ライブフィードへのリンク追加（ログイン前のユーザー向け）
+- [x] `/encyclopedia` スライム図鑑ページ（全10種族・進化ルート・CTAボタン）
+- [x] `/players/:handle` プレイヤー公開プロフィールページ（スライム一覧・「このゲームを始める」CTAボタン）
+- [ ] トップページにスライム図鑑・ライブフィードへのリンク追加（Week 2 対応予定）
+
+### レビュー完了 ✅（2026-03-22）
+
+- [x] A7/QA レビュー → `docs/qa_review/phase_6_w1.md`（141件全通過）
+- [x] A2/Sec レビュー → `docs/security_review/phase_6_w1.md`（MUST-1〜5 全達成）
+- [x] A1/Fun レビュー → `docs/fun_review/phase_6_w1.md`（H指摘 HandleSetupModal 説明追加済み）
+
+### Phase 6 Week 1 残課題（Week 2 以降）
+
+- トップページへのスライム図鑑・ライブフィードリンク追加（A4/FE）
+- EncyclopediaPage 進化ルート SVG ツリー表示（A1/Fun M-1）
+- CDN キャッシュパージ設定（A2/Sec M-1）
+- Firebase App Check 導入（Phase 4 持ち越し）
 
 ### Week 2: ソーシャル拡張・野生スライム・ワールドイベント
 
