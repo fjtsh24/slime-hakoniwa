@@ -1322,7 +1322,7 @@ export async function executeAutonomousAction(slime: Slime): Promise<ActionResul
   }
   // hunger < 20: 弱っていて動けない（HP回復なし）
 
-  events.push({ eventType: 'autonomous', eventData: { hunger: slime.stats.hunger } })
+  events.push({ eventType: 'autonomous', eventData: { action: autonomousPath, hunger: slime.stats.hunger } })
 
   return { updatedSlime, events }
 }

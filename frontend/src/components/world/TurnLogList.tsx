@@ -11,6 +11,7 @@ import {
 import { db } from '../../lib/firebase'
 import { foods } from '../../../../shared/data/foods'
 import { slimeSpecies } from '../../../../shared/data/slimeSpecies'
+import { skillDefinitions } from '../../../../shared/data/skillDefinitions'
 import type { TurnLog, TurnEventType } from '../../../../shared/types/turnLog'
 import { createLogger } from '../../lib/logger'
 
@@ -53,10 +54,14 @@ function formatEvent(eventType: TurnEventType, eventData: Record<string, unknown
     }
     case 'rest':
       return '休息した（hunger +10）'
-    case 'battle_win':
-      return '戦闘に勝利した'
-    case 'battle_lose':
-      return '戦闘に敗北した'
+    case 'battle_win': {
+      const monsterName = eventData.monsterName as string | undefined
+      return `戦闘に勝利した${monsterName ? `（${monsterName}）` : ''}`
+    }
+    case 'battle_lose': {
+      const loseMonsterName = eventData.monsterName as string | undefined
+      return `戦闘に敗北した${loseMonsterName ? `（${loseMonsterName}）` : ''}`
+    }
     case 'evolve': {
       const newSpeciesName = eventData.newSpeciesName as string | undefined
       const newSpeciesId = eventData.newSpeciesId as string | undefined
@@ -75,9 +80,9 @@ function formatEvent(eventType: TurnEventType, eventData: Record<string, unknown
     }
     case 'autonomous': {
       const action = eventData.action as string | undefined
-      if (action === 'wander') return '自律：歩き回った'
-      if (action === 'recover') return '自律：HP微回復'
-      if (action === 'starving') return '自律：空腹で動けなかった'
+      if (action === 'walk') return '自律：歩き回った'
+      if (action === 'rest') return '自律：HP微回復'
+      if (action === 'weak') return '自律：空腹で動けなかった'
       return '自律行動'
     }
     case 'hunger_decrease': {
@@ -88,7 +93,8 @@ function formatEvent(eventType: TurnEventType, eventData: Record<string, unknown
     }
     case 'skill_grant': {
       const skillId = eventData.skillId as string | undefined
-      return `✨ スキルを習得した${skillId ? `（${skillId}）` : ''}`
+      const skillName = skillId ? (skillDefinitions.find((s) => s.id === skillId)?.name ?? skillId) : undefined
+      return `✨ スキルを習得した${skillName ? `（${skillName}）` : ''}`
     }
     default:
       return String(eventType)
