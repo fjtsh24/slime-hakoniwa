@@ -41,6 +41,8 @@ function nextAvailableTurns(from: number, reserved: number[], count: number, max
 
 interface ActionReservationFormProps {
   slimes: Slime[]
+  /** 融合対象スライム選択用。省略時は slimes と同じ */
+  allSlimes?: Slime[]
   worldId: string
   currentTurn: number
   onSuccess?: () => void
@@ -66,7 +68,7 @@ const STAT_LABELS: Record<string, string> = {
   hunger: '満腹度',
 }
 
-const AVAILABLE_ACTIONS: ActionType[] = ['eat', 'gather', 'fish', 'hunt', 'move', 'rest']
+const AVAILABLE_ACTIONS: ActionType[] = ['eat', 'gather', 'fish', 'hunt', 'battle', 'merge', 'move', 'rest']
 
 const HUNT_CATEGORIES = [
   { value: 'beast', label: '獣系' },
@@ -80,6 +82,7 @@ const HUNT_STRENGTHS = [
 
 export function ActionReservationForm({
   slimes,
+  allSlimes,
   worldId,
   currentTurn,
   onSuccess,
@@ -93,6 +96,7 @@ export function ActionReservationForm({
   const [targetY, setTargetY] = useState<number>(0)
   const [huntCategory, setHuntCategory] = useState<string>('beast')
   const [huntStrength, setHuntStrength] = useState<string>('weak')
+  const [mergeTargetSlimeId, setMergeTargetSlimeId] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [currentTile, setCurrentTile] = useState<Tile | null>(null)
@@ -151,8 +155,11 @@ export function ActionReservationForm({
         actionData = { foodId }
       } else if (actionType === 'move') {
         actionData = { targetX, targetY }
-      } else if (actionType === 'hunt') {
+      } else if (actionType === 'hunt' || actionType === 'battle') {
         actionData = { targetCategory: huntCategory, targetStrength: huntStrength }
+      } else if (actionType === 'merge') {
+        if (!mergeTargetSlimeId) throw new Error('融合対象スライムを選択してください')
+        actionData = { targetSlimeId: mergeTargetSlimeId }
       }
 
       const body = {
@@ -415,6 +422,75 @@ export function ActionReservationForm({
           })()}
         </div>
       )}
+
+      {actionType === 'battle' && (
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-1 text-xs bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            <p className="text-gray-600">モンスターと戦闘します。hunt より難しく、敗北すると HP が大きく減り、HP=0 で2ターン行動不能になります。</p>
+            <p className="text-red-700">勝利すると種族値と食料ドロップが得られます。</p>
+            <p className="text-gray-500">十分に HP を回復してから挑みましょう。</p>
+          </div>
+          <div className="flex gap-3">
+            <div className="flex flex-col gap-1 flex-1">
+              <label className="text-sm font-medium text-gray-600">モンスター種別</label>
+              <select
+                value={huntCategory}
+                onChange={(e) => setHuntCategory(e.target.value)}
+                className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+              >
+                {HUNT_CATEGORIES.map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1 flex-1">
+              <label className="text-sm font-medium text-gray-600">強さ</label>
+              <select
+                value={huntStrength}
+                onChange={(e) => setHuntStrength(e.target.value)}
+                className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+              >
+                {HUNT_STRENGTHS.map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {actionType === 'merge' && (() => {
+        const mergeTargets = (allSlimes ?? slimes).filter((s) => s.id !== selectedSlimeId)
+        return (
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1 text-xs bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+              <p className="text-gray-600">別のスライムを吸収・融合します。</p>
+              <p className="text-yellow-800 font-semibold">⚠️ 対象スライムは融合後に完全に削除されます。元に戻せません。</p>
+              <p className="text-gray-500">融合成功: ATK・DEF が対象の 30% 分強化されます。</p>
+            </div>
+            {mergeTargets.length === 0 ? (
+              <p className="text-sm text-gray-400">融合できる他のスライムがいません。</p>
+            ) : (
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-600">融合対象スライム</label>
+                <select
+                  value={mergeTargetSlimeId}
+                  onChange={(e) => setMergeTargetSlimeId(e.target.value)}
+                  className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  required
+                >
+                  <option value="">-- 選択してください --</option>
+                  {mergeTargets.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}（HP:{s.stats.hp} ATK:{s.stats.atk} DEF:{s.stats.def}）
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {actionType === 'move' && (() => {
         const currentSlime = slimes.find((s) => s.id === selectedSlimeId)

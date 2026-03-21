@@ -48,6 +48,7 @@ import {
   executeReservedAction,
   executeAutonomousAction,
   checkEvolution,
+  checkSplit,
 } from '../../../functions/src/scheduled/turnProcessor'
 
 // ---- テスト用フィクスチャ ----
@@ -636,6 +637,32 @@ describe('checkEvolution', () => {
     expect(result.updatedSlime.speciesId).toBe('species-normal')
   })
 
+  it('requiredRacialValues を満たさない場合、進化しない', () => {
+    const slime = createTestSlime({
+      speciesId: 'species-normal',
+      stats: { hp: 100, atk: 80, def: 80, spd: 50, exp: 500, hunger: 60 },
+      racialValues: {
+        fire: 0.5, // fire < 1.0 なので条件未達
+        water: 0, earth: 0, wind: 0, slime: 0, plant: 0, human: 0, beast: 0, spirit: 0, fish: 0,
+      },
+    })
+
+    const speciesData: SlimeSpecies = {
+      ...baseSpecies,
+      evolutionConditions: [
+        {
+          targetSpeciesId: 'species-fire',
+          requiredStats: { atk: 80 },
+          requiredRacialValues: { fire: 1.0 },
+        },
+      ],
+    }
+
+    const result = checkEvolution(slime, speciesData)
+
+    expect(result.evolved).toBe(false)
+  })
+
   it('複数の進化条件がある場合、最初に満たした条件で進化する', () => {
     const slime = createTestSlime({
       speciesId: 'species-normal',
@@ -675,5 +702,156 @@ describe('checkEvolution', () => {
     expect(result.evolved).toBe(true)
     // 最初に満たした条件（species-fire）で進化すること
     expect(result.updatedSlime.speciesId).toBe('species-fire')
+  })
+})
+
+// ================================================================
+// checkSplit
+// ================================================================
+describe('checkSplit', () => {
+  const baseRacialValues = {
+    fire: 0, water: 0, earth: 0, wind: 0, slime: 0,
+    plant: 0, human: 0, beast: 0, spirit: 0, fish: 0,
+  }
+
+  it('exp < 500 の場合、分裂しない', () => {
+    const slime = createTestSlime({
+      stats: { hp: 80, atk: 20, def: 15, spd: 10, exp: 499, hunger: 60 },
+      racialValues: { ...baseRacialValues, fire: 0.8 },
+    })
+
+    const result = checkSplit(slime)
+
+    expect(result.split).toBe(false)
+    expect(result.newSlime).toBeUndefined()
+  })
+
+  it('exp = 499 の境界値で分裂しない', () => {
+    const slime = createTestSlime({
+      stats: { hp: 80, atk: 20, def: 15, spd: 10, exp: 499, hunger: 60 },
+      racialValues: { ...baseRacialValues, fire: 1.0 },
+    })
+
+    expect(checkSplit(slime).split).toBe(false)
+  })
+
+  it('racialMax < 0.7 の場合、分裂しない', () => {
+    const slime = createTestSlime({
+      stats: { hp: 80, atk: 20, def: 15, spd: 10, exp: 500, hunger: 60 },
+      racialValues: { ...baseRacialValues, fire: 0.69 },
+    })
+
+    expect(checkSplit(slime).split).toBe(false)
+  })
+
+  it('racialMax = 0.699 の境界値で分裂しない', () => {
+    const slime = createTestSlime({
+      stats: { hp: 80, atk: 20, def: 15, spd: 10, exp: 500, hunger: 60 },
+      racialValues: { ...baseRacialValues, fire: 0.699 },
+    })
+
+    expect(checkSplit(slime).split).toBe(false)
+  })
+
+  it('全条件を満たしても確率 > 0.15 なら分裂しない', () => {
+    const slime = createTestSlime({
+      stats: { hp: 80, atk: 20, def: 15, spd: 10, exp: 500, hunger: 60 },
+      racialValues: { ...baseRacialValues, fire: 0.8 },
+      speciesId: 'slime-001',
+    })
+
+    jest.spyOn(Math, 'random').mockReturnValueOnce(0.16)
+
+    const result = checkSplit(slime)
+
+    expect(result.split).toBe(false)
+    jest.spyOn(Math, 'random').mockRestore()
+  })
+
+  it('全条件を満たし確率 <= 0.15 なら分裂する', () => {
+    // speciesId は実際の slimeSpecies マスタに存在する ID を使う
+    const slime = createTestSlime({
+      speciesId: 'slime-001',
+      stats: { hp: 80, atk: 20, def: 15, spd: 10, exp: 500, hunger: 60 },
+      racialValues: { ...baseRacialValues, fire: 0.8 },
+    })
+
+    jest.spyOn(Math, 'random').mockReturnValueOnce(0.15)
+
+    const result = checkSplit(slime)
+
+    expect(result.split).toBe(true)
+    expect(result.newSlime).toBeDefined()
+    jest.spyOn(Math, 'random').mockRestore()
+  })
+
+  it('生成された子スライムが親の speciesId を継承する', () => {
+    const slime = createTestSlime({
+      speciesId: 'slime-001',
+      stats: { hp: 80, atk: 20, def: 15, spd: 10, exp: 500, hunger: 60 },
+      racialValues: { ...baseRacialValues, fire: 0.8 },
+    })
+
+    jest.spyOn(Math, 'random').mockReturnValueOnce(0.01)
+
+    const result = checkSplit(slime)
+
+    expect(result.newSlime?.speciesId).toBe('slime-001')
+    jest.spyOn(Math, 'random').mockRestore()
+  })
+
+  it('生成された子スライムの racialValues がすべて 0', () => {
+    const slime = createTestSlime({
+      speciesId: 'slime-001',
+      stats: { hp: 80, atk: 20, def: 15, spd: 10, exp: 500, hunger: 60 },
+      racialValues: { ...baseRacialValues, fire: 0.9 },
+    })
+
+    jest.spyOn(Math, 'random').mockReturnValueOnce(0.01)
+
+    const result = checkSplit(slime)
+    const rv = result.newSlime?.racialValues
+
+    expect(rv).toBeDefined()
+    if (rv) {
+      Object.values(rv).forEach((v) => expect(v).toBe(0))
+    }
+    jest.spyOn(Math, 'random').mockRestore()
+  })
+
+  it('生成された子スライムの inventory が空配列', () => {
+    const slime = createTestSlime({
+      speciesId: 'slime-001',
+      stats: { hp: 80, atk: 20, def: 15, spd: 10, exp: 500, hunger: 60 },
+      racialValues: { ...baseRacialValues, water: 0.75 },
+      inventory: [{ foodId: 'food-herb', quantity: 5 }],
+    })
+
+    jest.spyOn(Math, 'random').mockReturnValueOnce(0.01)
+
+    const result = checkSplit(slime)
+
+    expect(result.newSlime?.inventory).toEqual([])
+    jest.spyOn(Math, 'random').mockRestore()
+  })
+
+  it('生成された子スライムの ownerUid / mapId / worldId が親と一致する', () => {
+    const slime = createTestSlime({
+      speciesId: 'slime-001',
+      ownerUid: 'user-abc',
+      mapId: 'map-xyz',
+      worldId: 'world-001',
+      stats: { hp: 80, atk: 20, def: 15, spd: 10, exp: 500, hunger: 60 },
+      racialValues: { ...baseRacialValues, beast: 0.7 },
+    })
+
+    jest.spyOn(Math, 'random').mockReturnValueOnce(0.0)
+
+    const result = checkSplit(slime)
+
+    expect(result.newSlime?.ownerUid).toBe('user-abc')
+    expect(result.newSlime?.mapId).toBe('map-xyz')
+    expect(result.newSlime?.worldId).toBe('world-001')
+    jest.spyOn(Math, 'random').mockRestore()
   })
 })

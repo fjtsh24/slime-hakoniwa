@@ -257,6 +257,7 @@ export function GamePage() {
           <ActionReservationForm
             key={selectedSlime.id}
             slimes={[selectedSlime]}
+            allSlimes={slimes}
             worldId={WORLD_ID}
             currentTurn={world.currentTurn}
             onSuccess={() => setReservationKey((k) => k + 1)}
