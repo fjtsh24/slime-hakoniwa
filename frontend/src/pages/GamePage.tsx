@@ -11,6 +11,9 @@ import { getIdToken } from 'firebase/auth'
 import { db } from '../lib/firebase'
 import { useAuthStore } from '../stores/authStore'
 import { useWorldStore } from '../stores/worldStore'
+import { createLogger } from '../lib/logger'
+
+const logger = createLogger('GamePage')
 import { TurnTimer } from '../components/world/TurnTimer'
 import { TurnLogList } from '../components/world/TurnLogList'
 import { ActionReservationForm } from '../components/reservations/ActionReservationForm'
@@ -66,13 +69,17 @@ export function GamePage() {
         const items = snapshot.docs.map((d) =>
           convertSlime(d.id, d.data() as Record<string, unknown>)
         )
+        logger.debug('スライム一覧更新', {
+          count: items.length,
+          slimes: items.map((s) => ({ id: s.id, name: s.name, hp: s.stats.hp, hunger: s.stats.hunger, speciesId: s.speciesId })),
+        })
         setSlimes(items)
         if (items.length > 0 && !selectedSlimeId) {
           setSelectedSlimeId(items[0].id)
         }
       },
       (err) => {
-        console.error('GamePage: slimes snapshot error', err)
+        logger.error('slimes snapshot error', { error: err.message })
       }
     )
 
@@ -83,6 +90,7 @@ export function GamePage() {
     if (!user) return
     setIsSummoning(true)
     setSummonError(null)
+    logger.debug('初期スライム召喚開始', { uid: user.uid })
     try {
       const idToken = await getIdToken(user)
       const res = await fetch('/api/slimes/initial', {
@@ -90,11 +98,16 @@ export function GamePage() {
         headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
       })
       if (res.status === 409) {
+        logger.debug('召喚スキップ: すでにスライムが存在')
         setSummonError('すでにスライムがいます')
       } else if (!res.ok) {
+        logger.error('召喚APIエラー', { status: res.status })
         setSummonError('エラーが発生しました')
+      } else {
+        logger.debug('初期スライム召喚成功')
       }
-    } catch {
+    } catch (err) {
+      logger.error('召喚リクエストエラー', { error: err instanceof Error ? err.message : String(err) })
       setSummonError('エラーが発生しました')
     } finally {
       setIsSummoning(false)

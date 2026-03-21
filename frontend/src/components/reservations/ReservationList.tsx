@@ -9,6 +9,9 @@ import {
 import { db, auth } from '../../lib/firebase'
 import type { ActionReservation, ActionType, ActionData, EatActionData, MoveActionData } from '../../../../shared/types/action'
 import { foods } from '../../../../shared/data/foods'
+import { createLogger } from '../../lib/logger'
+
+const logger = createLogger('ReservationList')
 
 interface ReservationListProps {
   slimeId: string
@@ -81,7 +84,7 @@ export function ReservationList({ slimeId, onDeleted }: ReservationListProps) {
         setReservations(items)
       },
       (err) => {
-        console.error('ReservationList: snapshot error', err)
+        logger.error('snapshot error', { slimeId, error: err.message })
         setError(err.message)
       }
     )
@@ -111,7 +114,7 @@ export function ReservationList({ slimeId, onDeleted }: ReservationListProps) {
 
       onDeleted?.()
     } catch (err) {
-      console.error('ReservationList: delete error', err)
+      logger.error('delete error', { reservationId, error: err instanceof Error ? err.message : String(err) })
       setError(err instanceof Error ? err.message : '削除に失敗しました')
     } finally {
       setDeletingId(null)

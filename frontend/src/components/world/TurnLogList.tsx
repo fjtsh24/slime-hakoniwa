@@ -12,6 +12,9 @@ import { db } from '../../lib/firebase'
 import { foods } from '../../../../shared/data/foods'
 import { slimeSpecies } from '../../../../shared/data/slimeSpecies'
 import type { TurnLog, TurnEventType } from '../../../../shared/types/turnLog'
+import { createLogger } from '../../lib/logger'
+
+const logger = createLogger('TurnLogList')
 
 interface TurnLogListProps {
   slimeId: string
@@ -142,7 +145,7 @@ export function TurnLogList({ slimeId, worldId, slimeName }: TurnLogListProps) {
         setIsLoading(false)
       },
       (err) => {
-        console.error('TurnLogList: snapshot error', err)
+        logger.error('snapshot error', { slimeId, worldId, error: err.message })
         setIsLoading(false)
       }
     )

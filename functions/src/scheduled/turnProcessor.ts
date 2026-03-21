@@ -119,7 +119,9 @@ function getActionBonusSkills(slime: Slime, targetAction: string): SkillDefiniti
 
 /**
  * nextTurnAt <= now() のワールドを全て取得してターン処理を実行する
+ * （Firestoreへの直接アクセスが必要なため統合テスト対象、単体テストから除外）
  */
+/* istanbul ignore next */
 export async function processDueTurns(): Promise<void> {
   const Timestamp = getTimestamp()
   const now = Timestamp.now()
@@ -127,6 +129,12 @@ export async function processDueTurns(): Promise<void> {
     .collection('worlds')
     .where('nextTurnAt', '<=', now)
     .get()
+
+  logger.debug('[processDueTurns] 処理対象ワールド確認', {
+    timestamp: now.toDate ? now.toDate().toISOString() : new Date().toISOString(),
+    worldCount: worldsSnap.docs.length,
+    worldIds: worldsSnap.docs.map((d) => d.id),
+  })
 
   if (worldsSnap.empty) return
 
@@ -139,7 +147,9 @@ export async function processDueTurns(): Promise<void> {
 
 /**
  * 指定ワールドのターンを1つ進める
+ * （Firestoreへの直接アクセスが必要なため統合テスト対象、単体テストから除外）
  */
+/* istanbul ignore next */
 export async function processWorldTurn(worldId: string): Promise<void> {
   const startMs = Date.now()
   let newTurn = 0
@@ -206,6 +216,7 @@ export async function processWorldTurn(worldId: string): Promise<void> {
     if (slimeDocs.length === 0) return
 
     // 予約を取得
+    logger.debug('[processWorldTurn] スライム取得完了', { worldId, turn: newTurn, slimeCount: slimeDocs.length })
     // 食料マスタは静的ファイル（shared/data/foods.ts）を唯一の参照元とする。
     // Firestore の foods コレクションは使用しない（設計方針: マスタデータは静的バンドル）。
     // 将来イベント食料が必要になった場合は Phase 5-6 で staticFoods ∪ firestoreEventFoods に移行する。
@@ -217,6 +228,12 @@ export async function processWorldTurn(worldId: string): Promise<void> {
       .get()
 
     const foods: Food[] = staticFoods
+
+    logger.debug('[processWorldTurn] 予約取得完了', {
+      worldId,
+      turn: newTurn,
+      reservationCount: Array.isArray(reservationsSnap?.docs) ? reservationsSnap.docs.length : 0,
+    })
 
     // 予約をスライムID別にグループ化
     const reservationsBySlime = new Map<string, ActionReservation[]>()
@@ -256,6 +273,13 @@ export async function processWorldTurn(worldId: string): Promise<void> {
         // タイル取得失敗は無視（gather/fish は tile なし扱いになる）
       }
     }
+
+    logger.debug('[processWorldTurn] タイルプリフェッチ完了', {
+      worldId,
+      turn: newTurn,
+      tilesLoaded: worldTiles.length,
+      mapCount: mapIdToCoords.size,
+    })
 
     const BATCH_SIZE = 500
     let batch = db().batch()
@@ -487,8 +511,28 @@ export async function processSlimeTurn(
   // 予約アクションの実行
   const pendingReservations = reservations.filter((r) => r.status === 'pending')
 
+  logger.debug('[processSlimeTurn] 開始', {
+    slimeId: slime.id,
+    slimeName: slime.name,
+    speciesId: slime.speciesId,
+    turn: currentTurn,
+    stats: slime.stats,
+    racialValues: slime.racialValues,
+    isIncapacitated,
+    incapacitatedUntilTurn: slime.incapacitatedUntilTurn,
+    inventoryCount: slime.inventory?.length ?? 0,
+    pendingReservationCount: pendingReservations.length,
+    nextAction: pendingReservations[0]?.actionType ?? 'autonomous',
+  })
+
   if (isIncapacitated) {
     // 戦闘不能: 予約はスキップ（consumed 扱い）、行動不能イベントを記録
+    logger.debug('[processSlimeTurn] 戦闘不能スキップ', {
+      slimeId: slime.id,
+      incapacitatedUntilTurn: slime.incapacitatedUntilTurn,
+      currentTurn,
+      skippedReservationCount: pendingReservations.length,
+    })
     events.push({
       eventType: 'battle_incapacitated',
       eventData: { incapacitatedUntilTurn: slime.incapacitatedUntilTurn },
@@ -499,6 +543,12 @@ export async function processSlimeTurn(
   } else if (pendingReservations.length > 0) {
     // 最初の予約を実行
     const reservation = pendingReservations[0]
+    logger.debug('[processSlimeTurn] 予約アクション実行', {
+      slimeId: slime.id,
+      actionType: reservation.actionType,
+      actionData: reservation.actionData,
+      reservationId: reservation.id,
+    })
     const actionResult = await executeReservedAction(currentSlime, reservation, foodList, tileList)
     currentSlime = actionResult.updatedSlime
     events.push(...actionResult.events)
@@ -530,6 +580,10 @@ export async function processSlimeTurn(
     }
   } else {
     // 自律行動
+    logger.debug('[processSlimeTurn] 自律行動（予約なし）', {
+      slimeId: slime.id,
+      hunger: slime.stats.hunger,
+    })
     const autonomousResult = await executeAutonomousAction(currentSlime)
     currentSlime = autonomousResult.updatedSlime
     events.push(...autonomousResult.events)
@@ -544,6 +598,11 @@ export async function processSlimeTurn(
       hunger: newHunger,
     },
   }
+  logger.debug('[processSlimeTurn] 空腹度減少', {
+    slimeId: slime.id,
+    hungerBefore: slime.stats.hunger,
+    hungerAfter: newHunger,
+  })
   events.push({ eventType: 'hunger_decrease', eventData: { before: slime.stats.hunger, after: newHunger } })
 
   // 進化チェック（静的マスタデータを唯一の参照元とする。foods/dropTables/wildMonstersと同方針）
@@ -551,6 +610,11 @@ export async function processSlimeTurn(
   if (speciesData) {
     const evolutionResult = checkEvolution(currentSlime, speciesData)
     if (evolutionResult.evolved) {
+      logger.debug('[processSlimeTurn] 進化発生', {
+        slimeId: slime.id,
+        fromSpeciesId: slime.speciesId,
+        toSpeciesId: evolutionResult.updatedSlime.speciesId,
+      })
       currentSlime = evolutionResult.updatedSlime
       const toSpecies = slimeSpecies.find((s) => s.id === currentSlime.speciesId)
       events.push({
@@ -566,12 +630,24 @@ export async function processSlimeTurn(
   // 分裂チェック（条件: exp>=500 かつ 任意の種族値>=0.7 かつ 15%確率）
   const splitResult = checkSplit(currentSlime)
   if (splitResult.split && splitResult.newSlime) {
+    logger.debug('[processSlimeTurn] 分裂発生', {
+      slimeId: slime.id,
+      newSlimeId: splitResult.newSlime.id,
+      speciesId: splitResult.newSlime.speciesId,
+    })
     newSlimesToCreate.push(splitResult.newSlime)
     events.push({
       eventType: 'split',
       eventData: { newSlimeId: splitResult.newSlime.id, speciesId: splitResult.newSlime.speciesId },
     })
   }
+
+  logger.debug('[processSlimeTurn] 完了', {
+    slimeId: slime.id,
+    finalStats: currentSlime.stats,
+    finalSpeciesId: currentSlime.speciesId,
+    events: events.map((e) => e.eventType),
+  })
 
   return {
     updatedSlime: currentSlime,
@@ -658,6 +734,14 @@ export async function executeReservedAction(
     inventory: slime.inventory ? slime.inventory.map((s) => ({ ...s })) : undefined,
   }
   const events: ActionResult['events'] = []
+
+  logger.debug('[executeReservedAction] 開始', {
+    slimeId: slime.id,
+    actionType: reservation.actionType,
+    actionData: reservation.actionData,
+    stats: { hp: slime.stats.hp, atk: slime.stats.atk, def: slime.stats.def, hunger: slime.stats.hunger, exp: slime.stats.exp },
+    inventoryCount: slime.inventory?.length ?? 0,
+  })
 
   switch (reservation.actionType) {
     case 'eat': {
@@ -755,6 +839,19 @@ export async function executeReservedAction(
         }
       }
 
+      logger.debug('[executeReservedAction] eat', {
+        slimeId: slime.id,
+        foodId,
+        foodName: food.name,
+        alwaysAvailable: food.alwaysAvailable,
+        hungerBefore: slime.stats.hunger,
+        hungerAfter: updatedSlime.stats.hunger,
+        expBefore: slime.stats.exp,
+        expAfter: updatedSlime.stats.exp,
+        cookingHungerBonus,
+        cookingExpMultiplier,
+        inventoryAfter: updatedSlime.inventory?.length ?? 0,
+      })
       events.push({ eventType: 'eat', eventData: { foodId, food: food.name } })
       break
     }
@@ -803,6 +900,16 @@ export async function executeReservedAction(
         break
       }
       updatedSlime = { ...updatedSlime, inventory: addResult.inventory }
+      logger.debug('[executeReservedAction] gather成功', {
+        slimeId: slime.id,
+        tileX: slime.tileX,
+        tileY: slime.tileY,
+        tileFound: !!gatherTile,
+        tableId: chosenTable.id,
+        droppedFoodId: dropped.foodId,
+        quantity: gatherQty,
+        hasBonusSkill: gatherBonusSkills.length > 0,
+      })
       events.push({ eventType: 'gather_success', eventData: { foodId: dropped.foodId, quantity: gatherQty, tableId: chosenTable.id } })
       break
     }
@@ -851,6 +958,16 @@ export async function executeReservedAction(
         break
       }
       updatedSlime = { ...updatedSlime, inventory: fishAddResult.inventory }
+      logger.debug('[executeReservedAction] fish成功', {
+        slimeId: slime.id,
+        tileX: slime.tileX,
+        tileY: slime.tileY,
+        waterVal,
+        fishWaterThreshold,
+        droppedFoodId: fishDropped.foodId,
+        quantity: fishQty,
+        hasBonusSkill: fishBonusSkills.length > 0,
+      })
       events.push({ eventType: 'fish_success', eventData: { foodId: fishDropped.foodId, quantity: fishQty } })
       break
     }
@@ -880,10 +997,28 @@ export async function executeReservedAction(
       const attackRoll = updatedSlime.stats.atk + huntAtkBonus + Math.floor(Math.random() * updatedSlime.stats.spd * 0.75)
       const huntSuccess = attackRoll > monster.power
 
+      logger.debug('[executeReservedAction] hunt 勝敗判定', {
+        slimeId: slime.id,
+        monsterName: monster.name,
+        monsterPower: monster.power,
+        slimeAtk: updatedSlime.stats.atk,
+        slimeSpd: updatedSlime.stats.spd,
+        atkBonus: huntAtkBonus,
+        attackRoll,
+        huntSuccess,
+        hasBonusSkill: huntBonusSkills.length > 0,
+      })
+
       if (!huntSuccess) {
         // 敗北: HP 減少
         const damage = Math.ceil(monster.power * 0.5)
         updatedSlime.stats.hp = Math.max(0, updatedSlime.stats.hp - damage)
+        logger.debug('[executeReservedAction] hunt敗北', {
+          slimeId: slime.id,
+          monsterName: monster.name,
+          damage,
+          hpAfter: updatedSlime.stats.hp,
+        })
         events.push({ eventType: 'hunt_fail', eventData: { monsterName: monster.name, damage, monsterId: monster.id } })
         break
       }
@@ -912,6 +1047,11 @@ export async function executeReservedAction(
         }
       }
 
+      logger.debug('[executeReservedAction] hunt成功', {
+        slimeId: slime.id,
+        monsterName: monster.name,
+        dropFoodId: huntFoodId,
+      })
       events.push({ eventType: 'hunt_success', eventData: { monsterName: monster.name, monsterId: monster.id, dropFoodId: huntFoodId } })
       break
     }
@@ -957,6 +1097,15 @@ export async function executeReservedAction(
         updatedSlime.racialValues.wind = capRacial(updatedSlime.racialValues.wind, tile.attributes.wind * 0.1)
       }
 
+      logger.debug('[executeReservedAction] move', {
+        slimeId: slime.id,
+        fromX: slime.tileX,
+        fromY: slime.tileY,
+        toX: targetX,
+        toY: targetY,
+        tileFound: !!tile,
+        racialUpdated: !!tile,
+      })
       events.push({ eventType: 'move', eventData: { targetX, targetY } })
       break
     }
@@ -979,17 +1128,36 @@ export async function executeReservedAction(
       const bAttackRoll = updatedSlime.stats.atk + Math.random() * updatedSlime.stats.spd * 0.5
       const battleSuccess = bAttackRoll > bMonster.power
 
+      logger.debug('[executeReservedAction] battle 勝敗判定', {
+        slimeId: slime.id,
+        monsterName: bMonster.name,
+        monsterPower: bMonster.power,
+        slimeAtk: updatedSlime.stats.atk,
+        slimeSpd: updatedSlime.stats.spd,
+        attackRoll: bAttackRoll,
+        battleSuccess,
+      })
+
       if (!battleSuccess) {
         // 敗北: HP 大ダメージ（hunt の倍: power そのもの）
         const bDamage = bMonster.power
         const hpBefore = updatedSlime.stats.hp
         updatedSlime.stats.hp = Math.max(0, updatedSlime.stats.hp - bDamage)
+        const incapacitated = hpBefore > 0 && updatedSlime.stats.hp === 0
+        logger.debug('[executeReservedAction] battle敗北', {
+          slimeId: slime.id,
+          monsterName: bMonster.name,
+          damage: bDamage,
+          hpBefore,
+          hpAfter: updatedSlime.stats.hp,
+          incapacitated,
+        })
         events.push({
           eventType: 'battle_lose',
           eventData: { monsterName: bMonster.name, damage: bDamage, monsterId: bMonster.id },
         })
         // HP=0 → 戦闘不能フラグ（incapacitatedTurns を ActionResult に返す）
-        if (hpBefore > 0 && updatedSlime.stats.hp === 0) {
+        if (incapacitated) {
           return { updatedSlime, events, incapacitatedTurns: 2 }
         }
         break
@@ -1024,6 +1192,13 @@ export async function executeReservedAction(
       const bExpBonus = Math.floor(bMonster.power * (1.5 + Math.random() * 0.5))
       updatedSlime.stats.exp = Math.max(0, updatedSlime.stats.exp + bExpBonus)
 
+      logger.debug('[executeReservedAction] battle勝利', {
+        slimeId: slime.id,
+        monsterName: bMonster.name,
+        dropFoodId: bFoodId,
+        expBonus: bExpBonus,
+        expAfter: updatedSlime.stats.exp,
+      })
       events.push({
         eventType: 'battle_win',
         eventData: { monsterName: bMonster.name, monsterId: bMonster.id, dropFoodId: bFoodId, expBonus: bExpBonus },
@@ -1034,11 +1209,20 @@ export async function executeReservedAction(
     case 'rest': {
       const maxHp = updatedSlime.stats.atk + updatedSlime.stats.def + 50
       const healAmount = Math.floor(maxHp * 0.2)
+      const hpBeforeRest = updatedSlime.stats.hp
       updatedSlime.stats.hp = Math.min(updatedSlime.stats.hp + healAmount, maxHp)
 
       // 休息すると少し食欲が出る
       updatedSlime.stats.hunger = clamp(updatedSlime.stats.hunger + 10, 0, 100)
 
+      logger.debug('[executeReservedAction] rest', {
+        slimeId: slime.id,
+        maxHp,
+        healAmount,
+        hpBefore: hpBeforeRest,
+        hpAfter: updatedSlime.stats.hp,
+        hungerAfter: updatedSlime.stats.hunger,
+      })
       events.push({ eventType: 'rest', eventData: { healAmount } })
       break
     }
@@ -1065,6 +1249,16 @@ export async function executeReservedAction(
         const defAbsorb = Math.floor(targetSlime.stats.def * 0.3)
         updatedSlime.stats.atk = updatedSlime.stats.atk + atkAbsorb
         updatedSlime.stats.def = updatedSlime.stats.def + defAbsorb
+
+        logger.debug('[executeReservedAction] merge', {
+          slimeId: slime.id,
+          targetSlimeId,
+          targetSlimeName: targetSlime.name,
+          atkAbsorb,
+          defAbsorb,
+          atkAfter: updatedSlime.stats.atk,
+          defAfter: updatedSlime.stats.def,
+        })
 
         events.push({
           eventType: 'merge',
@@ -1100,13 +1294,31 @@ export async function executeAutonomousAction(slime: Slime): Promise<ActionResul
   }
   const events: ActionResult['events'] = []
 
+  const autonomousPath =
+    slime.stats.hunger >= 50 ? 'walk' : slime.stats.hunger >= 20 ? 'rest' : 'weak'
+
+  logger.debug('[executeAutonomousAction] 開始', {
+    slimeId: slime.id,
+    hunger: slime.stats.hunger,
+    hp: slime.stats.hp,
+    path: autonomousPath,
+  })
+
   if (slime.stats.hunger >= 50) {
     // hunger >= 50: 自律的に近くを歩き回る（HP変化なし）
   } else if (slime.stats.hunger >= 20) {
     // hunger < 50 かつ hunger >= 20: 自律的に休息してHP微回復（maxHP × 5%）
     const maxHp = updatedSlime.stats.atk + updatedSlime.stats.def + 50
     const healAmount = Math.floor(maxHp * 0.05)
+    const hpBefore = updatedSlime.stats.hp
     updatedSlime.stats.hp = Math.min(updatedSlime.stats.hp + healAmount, maxHp)
+    logger.debug('[executeAutonomousAction] 自律休息', {
+      slimeId: slime.id,
+      maxHp,
+      healAmount,
+      hpBefore,
+      hpAfter: updatedSlime.stats.hp,
+    })
   }
   // hunger < 20: 弱っていて動けない（HP回復なし）
 
@@ -1125,12 +1337,22 @@ export async function executeAutonomousAction(slime: Slime): Promise<ActionResul
  * 成立時: 同種族・初期ステータスの子スライムを生成して返す
  */
 export function checkSplit(slime: Slime): { split: boolean; newSlime?: Slime } {
-  if (slime.stats.exp < 500) return { split: false }
+  if (slime.stats.exp < 500) {
+    logger.debug('[checkSplit] 分裂なし: EXP不足', { slimeId: slime.id, exp: slime.stats.exp, required: 500 })
+    return { split: false }
+  }
 
   const racialMax = Math.max(...Object.values(slime.racialValues))
-  if (racialMax < 0.7) return { split: false }
+  if (racialMax < 0.7) {
+    logger.debug('[checkSplit] 分裂なし: 種族値不足', { slimeId: slime.id, exp: slime.stats.exp, racialMax, required: 0.7 })
+    return { split: false }
+  }
 
-  if (Math.random() > 0.15) return { split: false }
+  const rand = Math.random()
+  if (rand > 0.15) {
+    logger.debug('[checkSplit] 分裂なし: 確率外れ', { slimeId: slime.id, exp: slime.stats.exp, racialMax, rand: rand.toFixed(4), threshold: 0.15 })
+    return { split: false }
+  }
 
   const parentSpecies = slimeSpecies.find((s) => s.id === slime.speciesId)
   if (!parentSpecies) return { split: false }
@@ -1153,6 +1375,13 @@ export function checkSplit(slime: Slime): { split: boolean; newSlime?: Slime } {
     updatedAt: now,
   }
 
+  logger.debug('[checkSplit] 分裂発生', {
+    slimeId: slime.id,
+    exp: slime.stats.exp,
+    racialMax,
+    newSlimeId: newSlime.id,
+    speciesId: newSlime.speciesId,
+  })
   return { split: true, newSlime }
 }
 
@@ -1173,6 +1402,14 @@ export function checkEvolution(slime: Slime, speciesData: SlimeSpecies): Evoluti
     racialValues: { ...slime.racialValues },
   }
 
+  logger.debug('[checkEvolution] 開始', {
+    slimeId: slime.id,
+    speciesId: speciesData.id,
+    conditionCount: speciesData.evolutionConditions.length,
+    stats: slime.stats,
+    racialValues: slime.racialValues,
+  })
+
   for (const condition of speciesData.evolutionConditions) {
     let meetsStats = true
     let meetsRacialValues = true
@@ -1182,6 +1419,13 @@ export function checkEvolution(slime: Slime, speciesData: SlimeSpecies): Evoluti
       const actual = slime.stats[key as keyof typeof slime.stats]
       if (actual === undefined || actual < (required as number)) {
         meetsStats = false
+        logger.debug('[checkEvolution] stats条件不足', {
+          slimeId: slime.id,
+          targetSpeciesId: condition.targetSpeciesId,
+          failedKey: key,
+          required,
+          actual,
+        })
         break
       }
     }
@@ -1193,6 +1437,13 @@ export function checkEvolution(slime: Slime, speciesData: SlimeSpecies): Evoluti
       const actual = slime.racialValues[key as keyof typeof slime.racialValues]
       if (actual === undefined || actual < (required as number)) {
         meetsRacialValues = false
+        logger.debug('[checkEvolution] 種族値条件不足', {
+          slimeId: slime.id,
+          targetSpeciesId: condition.targetSpeciesId,
+          failedKey: key,
+          required,
+          actual,
+        })
         break
       }
     }
@@ -1200,10 +1451,16 @@ export function checkEvolution(slime: Slime, speciesData: SlimeSpecies): Evoluti
     if (!meetsRacialValues) continue
 
     // 全条件を満たした
+    logger.debug('[checkEvolution] 進化条件達成', {
+      slimeId: slime.id,
+      fromSpeciesId: slime.speciesId,
+      toSpeciesId: condition.targetSpeciesId,
+    })
     updatedSlime.speciesId = condition.targetSpeciesId
     return { evolved: true, updatedSlime }
   }
 
+  logger.debug('[checkEvolution] 進化なし', { slimeId: slime.id, speciesId: slime.speciesId })
   return { evolved: false, updatedSlime }
 }
 

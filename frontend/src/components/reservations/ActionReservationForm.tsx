@@ -9,6 +9,9 @@ import {
   MAX_PENDING_RESERVATIONS,
   MAX_RESERVATION_TURN_DISTANCE,
 } from '../../../../shared/constants/game'
+import { createLogger } from '../../lib/logger'
+
+const logger = createLogger('ActionReservationForm')
 
 /** タイル属性から支配属性と期待できる食料カテゴリを返す */
 function getGatherHint(attrs: TileAttributes): { dominant: string; label: string; category: string } {
@@ -160,6 +163,8 @@ export function ActionReservationForm({
         actionData,
       }
 
+      logger.debug('予約送信', { slimeId: selectedSlimeId, worldId, turnNumber, actionType, actionData })
+
       const res = await fetch('/api/reservations', {
         method: 'POST',
         headers: {
@@ -171,9 +176,11 @@ export function ActionReservationForm({
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}))
+        logger.warn('予約APIエラー', { status: res.status, error: errData.error })
         throw new Error(errData.error ?? `サーバーエラー: ${res.status}`)
       }
 
+      logger.debug('予約成功', { slimeId: selectedSlimeId, turnNumber, actionType })
       // フォームリセット（予約済みターンを除いた次の空きターンへ）
       setTurnNumber(nextAvailableTurns(currentTurn + 1, [...reservedTurns, turnNumber], 1, currentTurn + MAX_RESERVATION_TURN_DISTANCE)[0])
       setActionType('eat')
@@ -182,7 +189,7 @@ export function ActionReservationForm({
       setTargetY(0)
       onSuccess?.()
     } catch (err) {
-      console.error('ActionReservationForm: submit error', err)
+      logger.error('submit error', { error: err instanceof Error ? err.message : String(err) })
       setError(err instanceof Error ? err.message : '予約に失敗しました')
     } finally {
       setIsSubmitting(false)
