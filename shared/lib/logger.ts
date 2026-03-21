@@ -6,15 +6,24 @@
  *
  * 出力フォーマット（Cloud Logging 互換）:
  *   { severity, message, ...context }
+ *
+ * ログレベル制御:
+ *   - 本番環境 (NODE_ENV=production): DEBUG を出力しない
+ *   - 開発環境: 全レベルを出力
  */
 
 export type LogSeverity = 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR'
+
+const IS_PRODUCTION = process.env.NODE_ENV === 'production'
 
 function emit(
   severity: LogSeverity,
   message: string,
   context?: Record<string, unknown>
 ): void {
+  // 本番環境では DEBUG を出力しない
+  if (IS_PRODUCTION && severity === 'DEBUG') return
+
   const entry = JSON.stringify({
     severity,
     message,

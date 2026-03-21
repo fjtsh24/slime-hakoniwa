@@ -11,6 +11,10 @@
 
 [functions]
   directory = "netlify/functions"
+  # firebase-admin は dev-cheat.ts → functions/src/turnProcessor.ts 経由でインポートされるが
+  # Netlify の esbuild が netlify/functions/node_modules/ から解決できないため外部扱いにする
+  # （netlify/functions/package.json の dependencies に firebase-admin が含まれており実行時に利用可能）
+  external_node_modules = ["firebase-admin", "firebase-admin/firestore"]
 
 # ローカル開発: 2ターミナル構成
 #   Terminal 1: npm run dev:functions  → netlify dev (Functions専用, port 8888)
@@ -28,6 +32,12 @@
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
+  status = 200
+
+# dev-cheat: 開発環境専用チートAPI（FIRESTORE_EMULATOR_HOST 未設定時は 403）
+[[redirects]]
+  from = "/dev-cheat/*"
+  to = "/.netlify/functions/dev-cheat/:splat"
   status = 200
 
 [[redirects]]

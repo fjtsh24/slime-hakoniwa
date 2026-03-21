@@ -2,6 +2,9 @@ import { create } from 'zustand'
 import { doc, onSnapshot, Timestamp } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import type { World } from '../../../shared/types/world'
+import { createLogger } from '../lib/logger'
+
+const logger = createLogger('worldStore')
 
 interface WorldState {
   world: World | null
@@ -40,6 +43,7 @@ export const useWorldStore = create<WorldState>((set) => ({
   subscribeToWorld: (worldId: string) => {
     set({ isLoading: true, error: null })
 
+    logger.debug('ワールド購読開始', { worldId })
     const docRef = doc(db, 'worlds', worldId)
     const unsubscribe = onSnapshot(
       docRef,
@@ -47,13 +51,20 @@ export const useWorldStore = create<WorldState>((set) => ({
         if (snapshot.exists()) {
           const data = { id: snapshot.id, ...snapshot.data() } as Record<string, unknown>
           const world = convertTimestamps(data)
+          logger.debug('ワールド情報更新', {
+            worldId,
+            currentTurn: world.currentTurn,
+            nextTurnAt: world.nextTurnAt instanceof Date ? world.nextTurnAt.toISOString() : String(world.nextTurnAt),
+            turnIntervalSec: world.turnIntervalSec,
+          })
           set({ world, isLoading: false, error: null })
         } else {
+          logger.warn('ワールドドキュメント未存在', { worldId })
           set({ world: null, isLoading: false, error: `World ${worldId} not found` })
         }
       },
       (error) => {
-        console.error('worldStore: Firestore snapshot error', error)
+        logger.error('Firestore snapshot error', { worldId, error: error.message })
         set({ error: error.message, isLoading: false })
       }
     )

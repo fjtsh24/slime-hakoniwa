@@ -3,11 +3,29 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore'
 import { db, auth } from '../../lib/firebase'
 import { foods } from '../../../../shared/data/foods'
 import type { Slime } from '../../../../shared/types/slime'
+import type { Tile, TileAttributes } from '../../../../shared/types/map'
 import type { ActionType } from '../../../../shared/types/action'
 import {
   MAX_PENDING_RESERVATIONS,
   MAX_RESERVATION_TURN_DISTANCE,
 } from '../../../../shared/constants/game'
+import { createLogger } from '../../lib/logger'
+
+const logger = createLogger('ActionReservationForm')
+
+/** タイル属性から支配属性と期待できる食料カテゴリを返す */
+function getGatherHint(attrs: TileAttributes): { dominant: string; label: string; category: string } {
+  const entries = [
+    { key: 'fire', label: '火', category: '獣系・精霊系（ATK・spirit 種族値）' },
+    { key: 'water', label: '水', category: '魚系・植物系（water・fish 種族値）' },
+    { key: 'earth', label: '土', category: '植物系（DEF・plant 種族値）' },
+    { key: 'wind', label: '風', category: '精霊系・植物系（spirit 種族値）' },
+  ] as const
+  const dominant = entries.reduce((a, b) =>
+    attrs[a.key] >= attrs[b.key] ? a : b
+  )
+  return { dominant: dominant.key, label: dominant.label, category: dominant.category }
+}
 
 function nextAvailableTurns(from: number, reserved: number[], count: number, maxTurn?: number): number[] {
   const set = new Set(reserved)
@@ -23,6 +41,8 @@ function nextAvailableTurns(from: number, reserved: number[], count: number, max
 
 interface ActionReservationFormProps {
   slimes: Slime[]
+  /** 融合対象スライム選択用。省略時は slimes と同じ */
+  allSlimes?: Slime[]
   worldId: string
   currentTurn: number
   onSuccess?: () => void
@@ -36,6 +56,7 @@ const ACTION_LABELS: Record<ActionType, string> = {
   gather: '採集',
   fish: '釣り',
   hunt: '狩猟',
+  merge: '融合',
 }
 
 const STAT_LABELS: Record<string, string> = {
@@ -47,7 +68,7 @@ const STAT_LABELS: Record<string, string> = {
   hunger: '満腹度',
 }
 
-const AVAILABLE_ACTIONS: ActionType[] = ['eat', 'gather', 'fish', 'hunt', 'move', 'rest']
+const AVAILABLE_ACTIONS: ActionType[] = ['eat', 'gather', 'fish', 'hunt', 'battle', 'merge', 'move', 'rest']
 
 const HUNT_CATEGORIES = [
   { value: 'beast', label: '獣系' },
@@ -61,6 +82,7 @@ const HUNT_STRENGTHS = [
 
 export function ActionReservationForm({
   slimes,
+  allSlimes,
   worldId,
   currentTurn,
   onSuccess,
@@ -74,8 +96,27 @@ export function ActionReservationForm({
   const [targetY, setTargetY] = useState<number>(0)
   const [huntCategory, setHuntCategory] = useState<string>('beast')
   const [huntStrength, setHuntStrength] = useState<string>('weak')
+  const [mergeTargetSlimeId, setMergeTargetSlimeId] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [currentTile, setCurrentTile] = useState<Tile | null>(null)
+
+  // 選択中スライムの現在タイル属性を購読
+  useEffect(() => {
+    const slime = slimes.find((s) => s.id === selectedSlimeId)
+    if (!slime) { setCurrentTile(null); return }
+
+    const unsubscribe = onSnapshot(
+      collection(db, 'maps', slime.mapId, 'tiles'),
+      (snap) => {
+        const tile = snap.docs
+          .map((d) => d.data() as Tile)
+          .find((t) => t.x === slime.tileX && t.y === slime.tileY) ?? null
+        setCurrentTile(tile)
+      }
+    )
+    return () => unsubscribe()
+  }, [selectedSlimeId, slimes])
 
   // 選択中スライムのpending予約ターン番号を購読し、次の空きターンを自動セット
   useEffect(() => {
@@ -114,8 +155,11 @@ export function ActionReservationForm({
         actionData = { foodId }
       } else if (actionType === 'move') {
         actionData = { targetX, targetY }
-      } else if (actionType === 'hunt') {
+      } else if (actionType === 'hunt' || actionType === 'battle') {
         actionData = { targetCategory: huntCategory, targetStrength: huntStrength }
+      } else if (actionType === 'merge') {
+        if (!mergeTargetSlimeId) throw new Error('融合対象スライムを選択してください')
+        actionData = { targetSlimeId: mergeTargetSlimeId }
       }
 
       const body = {
@@ -125,6 +169,8 @@ export function ActionReservationForm({
         actionType,
         actionData,
       }
+
+      logger.debug('予約送信', { slimeId: selectedSlimeId, worldId, turnNumber, actionType, actionData })
 
       const res = await fetch('/api/reservations', {
         method: 'POST',
@@ -137,9 +183,11 @@ export function ActionReservationForm({
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}))
+        logger.warn('予約APIエラー', { status: res.status, error: errData.error })
         throw new Error(errData.error ?? `サーバーエラー: ${res.status}`)
       }
 
+      logger.debug('予約成功', { slimeId: selectedSlimeId, turnNumber, actionType })
       // フォームリセット（予約済みターンを除いた次の空きターンへ）
       setTurnNumber(nextAvailableTurns(currentTurn + 1, [...reservedTurns, turnNumber], 1, currentTurn + MAX_RESERVATION_TURN_DISTANCE)[0])
       setActionType('eat')
@@ -148,7 +196,7 @@ export function ActionReservationForm({
       setTargetY(0)
       onSuccess?.()
     } catch (err) {
-      console.error('ActionReservationForm: submit error', err)
+      logger.error('submit error', { error: err instanceof Error ? err.message : String(err) })
       setError(err instanceof Error ? err.message : '予約に失敗しました')
     } finally {
       setIsSubmitting(false)
@@ -276,23 +324,61 @@ export function ActionReservationForm({
       )}
 
       {actionType === 'gather' && (
-        <p className="text-xs text-gray-500 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
-          現在地のタイル属性に応じた食料を採集します。属性値が高いほどレアな食料が採れます。
-        </p>
+        <div className="flex flex-col gap-1 text-xs bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+          <p className="text-gray-600">現在地のタイル属性に応じた食料を採集します。</p>
+          {currentTile ? (() => {
+            const { label, category } = getGatherHint(currentTile.attributes)
+            const attrs = currentTile.attributes
+            return (
+              <>
+                <div className="flex gap-2 mt-1">
+                  {(['fire','water','earth','wind'] as const).map((k) => (
+                    <span key={k} className="flex flex-col items-center">
+                      <span className="text-gray-400">{{ fire:'火', water:'水', earth:'土', wind:'風' }[k]}</span>
+                      <span className="font-mono font-medium text-gray-700">{attrs[k].toFixed(2)}</span>
+                    </span>
+                  ))}
+                </div>
+                <p className="text-yellow-700 mt-1">
+                  支配属性: <span className="font-medium">{label}属性</span> → {category}が期待できます
+                </p>
+              </>
+            )
+          })() : (
+            <p className="text-gray-400">タイル情報を読み込み中...</p>
+          )}
+        </div>
       )}
 
       {actionType === 'fish' && (
-        <p className="text-xs text-gray-500 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-          現在地のタイルで釣りをします。水属性 ≥ 0.3 のタイルでのみ成功します。
-        </p>
+        <div className="flex flex-col gap-1 text-xs bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+          <p className="text-gray-600">水属性のタイルで釣りをします。成功すると魚系食料（fish 種族値・SPD 強化）が手に入ります。</p>
+          {currentTile ? (() => {
+            const water = currentTile.attributes.water
+            const canFish = water >= 0.3
+            return (
+              <p className={canFish ? 'text-blue-700 font-medium' : 'text-red-600'}>
+                水属性: {water.toFixed(2)}{' '}
+                {canFish
+                  ? '✓ 釣り可能'
+                  : '✗ 水が足りません — 水属性 0.3 以上のタイルで釣りができます'}
+              </p>
+            )
+          })() : (
+            <p className="text-gray-400">タイル情報を読み込み中...</p>
+          )}
+          <p className="text-gray-500">失敗した場合はターンを消費するだけになります。</p>
+        </div>
       )}
 
       {actionType === 'hunt' && (
         <div className="flex flex-col gap-2">
-          <p className="text-xs text-gray-500 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
-            モンスターを狩猟します。勝利するとドロップアイテムと種族値が得られます。
-            敗北した場合は HP が減少します。gather や fish で食料を確保してから挑戦するのがおすすめです。
-          </p>
+          <div className="flex flex-col gap-1 text-xs bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
+            <p className="text-gray-600">モンスターを狩猟します。勝利するとドロップアイテムと種族値が得られます。敗北した場合は HP が減少します。</p>
+            <p className="text-orange-700">獣系 → 獣の肉・魔獣の心臓（ATK・HP・beast 種族値）</p>
+            <p className="text-orange-700">植物系 → 野草・薬草・世界樹の葉（DEF・plant 種族値）</p>
+            <p className="text-gray-500">HP が低い状態での挑戦は危険です。eat アクションで HP を回復してから挑みましょう。</p>
+          </div>
           <div className="flex gap-3">
             <div className="flex flex-col gap-1 flex-1">
               <label className="text-sm font-medium text-gray-600">モンスター種別</label>
@@ -336,6 +422,75 @@ export function ActionReservationForm({
           })()}
         </div>
       )}
+
+      {actionType === 'battle' && (
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-1 text-xs bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            <p className="text-gray-600">モンスターと戦闘します。hunt より難しく、敗北すると HP が大きく減り、HP=0 で2ターン行動不能になります。</p>
+            <p className="text-red-700">勝利すると種族値と食料ドロップが得られます。</p>
+            <p className="text-gray-500">十分に HP を回復してから挑みましょう。</p>
+          </div>
+          <div className="flex gap-3">
+            <div className="flex flex-col gap-1 flex-1">
+              <label className="text-sm font-medium text-gray-600">モンスター種別</label>
+              <select
+                value={huntCategory}
+                onChange={(e) => setHuntCategory(e.target.value)}
+                className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+              >
+                {HUNT_CATEGORIES.map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1 flex-1">
+              <label className="text-sm font-medium text-gray-600">強さ</label>
+              <select
+                value={huntStrength}
+                onChange={(e) => setHuntStrength(e.target.value)}
+                className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+              >
+                {HUNT_STRENGTHS.map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {actionType === 'merge' && (() => {
+        const mergeTargets = (allSlimes ?? slimes).filter((s) => s.id !== selectedSlimeId)
+        return (
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1 text-xs bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+              <p className="text-gray-600">別のスライムを吸収・融合します。</p>
+              <p className="text-yellow-800 font-semibold">⚠️ 対象スライムは融合後に完全に削除されます。元に戻せません。</p>
+              <p className="text-gray-500">融合成功: ATK・DEF が対象の 30% 分強化されます。</p>
+            </div>
+            {mergeTargets.length === 0 ? (
+              <p className="text-sm text-gray-400">融合できる他のスライムがいません。</p>
+            ) : (
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-600">融合対象スライム</label>
+                <select
+                  value={mergeTargetSlimeId}
+                  onChange={(e) => setMergeTargetSlimeId(e.target.value)}
+                  className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  required
+                >
+                  <option value="">-- 選択してください --</option>
+                  {mergeTargets.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}（HP:{s.stats.hp} ATK:{s.stats.atk} DEF:{s.stats.def}）
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {actionType === 'move' && (() => {
         const currentSlime = slimes.find((s) => s.id === selectedSlimeId)

@@ -12,6 +12,7 @@ import { MAP_WIDTH_MAX, MAP_HEIGHT_MAX } from '../../../shared/constants/map'
  *   fish    : actionData は空オブジェクト
  *   hunt    : actionData に targetCategory（"beast"|"plant"）と targetStrength（"weak"|"normal"）が必須
  *   battle  : actionData に targetCategory（"beast"|"plant"）と targetStrength（"weak"|"normal"）が必須
+ *   merge   : actionData に targetSlimeId（非空文字列）が必須（Phase 4 追加）
  */
 
 /** gather / fish 用: 追加データなし */
@@ -25,6 +26,13 @@ const huntBattleDataSchema = z
   })
   .strict()
 
+/** merge（融合）用: targetSlimeId が必須（Phase 4 追加） */
+const mergeDataSchema = z
+  .object({
+    targetSlimeId: z.string().min(1, 'targetSlimeId は必須です'),
+  })
+  .strict()
+
 export const createReservationSchema = z
   .object({
     slimeId: z.string().min(1, 'slimeId は必須です'),
@@ -33,10 +41,10 @@ export const createReservationSchema = z
       .number()
       .int('turnNumber は整数でなければなりません')
       .positive('turnNumber は正の整数でなければなりません'),
-    actionType: z.enum(['eat', 'move', 'rest', 'battle', 'gather', 'fish', 'hunt'], {
+    actionType: z.enum(['eat', 'move', 'rest', 'battle', 'gather', 'fish', 'hunt', 'merge'], {
       errorMap: () => ({
         message:
-          'actionType は "eat" | "move" | "rest" | "battle" | "gather" | "fish" | "hunt" のいずれかです',
+          'actionType は "eat" | "move" | "rest" | "battle" | "gather" | "fish" | "hunt" | "merge" のいずれかです',
       }),
     }),
     actionData: z.union([
@@ -49,6 +57,8 @@ export const createReservationSchema = z
       }),
       // hunt / battle: targetCategory + targetStrength
       huntBattleDataSchema,
+      // merge: targetSlimeId が必須
+      mergeDataSchema,
       // rest / gather / fish: 空オブジェクト（strict）
       emptyDataSchema,
     ]),
@@ -97,6 +107,17 @@ export const createReservationSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: `${actionType} アクションには actionData.targetCategory と actionData.targetStrength が必要です`,
+        })
+      }
+      return
+    }
+
+    if (actionType === 'merge') {
+      const result = mergeDataSchema.safeParse(actionData)
+      if (!result.success) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'merge アクションには actionData.targetSlimeId（非空文字列）が必要です',
         })
       }
       return

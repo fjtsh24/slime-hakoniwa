@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword } from 'firebase/auth'
 import { auth, USE_EMULATOR } from '../../lib/firebase'
+import { createLogger } from '../../lib/logger'
+
+const logger = createLogger('LoginPage')
 
 // 開発用テストアカウント（Auth Emulator + seed.ts で作成）
 const DEV_EMAIL = 'test@slime.local'
@@ -15,9 +18,11 @@ export function LoginPage() {
     setError(null)
     try {
       const provider = new GoogleAuthProvider()
+      logger.debug('Google ログイン開始')
       await signInWithPopup(auth, provider)
+      logger.debug('Google ログイン成功')
     } catch (err) {
-      console.error('LoginPage: signInWithPopup error', err)
+      logger.error('signInWithPopup error', { error: err instanceof Error ? err.message : String(err) })
       setError(err instanceof Error ? err.message : 'ログインに失敗しました')
     } finally {
       setIsLoading(false)
@@ -28,9 +33,11 @@ export function LoginPage() {
     setIsLoading(true)
     setError(null)
     try {
+      logger.debug('開発ログイン開始', { email: DEV_EMAIL })
       await signInWithEmailAndPassword(auth, DEV_EMAIL, DEV_PASSWORD)
+      logger.debug('開発ログイン成功')
     } catch (err) {
-      console.error('LoginPage: dev login error', err)
+      logger.error('dev login error', { error: err instanceof Error ? err.message : String(err) })
       setError(
         `開発ログイン失敗: ${err instanceof Error ? err.message : String(err)}\n` +
           'Firebase Emulator (port 9099) が起動しているか、npm run seed を実行済みか確認してください。'

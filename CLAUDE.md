@@ -87,7 +87,7 @@ slime-hakoniwa/
 ├── shared/
 │   ├── types/         フロント・Functions共用型定義
 │   └── data/          マスタデータ（foods, slimeSpecies）
-├── docs/              openapi.yaml・schema.dbml・security.md・レビュー報告
+├── docs/              openapi.yaml・security.md・レビュー報告
 ├── tests/
 │   ├── unit/
 │   ├── integration/
@@ -144,7 +144,6 @@ cd frontend && npm test        # フロントエンドテスト
 - `shared/data/` — food・slimeSpeciesマスタ
 - `firestore.rules` — セキュリティルール
 - `docs/openapi.yaml` — Swagger仕様書
-- `docs/schema.dbml` — DBスキーマ
 
 ## 注意事項
 

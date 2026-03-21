@@ -4,6 +4,9 @@ import { useNavigate } from 'react-router-dom'
 import { db } from '../lib/firebase'
 import { useUserStore } from '../stores/userStore'
 import type { Tile } from '../../../shared/types/map'
+import { createLogger } from '../lib/logger'
+
+const logger = createLogger('MapSettingsPage')
 
 export function MapSettingsPage() {
   const navigate = useNavigate()
@@ -18,11 +21,12 @@ export function MapSettingsPage() {
       collection(db, 'maps', userProfile.mapId, 'tiles'),
       (snap) => {
         const tileData = snap.docs.map((d) => d.data() as Tile)
+        logger.debug('タイル一覧取得', { mapId: userProfile?.mapId, count: tileData.length })
         setTiles(tileData.sort((a, b) => a.y - b.y || a.x - b.x))
         setIsLoading(false)
       },
       (err) => {
-        console.error('MapSettingsPage: tiles snapshot error', err)
+        logger.error('tiles snapshot error', { mapId: userProfile?.mapId, error: err.message })
         setIsLoading(false)
       }
     )

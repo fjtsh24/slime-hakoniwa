@@ -11,11 +11,16 @@ import { getIdToken } from 'firebase/auth'
 import { db } from '../lib/firebase'
 import { useAuthStore } from '../stores/authStore'
 import { useWorldStore } from '../stores/worldStore'
+import { createLogger } from '../lib/logger'
+
+const logger = createLogger('GamePage')
 import { TurnTimer } from '../components/world/TurnTimer'
 import { TurnLogList } from '../components/world/TurnLogList'
 import { ActionReservationForm } from '../components/reservations/ActionReservationForm'
 import { ReservationList } from '../components/reservations/ReservationList'
 import type { Slime } from '../../../shared/types/slime'
+import { skillDefinitions } from '../../../shared/data/skillDefinitions'
+import { DevPanel } from '../components/dev/DevPanel'
 
 const WORLD_ID = 'world-001'
 
@@ -64,13 +69,17 @@ export function GamePage() {
         const items = snapshot.docs.map((d) =>
           convertSlime(d.id, d.data() as Record<string, unknown>)
         )
+        logger.debug('スライム一覧更新', {
+          count: items.length,
+          slimes: items.map((s) => ({ id: s.id, name: s.name, hp: s.stats.hp, hunger: s.stats.hunger, speciesId: s.speciesId })),
+        })
         setSlimes(items)
         if (items.length > 0 && !selectedSlimeId) {
           setSelectedSlimeId(items[0].id)
         }
       },
       (err) => {
-        console.error('GamePage: slimes snapshot error', err)
+        logger.error('slimes snapshot error', { error: err.message })
       }
     )
 
@@ -81,6 +90,7 @@ export function GamePage() {
     if (!user) return
     setIsSummoning(true)
     setSummonError(null)
+    logger.debug('初期スライム召喚開始', { uid: user.uid })
     try {
       const idToken = await getIdToken(user)
       const res = await fetch('/api/slimes/initial', {
@@ -88,11 +98,16 @@ export function GamePage() {
         headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
       })
       if (res.status === 409) {
+        logger.debug('召喚スキップ: すでにスライムが存在')
         setSummonError('すでにスライムがいます')
       } else if (!res.ok) {
+        logger.error('召喚APIエラー', { status: res.status })
         setSummonError('エラーが発生しました')
+      } else {
+        logger.debug('初期スライム召喚成功')
       }
-    } catch {
+    } catch (err) {
+      logger.error('召喚リクエストエラー', { error: err instanceof Error ? err.message : String(err) })
       setSummonError('エラーが発生しました')
     } finally {
       setIsSummoning(false)
@@ -214,6 +229,22 @@ export function GamePage() {
                         ))}
                       </div>
                     )}
+                    {s.skillIds && s.skillIds.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {s.skillIds.map((skillId) => {
+                          const skill = skillDefinitions.find((d) => d.id === skillId)
+                          return skill ? (
+                            <span
+                              key={skillId}
+                              title={skill.description}
+                              className="text-xs bg-purple-50 border border-purple-200 text-purple-700 rounded px-1.5 py-0.5 cursor-help"
+                            >
+                              ✨ {skill.name}
+                            </span>
+                          ) : null
+                        })}
+                      </div>
+                    )}
                   </button>
                 </li>
               ))}
@@ -224,7 +255,9 @@ export function GamePage() {
         {/* 選択中スライムのアクション予約フォーム */}
         {selectedSlime && world && (
           <ActionReservationForm
+            key={selectedSlime.id}
             slimes={[selectedSlime]}
+            allSlimes={slimes}
             worldId={WORLD_ID}
             currentTurn={world.currentTurn}
             onSuccess={() => setReservationKey((k) => k + 1)}
@@ -245,6 +278,7 @@ export function GamePage() {
           <TurnLogList slimeId={selectedSlimeId} worldId={WORLD_ID} slimeName={selectedSlime?.name} />
         )}
       </main>
+      {import.meta.env.DEV && <DevPanel />}
     </div>
   )
 }

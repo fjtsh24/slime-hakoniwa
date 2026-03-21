@@ -72,8 +72,20 @@ export interface Slime {
    * 最大スロット数は INVENTORY_MAX_SLOTS（shared/constants/game.ts）を参照
    */
   inventory?: InventorySlot[];
+  /**
+   * 習得済みスキルのID一覧（Phase 4 追加）
+   * `slimes/{id}/skills` サブコレクションのキーをデノーマライズしたもの。
+   * ターン処理での N+1 回避のため、skillGrantId 付与時に同時に更新する。
+   */
+  skillIds?: string[];
   /** 野生スライムかどうか */
   isWild: boolean;
+  /**
+   * 戦闘不能状態の解除ターン番号（Phase 4 追加）
+   * このターン番号以下のターンでは行動できない。
+   * undefined または現在ターンより小さければ行動可能。
+   */
+  incapacitatedUntilTurn?: number;
   createdAt: Date;
   updatedAt: Date;
 }

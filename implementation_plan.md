@@ -7,7 +7,7 @@
 | Phase 1 | ターン進行システム基盤 | 3週間 | ✅ 完了 |
 | Phase 2 | 認証・ユーザー・マップ基盤 | 2週間 | ✅ 完了 |
 | Phase 3 | スライム育成基本 | 3週間 | ✅ 完了 |
-| Phase 4 | 進化・分裂・融合 | 3週間 | 未着手 |
+| Phase 4 | 進化・分裂・融合 | 3週間 | ✅ 完了 |
 | Phase 5 | マップ描画・UI完成 | 3週間 | 未着手 |
 | Phase 6 | ソーシャル・野生スライム | 2週間 | 未着手 |
 | Phase 7 | チューニング・リリース準備 | 2週間 | 未着手 |
@@ -270,12 +270,13 @@
 ### Week 3: battle アクション + 進化・分裂・融合
 
 **テスト先行作成（A7/QA）**
-- [ ] `tests/unit/battleAction.test.ts`: 10件（勝敗判定・種族値上昇・食料ドロップ・EXP・HP損傷・戦闘不能状態）（RED）
-- [ ] `tests/integration/inventoryApi.test.ts`: gather→インベントリ確認→eatでインベントリ消費 の一連フロー（Emulator）
-- [ ] `tests/integration/battleHunt.test.ts`: hunt成功/失敗・battle勝利/敗北フロー（Emulator）
+- [x] `tests/unit/battleAction.test.ts`: 10件（勝敗判定・種族値上昇・食料ドロップ・EXP・HP損傷・戦闘不能状態）（GREEN）
+- [x] `tests/unit/functions/turnProcessor.test.ts`: `checkSplit` 9件追加（境界値・確率・親フィールド継承）（A7/QA H-1 対応）
+- [ ] `tests/integration/inventoryApi.test.ts`: gather→インベントリ確認→eatでインベントリ消費 の一連フロー（Emulator）【Phase 5】
+- [ ] `tests/integration/battleHunt.test.ts`: hunt成功/失敗・battle勝利/敗北フロー（Emulator）【Phase 5】
 
 **バックエンド実装（A3/BE）**
-- [ ] `functions/src/scheduled/turnProcessor.ts`: `battleアクション` ハンドラ追加
+- [x] `functions/src/scheduled/turnProcessor.ts`: `battleアクション` ハンドラ追加
   - 勝敗判定: `(slime.stats.atk + Math.random() * slime.stats.spd * 0.5) > monsterPower`（weak=10/normal=30）
   - 勝利時: 種族値直接加算（`Math.min(current + delta, RACIAL_VALUE_MAX)` でクランプ）+ 食料ドロップ + EXP×1.5〜2
   - 敗北時: HP大ダメージ、HP=0で戦闘不能（2ターン行動停止フラグ）
@@ -286,27 +287,41 @@
 > 現状: `shared/types/skill.ts` に型定義あり、`turnProcessor.ts` にスキル付与ロジックあり。
 > しかしスキルマスタデータ（`skill-def-001〜006` の実体）と効果発動ロジックが未実装。
 
-- [ ] `shared/data/skillDefinitions.ts` 作成（skill-def-001〜006 の実体定義）
+- [x] `shared/data/skillDefinitions.ts` 作成（skill-def-001〜006 の実体定義）
   - effectType別の effectData 構造を確定する（A1/Fun が内容を決定）
   - 例: `cooking` → `{ eatHungerBonus: 10, eatExpMultiplier: 1.5 }`
-- [ ] スキル効果の発動ロジック設計・実装（A3/BE）
+- [ ] スキル効果の発動ロジック設計・実装（A3/BE）【Phase 5 以降】
   - `effectType: "cooking"` — eatアクション時に所持スキルを参照して食事効果（hunger回復・EXP）を増幅
   - `effectType: "stat_boost"` — ターン開始時に恒常的なステータス加算
   - `effectType: "action_bonus"` — gather/hunt等の特定アクションの成功率・ドロップ量を増加
   - スキル効果の適用はターン処理側（`turnProcessor.ts`）で行う（クライアント側での計算は不可）
-- [ ] スキル確認UI（スライムカードへの習得スキル一覧・効果説明表示）（A4/FE）
+- [x] スキル確認UI（スライムカードへの習得スキル一覧・効果説明表示）（A4/FE）
 
-**進化・分裂・融合（A3/BE）**
-- [ ] 進化UIの実装（`checkEvolution` は Phase 1 で実装済み）
-- [ ] 分裂ロジック（条件達成時に新スライムを生成）
-- [ ] 分裂による別種族スライム生成条件の実装
-- [ ] 融合アクションの実装（他スライムを吸収・ステータス強化）
+**進化・分裂・融合（A3/BE・A4/FE）**
+- [x] 進化UIの実装（`TurnLogList.tsx` に種族名表示・evolveイベント色強調）
+- [x] 分裂ロジック（条件達成時に新スライムを生成）（`checkSplit()` 実装: exp≥500 + racialMax≥0.7 + 15%確率）
+- [x] 分裂による別種族スライム生成条件の実装（親と同種族・baseStats継承）
+- [x] 融合アクションの実装（他スライムを吸収・ステータス強化）（ATK/DEF×30%吸収、自己融合防止、オーナー一致チェック）
+- [x] `battle` / `merge` を `AVAILABLE_ACTIONS` に追加（A1/Fun H-1・H-2 対応）
+  - battle UI: カテゴリ・強さ選択（hunt と同じセレクタを使用）
+  - merge UI: 融合対象スライム選択 + 「対象スライムが削除されます」警告
+
+### レビュー完了 ✅（2026-03-21）
+
+- [x] A7/QA レビュー → `docs/qa_review/phase_4.md`（H-1: checkSplit テスト追加で対応済み）
+- [x] A2/Sec レビュー → `docs/security_review/phase_4.md`（M レベルは Phase 5 対応）
+- [x] A1/Fun レビュー → `docs/fun_review/phase_4.md`（H-1・H-2: battle/merge フロントエンド追加で対応済み）
 
 ### Phase 4 残課題（Phase 5 以降で対応）
 
-- Firebase App Check 導入（A2/Sec SEC-L-3・Phase 4 高優先で持ち越し）
-- `coverageThreshold` に `branches: 70` 追加（A7/QA推奨）
-- Phase 3残課題のA1指摘事項（H-2/M-1〜M-5）を Phase 4序盤に対応
+- Firebase App Check 導入（A2/Sec SEC-M-4・Phase 4 高優先で持ち越し）
+- `coverageThreshold` に `branches: 70` 追加（A7/QA-M-2）
+- cooking スキル効果ロジックのテスト追加（A7/QA-M-4）
+- `slimesToDelete` / `newSlimesToCreate` をメインバッチに組み込みアトミック化（A2/Sec SEC-M-2・M-3）
+- battle/skill_grant ターンログにモンスター名・スキル名表示（A1/Fun L-1）
+- autonomous eventData に action フィールド追加（A1/Fun L-2）
+- 統合テスト CI 除外の明示化（A7/QA-M-3）
+- Phase 3残課題のA1指摘事項（H-2/M-1〜M-5）を Phase 5序盤に対応
 
 ---
 
@@ -348,11 +363,40 @@
 
 ## Phase 6: ソーシャル・野生スライム ＋ アクション拡張（spirit/slime系）
 
-### 実装内容
+> **設計書**: `docs/phase6_social_design.md` を参照（A1/Fun + A2/Sec レビュー済み、2026-03-20）
 
-**ソーシャル機能（A4/FE）**
-- [ ] 他プレイヤーのマップ閲覧機能（読み取り専用）
-- [ ] プレイヤー一覧表示
+### Week 1: ソーシャル基盤・ログイン不要公開ページ
+
+**課題**: アカウント登録しないとゲームの面白さが全く分からない → 公開ページで解決
+
+**データ基盤（A5/DB・A2/Sec）**
+- [ ] `publicProfiles/{uid}` コレクション設計（publicHandle / displayName / slimeSummaries）
+  - 書き込みは Cloud Functions（Admin SDK）のみ（`allow write: if false` in rules）
+  - `slimes` 更新トリガーで自動同期
+- [ ] `publicHandle` の登録フロー追加（初回ゲーム画面）
+  - バリデーション: `^[a-zA-Z0-9_-]{3,32}$`、lowercase 正規化、30日変更制限
+
+**公開API（A3/BE・A2/Sec必須事項確認後実装）**
+- [ ] `netlify/functions/api.ts` に `/api/public/*` ルート追加（認証不要）
+  - **必須**: 全レスポンスをホワイトリスト方式でフィールドフィルタリング（MUST-1）
+  - **必須**: `racialValues`・`exp`・`hunger`・`skillIds` を非公開に（MUST-2）
+  - **必須**: Firebase UID をレスポンスに含めない（識別子は publicHandle のみ）
+  - `Cache-Control: public, max-age=60` でCDNキャッシュ活用
+- [ ] `GET /api/public/encyclopedia` — スライム図鑑データ
+- [ ] `GET /api/public/players/:handle` — プレイヤープロフィール
+- [ ] `GET /api/public/live` — ライブ観戦フィード（eventData もホワイトリスト適用・MUST-5）
+
+**フロントエンド（A4/FE）**
+- [ ] `/encyclopedia` スライム図鑑ページ（全種族・進化ルートツリー・育成中プレイヤー数）
+- [ ] `/players/:handle` プレイヤー公開プロフィールページ（スライム一覧・特別イベント直近5件）
+  - 最下部に「このゲームを始める」CTAボタン
+- [ ] トップページにスライム図鑑・ライブフィードへのリンク追加（ログイン前のユーザー向け）
+
+### Week 2: ソーシャル拡張・野生スライム・ワールドイベント
+
+**ソーシャル拡張（A4/FE）**
+- [ ] `/players/:handle/map` 他プレイヤーのマップ閲覧（読み取り専用・Phase 5 マップ完成が前提）
+- [ ] `/live` ライブ観戦フィードページ
 
 **野生スライム・モンスター拡張（A3/BE）**
 - [ ] 野生スライムのAI自律行動ロジック（ターン進行時に処理）
