@@ -11,15 +11,19 @@ import { getIdToken } from 'firebase/auth'
 import { db } from '../lib/firebase'
 import { useAuthStore } from '../stores/authStore'
 import { useWorldStore } from '../stores/worldStore'
+import { useUserStore } from '../stores/userStore'
 import { createLogger } from '../lib/logger'
 
 const logger = createLogger('GamePage')
 import { TurnTimer } from '../components/world/TurnTimer'
 import { TurnLogList } from '../components/world/TurnLogList'
+import { WorldLogPanel } from '../components/world/WorldLogPanel'
+import { WorldMapPanel } from '../components/world/WorldMapPanel'
 import { ActionReservationForm } from '../components/reservations/ActionReservationForm'
 import { ReservationList } from '../components/reservations/ReservationList'
 import type { Slime } from '../../../shared/types/slime'
 import { skillDefinitions } from '../../../shared/data/skillDefinitions'
+import { DEFAULT_SLIME_COLOR } from '../components/world/turnLogUtils'
 import { DevPanel } from '../components/dev/DevPanel'
 
 const WORLD_ID = 'world-001'
@@ -40,6 +44,7 @@ export function GamePage() {
   const signOut = useAuthStore((s) => s.signOut)
   const world = useWorldStore((s) => s.world)
   const subscribeToWorld = useWorldStore((s) => s.subscribeToWorld)
+  const userProfile = useUserStore((s) => s.userProfile)
 
   const [slimes, setSlimes] = useState<Slime[]>([])
   const [selectedSlimeId, setSelectedSlimeId] = useState<string | null>(null)
@@ -114,6 +119,14 @@ export function GamePage() {
     }
   }
 
+  /** マップのタイルをクリックした時に move アクションの座標を自動セット */
+  const handleTileClick = (x: number, y: number) => {
+    logger.debug('タイルクリック', { x, y })
+    // 選択中スライムがいれば move フォームへのヒントとして使えるが、
+    // ActionReservationForm は独立しているため currentTile 選択は今後の拡張で対応
+    void x; void y
+  }
+
   // 認証ロード中
   if (isAuthLoading) {
     return (
@@ -156,6 +169,25 @@ export function GamePage() {
         {/* ターンタイマー */}
         <TurnTimer worldId={WORLD_ID} />
 
+        {/* マップ（スライムがいる場合のみ表示） */}
+        {slimes.length > 0 && userProfile?.mapId && (
+          <WorldMapPanel
+            mapId={userProfile.mapId}
+            slimes={slimes}
+            selectedSlimeId={selectedSlimeId}
+            onTileClick={handleTileClick}
+          />
+        )}
+
+        {/* ワールドログ（全スライム統合） */}
+        {slimes.length > 0 && world && (
+          <WorldLogPanel
+            worldId={WORLD_ID}
+            currentTurn={world.currentTurn}
+            slimes={slimes}
+          />
+        )}
+
         {/* スライム一覧 */}
         <div className="bg-white rounded-xl shadow p-4 flex flex-col gap-2">
           <h2 className="text-base font-bold text-gray-700">マイスライム</h2>
@@ -194,6 +226,11 @@ export function GamePage() {
                     }`}
                   >
                     <div className="flex items-center gap-2">
+                      {/* スライムカラーバー */}
+                      <span
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: s.color ?? DEFAULT_SLIME_COLOR }}
+                      />
                       <span className="font-medium">{s.name}</span>
                       <span
                         className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
@@ -273,7 +310,7 @@ export function GamePage() {
           />
         )}
 
-        {/* 選択中スライムのターンログ */}
+        {/* 選択中スライムのターンログ（個別詳細） */}
         {selectedSlimeId && (
           <TurnLogList slimeId={selectedSlimeId} worldId={WORLD_ID} slimeName={selectedSlime?.name} />
         )}
