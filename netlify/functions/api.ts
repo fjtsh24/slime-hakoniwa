@@ -14,6 +14,17 @@ import {
   MAX_RESERVATION_TURN_DISTANCE,
 } from '../../shared/constants/game'
 
+const SLIME_COLORS = [
+  '#ef4444', // red
+  '#3b82f6', // blue
+  '#10b981', // emerald
+  '#f59e0b', // amber
+  '#8b5cf6', // violet
+  '#ec4899', // pink
+  '#06b6d4', // cyan
+  '#14b8a6', // teal
+]
+
 interface CreateInitialSlimeRequest {
   ownerUid: string
   mapId: string
@@ -40,6 +51,8 @@ async function createInitialSlime(
   }
   const stats: SlimeStats = { ...initialSpecies.baseStats }
 
+  const color = SLIME_COLORS[Math.floor(Math.random() * SLIME_COLORS.length)]
+
   const slimeData = {
     id: slimeId,
     ownerUid,
@@ -50,6 +63,7 @@ async function createInitialSlime(
     tileX: 0,
     tileY: 0,
     isWild: false,
+    color,
     stats,
     racialValues,
     inventory: [],
@@ -79,6 +93,7 @@ async function createInitialSlime(
     tileX: 0,
     tileY: 0,
     isWild: false,
+    color,
     stats,
     racialValues,
     inventory: [],

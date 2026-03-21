@@ -30,16 +30,16 @@ export type FishActionData = Record<string, never>;
 
 /** 狩猟行動のデータ */
 export interface HuntActionData {
-  /** 狩猟対象カテゴリ: beast / plant（Phase 4スコープ） */
-  targetCategory: "beast" | "plant";
+  /** 狩猟対象カテゴリ: beast / plant / fish / human（Phase 5スコープ） */
+  targetCategory: "beast" | "plant" | "fish" | "human";
   /** 強度: weak / normal（Phase 4スコープ、strong は Phase 6で解放） */
   targetStrength: "weak" | "normal";
 }
 
 /** 戦闘行動のデータ */
 export interface BattleActionData {
-  /** 戦闘対象カテゴリ: beast / plant（Phase 4スコープ） */
-  targetCategory: "beast" | "plant";
+  /** 戦闘対象カテゴリ: beast / plant / fish / human（Phase 5スコープ） */
+  targetCategory: "beast" | "plant" | "fish" | "human";
   /** 強度: weak / normal（Phase 4スコープ） */
   targetStrength: "weak" | "normal";
 }

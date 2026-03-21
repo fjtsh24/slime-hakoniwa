@@ -295,6 +295,118 @@ describe('executeEatAction', () => {
   // インベントリ連動の eat アクション挙動を検証する
   // ================================================================
 
+  // ================================================================
+  // cookingスキル効果テスト（Phase 4 残課題 A7/QA-M-4）
+  // ================================================================
+
+  // ----------------------------------------------------------------
+  // cooking スキル: eatHungerBonus が hunger に加算される
+  // 賢者のレシピ（skill-def-003）: eatHungerBonus: 20
+  // ----------------------------------------------------------------
+  it('cooking スキル（eatHungerBonus）により hunger が追加回復する', async () => {
+    const slime = makeSlime({
+      stats: makeStats({ hunger: 40 }),
+      skillIds: ['skill-def-003'], // 賢者のレシピ: eatHungerBonus: 20
+    })
+    const food = makeFood('food-test-cooking-hunger', { hp: 1 }, {})
+    const reservation = makeEatReservation(food.id)
+
+    const result = await executeReservedAction(slime, reservation, [food])
+
+    // 通常 +30 + cooking ボーナス +20 = +50 → 40 + 50 = 90
+    expect(result.updatedSlime.stats.hunger).toBe(90)
+  })
+
+  // ----------------------------------------------------------------
+  // cooking スキル: eatHungerBonus が上限 100 でクランプされる
+  // ----------------------------------------------------------------
+  it('cooking スキルの eatHungerBonus が hunger 上限 100 でクランプされる', async () => {
+    const slime = makeSlime({
+      stats: makeStats({ hunger: 60 }),
+      skillIds: ['skill-def-003'], // eatHungerBonus: 20
+    })
+    const food = makeFood('food-test-cooking-clamp', {}, {})
+    const reservation = makeEatReservation(food.id)
+
+    const result = await executeReservedAction(slime, reservation, [food])
+
+    // 60 + 30 + 20 = 110 → クランプ → 100
+    expect(result.updatedSlime.stats.hunger).toBe(100)
+  })
+
+  // ----------------------------------------------------------------
+  // cooking スキル: eatExpMultiplier が EXP に適用される
+  // 世界樹の加護（skill-def-002）: eatExpMultiplier: 1.8
+  // ----------------------------------------------------------------
+  it('cooking スキル（eatExpMultiplier）により EXP ボーナスが加算される', async () => {
+    const slime = makeSlime({
+      stats: makeStats({ exp: 0 }),
+      skillIds: ['skill-def-002'], // 世界樹の加護: eatExpMultiplier: 1.8
+    })
+    // exp: 10 の食料（非 plant カテゴリ → eatExpMultiplier: 1.8 が適用される）
+    const food = makeFood('food-test-cooking-exp', { exp: 10 }, {})
+    const reservation = makeEatReservation(food.id)
+
+    const result = await executeReservedAction(slime, reservation, [food])
+
+    // 基礎 +10 → updatedSlime 時点で exp=10
+    // expBonus = floor(10 * (1.8 - 1.0)) = floor(10 * 0.8) = 8
+    // 合計: 10 + 8 = 18
+    expect(result.updatedSlime.stats.exp).toBe(18)
+  })
+
+  // ----------------------------------------------------------------
+  // cooking スキル: categoryBonus が plant 食料に適用される
+  // 世界樹の加護（skill-def-002）: categoryBonus: {category: "plant", eatExpMultiplier: 2.5}
+  // ----------------------------------------------------------------
+  it('cooking スキルの categoryBonus が food.category と一致する場合、高い倍率が適用される', async () => {
+    const slime = makeSlime({
+      stats: makeStats({ exp: 0 }),
+      skillIds: ['skill-def-002'], // eatExpMultiplier: 1.8, categoryBonus: {plant, 2.5}
+    })
+    // plant カテゴリの食料 → categoryBonus.eatExpMultiplier: 2.5 が適用される
+    const food: import('../../shared/types/food').Food = {
+      id: 'food-test-cooking-plant',
+      name: 'テスト植物食料',
+      description: 'テスト用',
+      category: 'plant',
+      statDeltas: { exp: 10 },
+      racialDeltas: {},
+      skillGrantId: null,
+      skillGrantProb: 0,
+    }
+    const reservation = makeEatReservation(food.id)
+
+    const result = await executeReservedAction(slime, reservation, [food])
+
+    // 基礎 +10、categoryBonus で eatExpMultiplier = 2.5（1.8 より優先）
+    // expBonus = floor(10 * (2.5 - 1.0)) = floor(10 * 1.5) = 15
+    // 合計: 10 + 15 = 25
+    expect(result.updatedSlime.stats.exp).toBe(25)
+  })
+
+  // ----------------------------------------------------------------
+  // cooking スキルなし: EXP ボーナスなし
+  // ----------------------------------------------------------------
+  it('cooking スキルなしの場合、EXP ボーナスは加算されない', async () => {
+    const slime = makeSlime({
+      stats: makeStats({ exp: 0 }),
+      skillIds: [], // スキルなし
+    })
+    const food = makeFood('food-test-no-skill', { exp: 10 }, {})
+    const reservation = makeEatReservation(food.id)
+
+    const result = await executeReservedAction(slime, reservation, [food])
+
+    // スキルなし → EXP は通常通り +10 のみ
+    expect(result.updatedSlime.stats.exp).toBe(10)
+  })
+
+  // ================================================================
+  // Phase 4 Week 1 追加テスト（RED: 現在の実装では失敗する）
+  // インベントリ連動の eat アクション挙動を検証する
+  // ================================================================
+
   // ----------------------------------------------------------------
   // 追加テスト 9: インベントリに食料がある場合は eat アクションが成功し、
   //               インベントリの数量が1減算される（Week 2 実装後に GREEN になる）

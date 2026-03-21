@@ -6,6 +6,7 @@ import { LoginPage } from './components/auth/LoginPage'
 import { GamePage } from './pages/GamePage'
 import { SetupPage } from './pages/SetupPage'
 import { MapSettingsPage } from './pages/MapSettingsPage'
+import { CreditsPage } from './pages/CreditsPage'
 
 function AppRoutes() {
   const user = useAuthStore((s) => s.user)
@@ -77,6 +78,7 @@ function AppRoutes() {
         path="/"
         element={<Navigate to={hasMap ? '/game' : '/setup'} replace />}
       />
+      <Route path="/credits" element={<CreditsPage />} />
       <Route
         path="*"
         element={<Navigate to={hasMap ? '/game' : '/setup'} replace />}
