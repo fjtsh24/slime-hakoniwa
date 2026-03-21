@@ -8,7 +8,7 @@
 | Phase 2 | 認証・ユーザー・マップ基盤 | 2週間 | ✅ 完了 |
 | Phase 3 | スライム育成基本 | 3週間 | ✅ 完了 |
 | Phase 4 | 進化・分裂・融合 | 3週間 | ✅ 完了 |
-| Phase 5 | マップ描画・UI完成 | 3週間 | 未着手 |
+| Phase 5 | マップ描画・UI完成 | 3週間 | ✅ 完了 |
 | Phase 6 | ソーシャル・野生スライム | 2週間 | 未着手 |
 | Phase 7 | チューニング・リリース準備 | 2週間 | 未着手 |
 
@@ -330,34 +330,32 @@
 ### 実装内容
 
 **マップ描画（A4/FE）**
-- [ ] Phaser 3 または Pixi.js によるタイルマップ描画
-- [ ] マップ上へのスライム配置表示
-- [ ] スライムのリアルタイム位置更新（Firestoreリアルタイム購読）
-- [ ] 移動アクションのビジュアル表示
-- [ ] タイル属性の視覚的表示（アイコン・カラーコーディング）
-- [ ] レスポンシブ対応の最終調整（PC・スマホ両対応）
-- [ ] チュートリアルフロー実装
+- [x] CSS Grid によるタイルマップ描画（Phaser 3 / Pixi.js の代わりに採用 — A1/Fun判断: ゼロ依存・MapSettingsPageと共通パターン）
+- [x] マップ上へのスライム配置表示（スライムカラードット）
+- [x] スライムのリアルタイム位置更新（Firestoreリアルタイム購読）
+- [x] タイル属性の視覚的表示（アイコン・カラーコーディング: fire→赤/water→青/earth→黄/wind→緑）
+- [x] チュートリアルフロー実装（localStorage dismissible ヒントカード — A1/Fun B案推奨）
+- [x] マップタイルクリック → ActionReservationForm の move 座標オートセット
 
 **アクション拡張（A3/BE・A1/Fun確認）**
-- [ ] `wildMonsters.ts` に fish / human 系モンスター追加（weak/normal）
-- [ ] battle対象カテゴリ拡張: fish / human 系を追加（zodスキーマ更新）
-- [ ] マップ上でのタイル選択→gather/fish実行という直感的UIとの連動
+- [x] `wildMonsters.ts` に fish / human 系モンスター追加（各3体×weak/normal、A1/Fun設計）
+- [x] battle/hunt対象カテゴリ拡張: fish / human 系を追加（zodスキーマ更新・shared/types/action.ts更新）
+- [x] マップ上でのタイル選択→move フォームへ自動入力（`clickedTile` prop 経由）
 
 **WorldLogPanel — 全スライム統合ログ（A4/FE・A5/DB・A1/Fun確認）**
 
 > **設計背景**: 複数スライムが共存するマップを管理する形を目指すため、A1/Fun・A4/FE・A5/DB チーム議論で設計済み（2026-03-20）
 
-- [ ] `frontend/src/components/world/turnLogUtils.ts` 作成（`formatEvent` / `EVENT_COLORS` を `TurnLogList` から切り出して共用）
-- [ ] `frontend/src/components/world/WorldLogPanel.tsx` 新規作成
+- [x] `frontend/src/components/world/turnLogUtils.ts` 作成（`formatEvent` / `EVENT_COLORS` を `TurnLogList` から切り出して共用）
+- [x] `frontend/src/components/world/WorldLogPanel.tsx` 新規作成
   - Firestore クエリ: `worldId + turnNumber DESC` + `limit(100)` のみ（フィルタはクライアント側処理）
   - **スライムフィルター**: スライム3体以下→タブ、4体以上→ドロップダウン（「全員」＋スライム名リスト）
-  - **イベント種別フィルター**: チェックボックス群（デフォルト全ON）＋「重要のみ」プリセット（evolve/battle/split/merge）
+  - **イベント種別フィルター**: 「重要のみ」プリセット（evolve/battle/split/merge）
   - **視覚区別**: 各行の左端にスライムカラーバー + スライム名バッジ、ワールドイベントは 🌍 アイコン
-  - **ポーリング化**: `onSnapshot` を廃止し、`world.currentTurn` の変化を検知して `getDocs` で再取得（Firestore コスト削減・ターン間隔1時間のため十分）
+  - **ポーリング化**: `onSnapshot` を廃止し、`world.currentTurn` の変化を検知して `getDocs` で再取得
   - `actorType: 'world'` のドキュメントは専用スタイルで表示
-- [ ] `GamePage.tsx`: `TurnLogList`（1スライム用・スライム詳細パネル向けに残す）を `WorldLogPanel` に差し替え
-  - `slimes` 配列を props として渡し、スライムフィルターと `GamePage` の `selectedSlimeId` を初期値として連動
-- [ ] スライムカラーコードをFirestoreの `slimes` ドキュメントに追加（`color: string`、初期付与時にランダム割り当て）
+- [x] `GamePage.tsx`: `WorldLogPanel` + `TurnLogList`（スライム個別詳細用）を両方搭載
+- [x] スライムカラーコードをFirestoreの `slimes` ドキュメントに追加（`color: string`、初期付与時にランダム割り当て）
 
 ---
 

@@ -51,6 +51,10 @@ export function GamePage() {
   const [reservationKey, setReservationKey] = useState(0)
   const [isSummoning, setIsSummoning] = useState(false)
   const [summonError, setSummonError] = useState<string | null>(null)
+  const [clickedTile, setClickedTile] = useState<{ x: number; y: number } | null>(null)
+  const [tutorialDismissed, setTutorialDismissed] = useState(
+    () => localStorage.getItem('slime_tutorial_v1') === 'done'
+  )
 
   // ワールド購読
   useEffect(() => {
@@ -122,9 +126,7 @@ export function GamePage() {
   /** マップのタイルをクリックした時に move アクションの座標を自動セット */
   const handleTileClick = (x: number, y: number) => {
     logger.debug('タイルクリック', { x, y })
-    // 選択中スライムがいれば move フォームへのヒントとして使えるが、
-    // ActionReservationForm は独立しているため currentTile 選択は今後の拡張で対応
-    void x; void y
+    setClickedTile({ x, y })
   }
 
   // 認証ロード中
@@ -289,6 +291,29 @@ export function GamePage() {
           )}
         </div>
 
+        {/* チュートリアルヒント（初回のみ表示） */}
+        {slimes.length > 0 && !tutorialDismissed && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col gap-2 relative">
+            <button
+              onClick={() => {
+                localStorage.setItem('slime_tutorial_v1', 'done')
+                setTutorialDismissed(true)
+              }}
+              className="absolute top-2 right-3 text-amber-400 hover:text-amber-600 text-lg leading-none"
+              aria-label="閉じる"
+            >
+              ×
+            </button>
+            <p className="text-sm font-bold text-amber-800">🌱 はじめかた</p>
+            <ol className="flex flex-col gap-1 text-xs text-amber-700 list-decimal list-inside">
+              <li>下のスライムを選択してアクション予約フォームを開く</li>
+              <li>「食事」「採集」「移動」などアクションを選んで予約する</li>
+              <li>毎時間ターンが進み、予約したアクションが実行される</li>
+              <li>マップのタイルをクリックすると移動先を自動入力できます</li>
+            </ol>
+          </div>
+        )}
+
         {/* 選択中スライムのアクション予約フォーム */}
         {selectedSlime && world && (
           <ActionReservationForm
@@ -298,6 +323,7 @@ export function GamePage() {
             worldId={WORLD_ID}
             currentTurn={world.currentTurn}
             onSuccess={() => setReservationKey((k) => k + 1)}
+            clickedTile={clickedTile}
           />
         )}
 

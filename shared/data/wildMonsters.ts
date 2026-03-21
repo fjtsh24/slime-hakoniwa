@@ -1,6 +1,7 @@
 /**
  * 野生モンスターマスタデータ
  * Phase 4 スコープ: beast / plant カテゴリの weak / normal 強度
+ * Phase 5 スコープ: fish / human カテゴリの weak / normal 強度を追加
  */
 
 import { WildMonsterSpecies } from "../types/wildMonster";
@@ -120,5 +121,121 @@ export const wildMonsters: WildMonsterSpecies[] = [
     strength: "normal",
     power: 30,
     dropTableId: "drop-plant-normal",
+  },
+
+  // ===== fish / weak =====
+  {
+    id: "monster-fish-weak-001",
+    name: "チビウナギ",
+    description: "水辺に棲む小さなウナギ。電気を帯びており、触れるとピリッとする程度の感電を引き起こす。",
+    category: "fish",
+    strength: "weak",
+    power: 10,
+    dropTableId: "drop-fish-weak",
+  },
+  {
+    id: "monster-fish-weak-002",
+    name: "トゲトゲウニ",
+    description: "浅瀬に転がるウニ型の生き物。棘で刺さるだけが能だが、踏んだら痛い。",
+    category: "fish",
+    strength: "weak",
+    power: 10,
+    dropTableId: "drop-fish-weak",
+  },
+  {
+    id: "monster-fish-weak-003",
+    name: "ちびクラゲ",
+    description: "ふわふわ漂うクラゲの幼体。触手に微弱な毒があるが、本人は戦う気があまりない。",
+    category: "fish",
+    strength: "weak",
+    power: 10,
+    dropTableId: "drop-fish-weak",
+  },
+
+  // ===== fish / normal =====
+  {
+    id: "monster-fish-normal-001",
+    name: "大サメ（淡水）",
+    description: "川を縄張りにする巨大なサメ。淡水に棲む珍種で、縄張りに入った者を猛スピードで追い回す。",
+    category: "fish",
+    strength: "normal",
+    power: 30,
+    dropTableId: "drop-fish-normal",
+  },
+  {
+    id: "monster-fish-normal-002",
+    name: "深海の番人",
+    description: "深海から這い上がってきた巨大な魚。発光する体で獲物を誘い込む。落ち着いた動きが逆に不気味。",
+    category: "fish",
+    strength: "normal",
+    power: 30,
+    dropTableId: "drop-fish-normal",
+  },
+  {
+    id: "monster-fish-normal-003",
+    name: "タコの怒り",
+    description: "巨大なタコが岩場を根城にしている。触手で抱きしめてから離さない。力は強いが頭もいい。",
+    category: "fish",
+    strength: "normal",
+    power: 30,
+    dropTableId: "drop-fish-normal",
+  },
+
+  // ===== human / weak =====
+  {
+    id: "monster-human-weak-001",
+    name: "迷子の旅人",
+    description: "道に迷ってパニックになっている旅人。何でも投げつけてくるが、狙いがまるで定まっていない。",
+    category: "human",
+    strength: "weak",
+    power: 10,
+    dropTableId: "drop-human-weak",
+  },
+  {
+    id: "monster-human-weak-002",
+    name: "見習い魔法使い",
+    description: "まだ魔法が安定しない見習い。呪文を唱えるたびに想定外の方向に魔弾が飛んでいく。",
+    category: "human",
+    strength: "weak",
+    power: 10,
+    dropTableId: "drop-human-weak",
+  },
+  {
+    id: "monster-human-weak-003",
+    name: "腹ペコ盗賊",
+    description: "食料を求めてうろつく盗賊。腹が減りすぎて動きが鈍い。食料を渡したら帰ると思う。",
+    category: "human",
+    strength: "weak",
+    power: 10,
+    dropTableId: "drop-human-weak",
+  },
+
+  // ===== human / normal =====
+  {
+    id: "monster-human-normal-001",
+    name: "傭兵隊長",
+    description: "依頼を受けてこの地に来た腕利きの傭兵。冷静な判断力と重装備が厄介。誰に雇われたかは不明。",
+    category: "human",
+    strength: "normal",
+    power: 30,
+    dropTableId: "drop-human-normal",
+  },
+  {
+    id: "monster-human-normal-002",
+    name: "暴走魔道士",
+    description: "禁術の研究に没頭するあまり常識を失った魔道士。膨大な魔力を持つが制御できていない。",
+    category: "human",
+    strength: "normal",
+    power: 30,
+    dropTableId: "drop-human-normal",
+  },
+  {
+    id: "monster-human-normal-003",
+    name: "山岳の番人",
+    description: "古くからこの土地を守る番人。外来者を問答無用で追い払う。ルールに従っているだけで悪人ではない。",
+    category: "human",
+    strength: "normal",
+    power: 30,
+    dropTableId: "drop-human-normal",
   },
 ];

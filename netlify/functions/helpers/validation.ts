@@ -10,8 +10,8 @@ import { MAP_WIDTH_MAX, MAP_HEIGHT_MAX } from '../../../shared/constants/map'
  *   rest    : actionData は空オブジェクト
  *   gather  : actionData は空オブジェクト
  *   fish    : actionData は空オブジェクト
- *   hunt    : actionData に targetCategory（"beast"|"plant"）と targetStrength（"weak"|"normal"）が必須
- *   battle  : actionData に targetCategory（"beast"|"plant"）と targetStrength（"weak"|"normal"）が必須
+ *   hunt    : actionData に targetCategory（"beast"|"plant"|"fish"|"human"）と targetStrength（"weak"|"normal"）が必須
+ *   battle  : actionData に targetCategory（"beast"|"plant"|"fish"|"human"）と targetStrength（"weak"|"normal"）が必須
  *   merge   : actionData に targetSlimeId（非空文字列）が必須（Phase 4 追加）
  */
 
@@ -21,7 +21,7 @@ const emptyDataSchema = z.object({}).strict()
 /** hunt / battle 用: targetCategory + targetStrength */
 const huntBattleDataSchema = z
   .object({
-    targetCategory: z.enum(['beast', 'plant']),
+    targetCategory: z.enum(['beast', 'plant', 'fish', 'human']),
     targetStrength: z.enum(['weak', 'normal']),
   })
   .strict()

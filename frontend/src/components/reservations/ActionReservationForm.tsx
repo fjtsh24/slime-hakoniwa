@@ -46,6 +46,8 @@ interface ActionReservationFormProps {
   worldId: string
   currentTurn: number
   onSuccess?: () => void
+  /** マップタイルクリックで渡される座標（move フォームへの自動セット用） */
+  clickedTile?: { x: number; y: number } | null
 }
 
 const ACTION_LABELS: Record<ActionType, string> = {
@@ -73,6 +75,8 @@ const AVAILABLE_ACTIONS: ActionType[] = ['eat', 'gather', 'fish', 'hunt', 'battl
 const HUNT_CATEGORIES = [
   { value: 'beast', label: '獣系' },
   { value: 'plant', label: '植物系' },
+  { value: 'fish', label: '水棲系' },
+  { value: 'human', label: '人間系' },
 ] as const
 
 const HUNT_STRENGTHS = [
@@ -86,6 +90,7 @@ export function ActionReservationForm({
   worldId,
   currentTurn,
   onSuccess,
+  clickedTile,
 }: ActionReservationFormProps) {
   const [selectedSlimeId, setSelectedSlimeId] = useState<string>(slimes[0]?.id ?? '')
   const [actionType, setActionType] = useState<ActionType>('eat')
@@ -100,6 +105,14 @@ export function ActionReservationForm({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [currentTile, setCurrentTile] = useState<Tile | null>(null)
+
+  // マップタイルクリック → move 座標オートセット
+  useEffect(() => {
+    if (!clickedTile) return
+    setActionType('move')
+    setTargetX(clickedTile.x)
+    setTargetY(clickedTile.y)
+  }, [clickedTile])
 
   // 選択中スライムの現在タイル属性を購読
   useEffect(() => {
