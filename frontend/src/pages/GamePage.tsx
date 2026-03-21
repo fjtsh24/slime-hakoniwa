@@ -23,8 +23,10 @@ import { ActionReservationForm } from '../components/reservations/ActionReservat
 import { ReservationList } from '../components/reservations/ReservationList'
 import type { Slime } from '../../../shared/types/slime'
 import { skillDefinitions } from '../../../shared/data/skillDefinitions'
+import { foods } from '../../../shared/data/foods'
 import { DEFAULT_SLIME_COLOR } from '../components/world/turnLogUtils'
 import { DevPanel } from '../components/dev/DevPanel'
+import { getFoodIconUrl } from '../lib/foodIconMap'
 
 const WORLD_ID = 'world-001'
 
@@ -158,6 +160,12 @@ export function GamePage() {
           >
             マップ設定
           </Link>
+          <Link
+            to="/credits"
+            className="text-xs opacity-60 hover:opacity-90 transition"
+          >
+            クレジット
+          </Link>
           <button
             onClick={signOut}
             className="text-xs bg-green-600 hover:bg-green-500 px-3 py-1.5 rounded transition"
@@ -235,11 +243,15 @@ export function GamePage() {
                         }`}
                       >
                         <div className="flex items-center gap-2">
-                          {/* スライムカラーバー */}
-                          <span
-                            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: s.color ?? DEFAULT_SLIME_COLOR }}
-                          />
+                          {/* スライムスプライト + カラーオーバーレイ */}
+                          <span className="relative w-5 h-5 flex-shrink-0 inline-block">
+                            <img
+                              src="/assets/slimes/slime-base.png"
+                              alt="slime"
+                              className="w-5 h-5 object-contain"
+                              style={{ filter: `drop-shadow(0 0 3px ${s.color ?? DEFAULT_SLIME_COLOR})` }}
+                            />
+                          </span>
                           <span className="font-medium">{s.name}</span>
                           <span
                             className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
@@ -268,11 +280,23 @@ export function GamePage() {
                         </div>
                         {s.inventory && s.inventory.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">
-                            {s.inventory.map((slot) => (
-                              <span key={slot.foodId} className="text-xs bg-amber-50 border border-amber-200 text-amber-700 rounded px-1.5 py-0.5">
-                                {slot.foodId} ×{slot.quantity}
-                              </span>
-                            ))}
+                            {s.inventory.map((slot) => {
+                              const iconUrl = getFoodIconUrl(slot.foodId)
+                              const foodName = foods.find((f) => f.id === slot.foodId)?.name ?? slot.foodId
+                              return (
+                                <span key={slot.foodId} className="inline-flex items-center gap-1 text-xs bg-amber-50 border border-amber-200 text-amber-700 rounded px-1.5 py-0.5">
+                                  {iconUrl && (
+                                    <img
+                                      src={iconUrl}
+                                      alt={foodName}
+                                      className="w-4 h-4 object-contain flex-shrink-0"
+                                      loading="lazy"
+                                    />
+                                  )}
+                                  {foodName} ×{slot.quantity}
+                                </span>
+                              )
+                            })}
                           </div>
                         )}
                         {s.skillIds && s.skillIds.length > 0 && (
