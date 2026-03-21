@@ -134,7 +134,9 @@ export function WorldMapPanel({ mapId, slimes, selectedSlimeId, onTileClick }: W
                   {slimesOnTile.slice(0, 3).map((s) => (
                     <span
                       key={s.id}
-                      className="w-2.5 h-2.5 rounded-full border border-white shadow-sm flex-shrink-0"
+                      className={`w-2.5 h-2.5 rounded-full border border-white shadow-sm flex-shrink-0 ${
+                        s.id === selectedSlimeId ? 'slime-selected' : 'slime-idle'
+                      }`}
                       style={{ backgroundColor: s.color ?? DEFAULT_SLIME_COLOR }}
                       title={s.name}
                     />

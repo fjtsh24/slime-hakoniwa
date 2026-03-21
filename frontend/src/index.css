@@ -1,3 +1,46 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ===== スライム待機アニメーション (Step 1) ===== */
+/* 基本ぷるぷる: 全種族共通の待機モーション */
+@keyframes slime-idle {
+  0%, 100% {
+    transform: scale(1, 1);
+    border-radius: 50%;
+  }
+  30% {
+    transform: scale(1.18, 0.84);
+    border-radius: 40% 60% 60% 40% / 50%;
+  }
+  65% {
+    transform: scale(0.90, 1.12);
+    border-radius: 50% 50% 42% 58% / 48% 52%;
+  }
+}
+
+/* 選択中スライム: 速いぷるぷる（注目を促す） */
+@keyframes slime-selected {
+  0%, 100% {
+    transform: scale(1, 1);
+    border-radius: 50%;
+  }
+  25% {
+    transform: scale(1.22, 0.80);
+    border-radius: 40% 60% 65% 35% / 50%;
+  }
+  60% {
+    transform: scale(0.88, 1.15);
+    border-radius: 50% 50% 40% 60% / 45% 55%;
+  }
+}
+
+.slime-idle {
+  animation: slime-idle 2.4s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+.slime-selected {
+  animation: slime-selected 1.0s ease-in-out infinite;
+  transform-origin: center bottom;
+}

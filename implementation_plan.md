@@ -436,6 +436,50 @@
 - [ ] エラーハンドリング・ユーザー向けエラーメッセージの整備
 - [ ] テストカバレッジ最終確認（コアロジック80%以上）
 - [ ] ダンジョン機能の基本実装（後期段階コンテンツ）
+- [ ] **Step 3 スライム視覚化（A1/Fun + A4/FE 設計済み）**
+  - SVG パスモーフィング + 種族別シルエットスプライト
+  - アニメーション分岐（基本ぷるぷる / 重い呼吸 / 速い揺れ）
+  - 前提: Step 2 SVG マップ化 + アート素材の制作が完了していること
+
+---
+
+## スライム視覚化ロードマップ（A1/Fun + A4/FE 設計 2026-03-21）
+
+> マップを「機能ツール」から「眺めて癒される空間」へ。A1/Fun と A4/FE が方針を合意済み。
+
+### Step 1: CSS 待機アニメーション ✅ 完了（Phase 5 末）
+
+- [x] `frontend/src/index.css` に `@keyframes slime-idle` / `slime-selected` を追加
+- [x] `WorldMapPanel.tsx` のスライムドットに `.slime-idle` / `.slime-selected` クラスを適用
+  - 通常スライム: 2.4秒ぷるぷり、選択中: 1.0秒の速いぷるぷる
+- ライブラリ追加ゼロ、変更箇所最小
+
+### Step 2: SVG アイソメトリックマップ化（Phase 6 予定）
+
+> A4/FE 評価: WorldMapPanel.tsx の約45行変更のみ。Firestore 購読・onTileClick・選択ハイライトは無変更。ライブラリ不要。
+
+- [ ] CSS Grid → SVG ベースのアイソメトリック描画に移行
+  - 座標変換: `isoX = (x - y) * TW`, `isoY = (x + y) * TH`（菱形タイル配置）
+  - `<polygon onClick>` でタイルクリック判定（CSS Grid より精度が高くなる）
+  - タイルソート順は現行 `y → x` のまま（painter's algorithm が成立）
+  - `viewBox` でレスポンシブ対応
+- [ ] タイル属性色を SVG `fill` で表現（TILE_COLORS を HEX 変換）
+- [ ] スライムドットを SVG `<circle>` に変更し `.slime-idle` CSS アニメを維持
+- **不採用**: CSS Transform 方式（クリック判定が崩れる）・Pixi.js（+400KB、過剰）
+
+### Step 3: 種族別 SVG ミニキャラ（Phase 7 予定）
+
+> A1/Fun 設計: speciesId ベースの SVG シルエット + color フィールドで fill。データモデル変更ゼロ。
+
+- [ ] `shared/data/slimeSprites.ts` に speciesId → SVG path のマッピングを追加
+  - slime-001（基本スライム）: 丸くぷよぷよ揺れる
+  - slime-002（ファイアスライム）: 上部に炎のゆらぎ
+  - slime-004（アーススライム）: 重く揺れる（振幅小・周期長）
+  - slime-005（ウィンドスライム）: 速く揺れる（振幅大・周期短）
+- [ ] CSS パスモーフィング（`d` プロパティアニメ、Chrome 92+ / Firefox 110+ 対応済み）
+- [ ] アニメーション分岐3種: ぷるぷる（基本）/ 呼吸（大型種）/ 速い揺れ（高SPD種）
+- [ ] 進化イベント（`evolve` turnLog）をトリガーに1回限りのエフェクト
+- **前提**: SVG マップ化（Step 2）とアート素材の制作が完了していること
 
 ---
 
