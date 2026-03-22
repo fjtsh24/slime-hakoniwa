@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useState } from 'react'
-import { collection, onSnapshot } from 'firebase/firestore'
+import { collection, onSnapshot, query, where } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import type { Tile } from '../../../../shared/types/map'
 import type { Slime } from '../../../../shared/types/slime'
@@ -145,7 +145,7 @@ export function WorldMapPanel({ mapId, slimes, selectedSlimeId, onTileClick }: W
 
   useEffect(() => {
     const unsubscribe = onSnapshot(
-      collection(db, 'maps', mapId, 'tiles'),
+      query(collection(db, 'tiles'), where('mapId', '==', mapId)),
       (snap) => {
         const tileData = snap.docs
           .map((d) => d.data() as Tile)

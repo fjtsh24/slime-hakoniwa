@@ -136,7 +136,8 @@ export function ActionReservationForm({
 
     setTileLoading(true)
     const q = query(
-      collection(db, 'maps', slimeMapId, 'tiles'),
+      collection(db, 'tiles'),
+      where('mapId', '==', slimeMapId),
       where('x', '==', slimeTileX),
       where('y', '==', slimeTileY),
     )

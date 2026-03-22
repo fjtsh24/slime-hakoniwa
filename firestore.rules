@@ -14,12 +14,7 @@ service cloud.firestore {
       match /maps/{mapId} {
         allow read: if request.auth != null;
         allow write: if false;
-
-        // tiles サブコレクション
-        match /tiles/{tileId} {
-          allow read: if request.auth != null;
-          allow write: if false;
-        }
+        // tiles サブコレクションは /tiles/{tileId} top-level に統一（Phase 8）
       }
     }
 
@@ -51,13 +46,16 @@ service cloud.firestore {
     match /maps/{mapId} {
       allow read: if request.auth != null;
       allow write: if false;
+      // tiles サブコレクションは /tiles/{tileId} top-level に統一（Phase 8）
+    }
 
-      // tiles サブコレクション: マップオーナーのみ読み取り可
-      match /tiles/{tileId} {
-        allow read: if request.auth != null
-                    && get(/databases/$(database)/documents/maps/$(mapId)).data.ownerUid == request.auth.uid;
-        allow write: if false;
-      }
+    // =========================================================
+    // tiles（トップレベル）: 認証済み読み取り可、書き込みは Admin SDK のみ
+    // Phase 8 でサブコレクションから統一。ownerUid チェックは削除し全認証ユーザーが閲覧可
+    // =========================================================
+    match /tiles/{tileId} {
+      allow read: if request.auth != null;
+      allow write: if false;
     }
 
     // =========================================================

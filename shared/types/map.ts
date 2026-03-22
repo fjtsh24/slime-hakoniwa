@@ -37,4 +37,6 @@ export interface Tile {
   /** タイルのY座標 */
   y: number;
   attributes: TileAttributes;
+  /** 初期生成時の値・不変 */
+  baseAttributes: TileAttributes;
 }

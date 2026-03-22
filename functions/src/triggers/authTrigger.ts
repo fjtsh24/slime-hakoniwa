@@ -54,17 +54,19 @@ export const onUserCreate = functions
     }
     batch.set(mapRef, mapDoc)
 
-    // tiles(10x10=100件)をバッチ作成
+    // tiles(10x10=100件)をバッチ作成（/tiles/ top-level のみ）
     for (let x = 0; x < MAP_WIDTH; x++) {
       for (let y = 0; y < MAP_HEIGHT; y++) {
         const tileId = `${mapId}-${x}-${y}`
-        const tileRef = db.collection('maps').doc(mapId).collection('tiles').doc(tileId)
+        const tileRef = db.collection('tiles').doc(tileId)
+        const attrs = { fire: 0, water: 0, earth: 0, wind: 0 }
         const tileDoc: Tile = {
           id: tileId,
           mapId,
           x,
           y,
-          attributes: { fire: 0, water: 0, earth: 0, wind: 0 },
+          attributes: attrs,
+          baseAttributes: attrs,
         }
         batch.set(tileRef, tileDoc)
       }

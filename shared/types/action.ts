@@ -3,7 +3,7 @@
  */
 
 /** 行動の種類 */
-export type ActionType = "eat" | "move" | "rest" | "battle" | "gather" | "fish" | "hunt" | "merge";
+export type ActionType = "eat" | "move" | "rest" | "battle" | "gather" | "fish" | "hunt" | "merge" | "plant";
 
 /** 行動予約のステータス */
 export type ActionStatus = "pending" | "executed" | "cancelled";
@@ -44,6 +44,11 @@ export interface BattleActionData {
   targetStrength: "weak" | "normal";
 }
 
+/** 植え付け行動のデータ（Phase 8 追加） */
+export interface PlantActionData {
+  foodId: string;
+}
+
 /** 融合行動のデータ（Phase 4 追加） */
 export interface MergeActionData {
   /** 融合対象スライムID（同オーナーのスライムのみ） */
@@ -59,7 +64,8 @@ export type ActionData =
   | FishActionData
   | HuntActionData
   | BattleActionData
-  | MergeActionData;
+  | MergeActionData
+  | PlantActionData;
 
 /**
  * 行動予約
