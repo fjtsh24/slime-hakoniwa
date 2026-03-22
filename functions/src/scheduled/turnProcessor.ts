@@ -6,6 +6,7 @@ import * as admin from 'firebase-admin'
 import { FieldValue } from 'firebase-admin/firestore'
 import type { Slime, SlimeStats, RacialValues, SlimeSpecies, InventorySlot } from '../../../shared/types/slime'
 import type { ActionReservation } from '../../../shared/types/action'
+import type { World } from '../../../shared/types/world'
 import type { Food } from '../../../shared/types/food'
 import type { Tile, TileAttributes } from '../../../shared/types/map'
 import type { TurnLog, TurnEventType } from '../../../shared/types/turnLog'
@@ -281,6 +282,24 @@ export async function processWorldTurn(worldId: string): Promise<void> {
       mapCount: mapIdToCoords.size,
     })
 
+    // ===== ワールドイベント（天候・季節）遷移チェック =====
+    const worldDocForEvent = await db().collection('worlds').doc(worldId).get()
+    const worldDataForEvent = { id: worldId, ...worldDocForEvent.data() } as World
+    const eventBatch = db().batch()
+    checkWeatherTransition(worldDataForEvent, newTurn, eventBatch)
+    checkSeasonTransition(worldDataForEvent, newTurn, eventBatch)
+    try {
+      await eventBatch.commit()
+    } catch (e) {
+      logger.warn('[turnProcessor] ワールドイベント更新失敗', { worldId, error: String(e) })
+    }
+    // 最新のworld状態を再取得
+    const latestWorldSnap = await db().collection('worlds').doc(worldId).get()
+    const latestWorldData = { id: worldId, ...latestWorldSnap.data() } as World
+    const currentWeather = latestWorldData.weather ?? 'sunny'
+    const currentSeason = latestWorldData.season ?? 'spring'
+    // ===== ワールドイベント終了 =====
+
     const BATCH_SIZE = 500
     let batch = db().batch()
     let batchCount = 0
@@ -305,7 +324,10 @@ export async function processWorldTurn(worldId: string): Promise<void> {
 
       let result: Awaited<ReturnType<typeof processSlimeTurn>>
       try {
-        result = await processSlimeTurn(slime, reservations, newTurn, batch, foods, worldTiles)
+        result = await processSlimeTurn(slime, reservations, newTurn, batch, foods, worldTiles, {
+          weather: currentWeather,
+          season: currentSeason,
+        })
       } catch (slimeError) {
         logger.error('[turnProcessor] スライム処理エラー', {
           worldId,
@@ -485,7 +507,8 @@ export async function processSlimeTurn(
   currentTurn: number,
   _batch?: FirebaseFirestore.WriteBatch,
   foods?: Food[],
-  tiles?: Tile[]
+  tiles?: Tile[],
+  worldContext?: { weather?: string; season?: string }
 ): Promise<TurnResult> {
   void _batch
 
@@ -589,8 +612,10 @@ export async function processSlimeTurn(
     events.push(...autonomousResult.events)
   }
 
-  // hunger を -5 (下限0)
-  const newHunger = Math.max(0, currentSlime.stats.hunger - 5)
+  // hunger を減少（下限0）。季節により補正: 夏+2, 冬+1
+  const seasonHungerBonus: Record<string, number> = { spring: 0, summer: 2, autumn: 0, winter: 1 }
+  const hungerDecrement = 5 + (seasonHungerBonus[worldContext?.season ?? 'spring'] ?? 0)
+  const newHunger = Math.max(0, currentSlime.stats.hunger - hungerDecrement)
   currentSlime = {
     ...currentSlime,
     stats: {
@@ -1612,4 +1637,85 @@ export function removeFromInventory(
     .map((s) => (s.foodId === foodId ? { ...s, quantity: s.quantity - qty } : { ...s }))
     .filter((s) => s.quantity > 0)
   return { success: true, inventory: updated }
+}
+
+// ----------------------------------------------------------------
+// ワールドイベントシステム（Phase 6 W2）
+// ----------------------------------------------------------------
+
+const WEATHER_DEFINITIONS: Array<{ id: string; durationTurns: number; weight: number }> = [
+  { id: 'sunny',  durationTurns: 8, weight: 50 },
+  { id: 'rainy',  durationTurns: 4, weight: 25 },
+  { id: 'stormy', durationTurns: 2, weight: 10 },
+  { id: 'foggy',  durationTurns: 3, weight: 15 },
+]
+
+/**
+ * 天候遷移チェック
+ * weather が未設定 or weatherEndsAtTurn <= currentTurn の場合に次の天候を抽選して batch に書き込む
+ */
+export function checkWeatherTransition(
+  world: World,
+  currentTurn: number,
+  batch: FirebaseFirestore.WriteBatch
+): void {
+  const shouldTransition =
+    !world.weather ||
+    world.weatherEndsAtTurn === undefined ||
+    currentTurn >= world.weatherEndsAtTurn
+
+  if (!shouldTransition) return
+
+  const totalWeight = WEATHER_DEFINITIONS.reduce((s, w) => s + w.weight, 0)
+  let rand = Math.random() * totalWeight
+  let nextWeather = WEATHER_DEFINITIONS[0]
+  for (const w of WEATHER_DEFINITIONS) {
+    rand -= w.weight
+    if (rand <= 0) { nextWeather = w; break }
+  }
+
+  const weatherEndsAtTurn = currentTurn + nextWeather.durationTurns
+  const worldRef = db().collection('worlds').doc(world.id)
+  batch.update(worldRef, { weather: nextWeather.id, weatherEndsAtTurn })
+
+  logger.info('[turnProcessor] 天候遷移', {
+    worldId: world.id,
+    prevWeather: world.weather ?? 'none',
+    nextWeather: nextWeather.id,
+    weatherEndsAtTurn,
+    currentTurn,
+  })
+}
+
+const SEASONS: Array<'spring' | 'summer' | 'autumn' | 'winter'> = ['spring', 'summer', 'autumn', 'winter']
+const SEASON_DURATION_TURNS = 20
+
+/**
+ * 季節遷移チェック
+ * season が未設定 or seasonStartTurn + SEASON_DURATION_TURNS <= currentTurn の場合に次の季節へ進む
+ */
+export function checkSeasonTransition(
+  world: World,
+  currentTurn: number,
+  batch: FirebaseFirestore.WriteBatch
+): void {
+  const shouldTransition =
+    !world.season ||
+    world.seasonStartTurn === undefined ||
+    currentTurn >= world.seasonStartTurn + SEASON_DURATION_TURNS
+
+  if (!shouldTransition) return
+
+  const currentSeasonIdx = world.season ? SEASONS.indexOf(world.season) : -1
+  const nextSeason = SEASONS[(currentSeasonIdx + 1) % SEASONS.length]
+
+  const worldRef = db().collection('worlds').doc(world.id)
+  batch.update(worldRef, { season: nextSeason, seasonStartTurn: currentTurn })
+
+  logger.info('[turnProcessor] 季節遷移', {
+    worldId: world.id,
+    prevSeason: world.season ?? 'none',
+    nextSeason,
+    currentTurn,
+  })
 }

@@ -14,6 +14,19 @@ export interface World {
   /** ターン処理中の状態（二重処理防止用） */
   status?: 'idle' | 'processing';
   createdAt: Date;
+  // ===== Phase 6 W2: ワールドイベントシステム =====
+  /** 現在の天候（'sunny' | 'rainy' | 'stormy' | 'foggy'）。未設定時は 'sunny' 扱い */
+  weather?: string;
+  /** 天候が終了するターン番号 */
+  weatherEndsAtTurn?: number;
+  /** 現在の季節 */
+  season?: 'spring' | 'summer' | 'autumn' | 'winter';
+  /** 季節が開始したターン番号 */
+  seasonStartTurn?: number;
+  /** 現在発生中の特殊イベントID */
+  activeSpecialEvent?: string;
+  /** 特殊イベントが終了するターン番号 */
+  specialEventEndsAtTurn?: number;
 }
 
 /**

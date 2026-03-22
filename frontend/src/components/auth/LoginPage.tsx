@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword } from 'firebase/auth'
 import { auth, USE_EMULATOR } from '../../lib/firebase'
 import { createLogger } from '../../lib/logger'
@@ -116,6 +117,19 @@ export function LoginPage() {
           )}
           {isLoading ? 'ログイン中...' : 'Googleでログイン'}
         </button>
+
+        {/* ゲスト向けリンク */}
+        <div className="w-full border-t border-gray-100 pt-4 flex flex-col gap-2 text-center">
+          <p className="text-xs text-gray-400">ログインなしで見られるページ</p>
+          <div className="flex justify-center gap-4">
+            <Link to="/encyclopedia" className="text-sm text-green-600 hover:underline">
+              スライム図鑑
+            </Link>
+            <Link to="/live" className="text-sm text-green-600 hover:underline">
+              ライブ観戦
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   )
