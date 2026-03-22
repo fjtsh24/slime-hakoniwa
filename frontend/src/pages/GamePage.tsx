@@ -297,95 +297,105 @@ export function GamePage() {
                   </button>
                 </div>
               ) : (
-                <ul className="flex flex-col gap-1">
+                <ul className="flex flex-col gap-2">
                   {slimes.map((s) => (
                     <li key={s.id}>
                       <button
                         onClick={() => setSelectedSlimeId(s.id)}
-                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${
+                        className={`w-full text-left rounded-lg text-sm transition ${
                           selectedSlimeId === s.id
-                            ? 'bg-green-100 text-green-800 font-semibold'
+                            ? 'bg-green-100 text-green-800 ring-2 ring-green-400'
                             : 'hover:bg-gray-50 text-gray-700'
                         }`}
                       >
-                        <div className="flex items-center gap-2">
-                          {/* スライムアイコン（種族別） */}
-                          <span className="relative w-6 h-6 flex-shrink-0 inline-block">
+                        <div className="flex gap-3 p-2">
+                          {/* 種族別画像（縦長） */}
+                          <div className="flex-shrink-0 w-14 h-20 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
                             <img
                               src={getSlimeIconUrl(s.speciesId)}
                               alt={s.speciesId}
-                              className="w-6 h-6 object-cover rounded-full"
-                              style={{ filter: `drop-shadow(0 0 3px ${s.color ?? DEFAULT_SLIME_COLOR})` }}
+                              className="w-full h-full object-contain"
+                              style={{ filter: `drop-shadow(0 0 4px ${s.color ?? DEFAULT_SLIME_COLOR})` }}
                             />
-                          </span>
-                          <span className="font-medium">{s.name}</span>
-                          <span
-                            className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
-                              s.stats.hunger < 20
-                                ? 'bg-red-100 text-red-700'
-                                : s.stats.hunger < 50
-                                ? 'bg-yellow-100 text-yellow-700'
-                                : 'bg-green-100 text-green-700'
-                            }`}
-                          >
-                            満腹度: {s.stats.hunger}/100
-                          </span>
-                        </div>
-                        {s.stats.hunger < 20 && (
-                          <p className="text-xs text-red-600 font-medium mt-0.5">
-                            ⚠️ 空腹です！食事を予約してください
-                          </p>
-                        )}
-                        {world && (s.incapacitatedUntilTurn ?? 0) > world.currentTurn && (
-                          <p className="text-xs text-slate-500 font-medium mt-0.5">
-                            行動不能: あと{(s.incapacitatedUntilTurn ?? 0) - world.currentTurn}ターン
-                          </p>
-                        )}
-                        <div className="flex gap-3 mt-0.5">
-                          <span className="text-xs text-gray-400">
-                            HP:{s.stats.hp} ATK:{s.stats.atk} ({s.tileX},{s.tileY})
-                          </span>
-                          <span className="text-xs text-gray-400">
-                            次ターン後: {Math.max(0, s.stats.hunger - 5)}
-                          </span>
-                        </div>
-                        {s.inventory && s.inventory.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {s.inventory.map((slot) => {
-                              const iconUrl = getFoodIconUrl(slot.foodId)
-                              const foodName = foods.find((f) => f.id === slot.foodId)?.name ?? slot.foodId
-                              return (
-                                <span key={slot.foodId} className="inline-flex items-center gap-1 text-xs bg-amber-50 border border-amber-200 text-amber-700 rounded px-1.5 py-0.5">
-                                  {iconUrl && (
-                                    <img
-                                      src={iconUrl}
-                                      alt={foodName}
-                                      className="w-4 h-4 object-contain flex-shrink-0"
-                                      loading="lazy"
-                                    />
-                                  )}
-                                  {foodName} ×{slot.quantity}
-                                </span>
-                              )
-                            })}
                           </div>
-                        )}
-                        {s.skillIds && s.skillIds.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {s.skillIds.map((skillId) => {
-                              const skill = skillDefinitions.find((d) => d.id === skillId)
-                              return skill ? (
-                                <span
-                                  key={skillId}
-                                  title={skill.description}
-                                  className="text-xs bg-purple-50 border border-purple-200 text-purple-700 rounded px-1.5 py-0.5 cursor-help"
-                                >
-                                  ✨ {skill.name}
-                                </span>
-                              ) : null
-                            })}
+
+                          {/* テキスト情報 */}
+                          <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold">{s.name}</span>
+                              <span
+                                className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
+                                  s.stats.hunger < 20
+                                    ? 'bg-red-100 text-red-700'
+                                    : s.stats.hunger < 50
+                                    ? 'bg-yellow-100 text-yellow-700'
+                                    : 'bg-green-100 text-green-700'
+                                }`}
+                              >
+                                満腹度: {s.stats.hunger}/100
+                              </span>
+                            </div>
+
+                            {s.stats.hunger < 20 && (
+                              <p className="text-xs text-red-600 font-medium">
+                                ⚠️ 空腹です！食事を予約してください
+                              </p>
+                            )}
+                            {world && (s.incapacitatedUntilTurn ?? 0) > world.currentTurn && (
+                              <p className="text-xs text-slate-500 font-medium">
+                                行動不能: あと{(s.incapacitatedUntilTurn ?? 0) - world.currentTurn}ターン
+                              </p>
+                            )}
+
+                            <div className="flex gap-3">
+                              <span className="text-xs text-gray-400">
+                                HP:{s.stats.hp} ATK:{s.stats.atk} ({s.tileX},{s.tileY})
+                              </span>
+                              <span className="text-xs text-gray-400">
+                                次ターン後: {Math.max(0, s.stats.hunger - 5)}
+                              </span>
+                            </div>
+
+                            {s.inventory && s.inventory.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-0.5">
+                                {s.inventory.map((slot) => {
+                                  const iconUrl = getFoodIconUrl(slot.foodId)
+                                  const foodName = foods.find((f) => f.id === slot.foodId)?.name ?? slot.foodId
+                                  return (
+                                    <span key={slot.foodId} className="inline-flex items-center gap-1 text-xs bg-amber-50 border border-amber-200 text-amber-700 rounded px-1.5 py-0.5">
+                                      {iconUrl && (
+                                        <img
+                                          src={iconUrl}
+                                          alt={foodName}
+                                          className="w-4 h-4 object-contain flex-shrink-0"
+                                          loading="lazy"
+                                        />
+                                      )}
+                                      {foodName} ×{slot.quantity}
+                                    </span>
+                                  )
+                                })}
+                              </div>
+                            )}
+
+                            {s.skillIds && s.skillIds.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-0.5">
+                                {s.skillIds.map((skillId) => {
+                                  const skill = skillDefinitions.find((d) => d.id === skillId)
+                                  return skill ? (
+                                    <span
+                                      key={skillId}
+                                      title={skill.description}
+                                      className="text-xs bg-purple-50 border border-purple-200 text-purple-700 rounded px-1.5 py-0.5 cursor-help"
+                                    >
+                                      ✨ {skill.name}
+                                    </span>
+                                  ) : null
+                                })}
+                              </div>
+                            )}
                           </div>
-                        )}
+                        </div>
                       </button>
                     </li>
                   ))}
