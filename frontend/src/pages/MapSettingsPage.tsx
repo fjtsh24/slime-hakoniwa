@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { collection, onSnapshot } from 'firebase/firestore'
+import { collection, onSnapshot, query, where } from 'firebase/firestore'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../lib/firebase'
 import { useUserStore } from '../stores/userStore'
@@ -18,7 +18,7 @@ export function MapSettingsPage() {
     if (!userProfile?.mapId) return
 
     const unsubscribe = onSnapshot(
-      collection(db, 'maps', userProfile.mapId, 'tiles'),
+      query(collection(db, 'tiles'), where('mapId', '==', userProfile.mapId)),
       (snap) => {
         const tileData = snap.docs.map((d) => d.data() as Tile)
         logger.debug('タイル一覧取得', { mapId: userProfile?.mapId, count: tileData.length })
