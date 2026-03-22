@@ -10,7 +10,8 @@
 | Phase 4 | 進化・分裂・融合 | 3週間 | ✅ 完了 |
 | Phase 5 | マップ描画・UI完成 | 3週間 | ✅ 完了 |
 | Phase 6 | ソーシャル・野生スライム | 2週間 | ✅ 完了 |
-| Phase 7 | チューニング・リリース準備 | 2週間 | 進行中 |
+| Phase 7 | チューニング・リリース準備 | 2週間 | ✅ 完了 |
+| Phase 8 | タイル属性操作・パス統一 | 4週間 | 未着手 |
 
 ---
 
@@ -504,15 +505,22 @@
   - SlimeSpecies に `illustrationUrl?: string` 追加
   - 図鑑ページ（EncyclopediaPage）に立ち絵表示・14種族対応進化ツリー
 
-- [ ] **SVG タイルグラデーション**（タイルリッチ化 Tier 1）
+- [x] **SVG タイルグラデーション**（タイルリッチ化 Tier 1）
   - `<defs>` に属性別 `<linearGradient>` 定義
   - ベタ色 → グラデーションで奥行き感
 
 #### その他 Phase 7 タスク
 
-- [ ] Google Analytics 実装（`VITE_GA_MEASUREMENT_ID`）
-- [ ] テストカバレッジ最終確認（コアロジック80%以上）
-- [ ] セキュリティルール最終レビュー
+- [x] Google Analytics 実装（`VITE_GA_MEASUREMENT_ID`）
+- [x] テストカバレッジ最終確認（コアロジック80%以上、+26件追加）
+- [x] セキュリティルール最終レビュー（`docs/security_review/phase_7_final.md`）
+
+#### Phase 7 残課題（Phase 8 以降）
+
+- [ ] earth グラデーション配色の見直し（#228b22→#8b6914 が草地/泥地で曖昧になる場面への対応、A1/Fun M-1）
+- [ ] GA 追加推奨イベント実装（`reservation_complete`・`slime_evolution`・`first_reservation` 等 6件、`docs/fun_review/phase_7_final.md` 参照）
+- [ ] レートリミット設定（公開エンドポイント、A2/Sec S-1）
+- [ ] `/slimes/{slimeId}` 読み取り範囲の最小化（A2/Sec S-2）
 
 ### タイルグラフィック専門家依頼（Phase 8 以降）
 
@@ -520,6 +528,85 @@
 - 優先度: タイルセット4属性（fire/water/earth/wind）+ 基本スライムアイコン5体
 - AIエージェントの限界: SVGコードによるパターン・グラデーションまで可能。
   手描き/ピクセルアートは人間の専門家が必要
+
+---
+
+---
+
+## Phase 8: タイル属性操作・パス統一
+
+> **設計書**: `docs/phase8_tile_design.md` を参照（2026-03-22 確定）
+
+### 方針
+
+- **Case B（plantアクション）**: スライムが食料を消費してタイル属性値を変化させる
+- **Case C（季節自動変化）**: ターン毎に季節対応属性が微増（SEASON_TILE_DELTA_PER_TURN = 0.005）
+- **パス統一**: `/maps/{mapId}/tiles/` サブコレクションを廃止し `/tiles/{tileId}` に一本化
+- **baseAttributes**: タイルの初期値（不変）を保持するフィールドを追加
+
+### Week 1: /tiles/ パス統一（前提条件）
+
+**バックエンド・DB（A3/BE・A5/DB）**
+- [ ] `firestore.rules` に `/tiles/{tileId}` の認証済み読み取りルール追加
+- [ ] `/maps/{mapId}/tiles/{tileId}` サブコレクションのルール削除
+- [ ] `firestore.indexes.json` に `/tiles/{tileId}` の mapId インデックス追加
+- [ ] `functions/src/triggers/authTrigger.ts` のタイル書き込みをサブコレクション → top-level に変更
+- [ ] `seed.ts` のタイル書き込みをサブコレクション廃止（top-level のみ）
+
+**フロントエンド（A4/FE）**
+- [ ] `WorldMapPanel.tsx`: `maps/{mapId}/tiles` → `tiles` + `where('mapId', '==', mapId)` クエリに変更
+- [ ] `ActionReservationForm.tsx`: タイル購読パスを同様に変更
+
+**型定義（A5/DB）**
+- [ ] `shared/types/map.ts` の `Tile` 型に `baseAttributes: TileAttributes` を追加
+
+### Week 2: plantアクション実装（TDD）
+
+**型・マスタデータ（A5/DB）**
+- [ ] `shared/types/food.ts` の `Food` 型に `tileAttributeDelta?: Partial<TileAttributes>` を追加（範囲: -1.0〜+1.0）
+- [ ] `shared/data/foods.ts` に浄化食料4種を追加
+  - `food-purify-fire`: fire -0.08（水浄化草）
+  - `food-purify-water`: water -0.08（乾燥苔）
+  - `food-purify-earth`: earth -0.08（風蘭）
+  - `food-purify-wind`: wind -0.08（焦土キノコ）
+- [ ] `shared/types/action.ts` に `PlantActionData { foodId: string }` を追加
+- [ ] `validation.ts` の plant アクション zodスキーマ追加
+
+**バックエンド（A3/BE）**
+- [ ] `turnProcessor.ts` に `executePlantAction` を実装
+  - スライムのインベントリから foodId の食料を1個消費
+  - `food.tileAttributeDelta` を現在のタイル属性値に加算（0.0〜1.0にclamp）
+  - Firestore `/tiles/{tileId}` を更新（WriteBatch）
+- [ ] `api.ts` の `/api/reservations` に plant アクション追加（zodスキーマ）
+
+**テスト（A7/QA 先行作成）**
+- [ ] `tests/unit/plantAction.test.ts`: インベントリ消費・属性加算・clamp・インベントリ不足時エラー
+
+### Week 3: 季節自動変化 + フロントエンドUI
+
+**バックエンド（A3/BE）**
+- [ ] `turnProcessor.ts` に `applySeasonalTileDelta` を実装
+  - 春→water +0.005、夏→fire +0.005、秋→wind +0.005、冬→earth +0.005
+  - 全タイルに適用（WriteBatch・500件超は分割）
+  - 上限 1.0 にclamp
+- [ ] テスト: `tests/unit/seasonalTileDelta.test.ts`（spring/summer/autumn/winter 各ケース）
+
+**フロントエンドUI（A4/FE）**
+- [ ] `ActionReservationForm.tsx` の plantアクション UI追加
+  - 対象食料セレクタ（`tileAttributeDelta` が定義された food のみ表示）
+  - 現在タイル属性 + 予想変化量のプレビュー表示
+- [ ] `WorldMapPanel.tsx` のツールチップに baseAttributes との差分表示（オプション）
+
+### Week 4: レビュー・統合テスト
+
+- [ ] A7/QA レビュー → `docs/qa_review/phase_8.md`
+- [ ] A2/Sec レビュー → `docs/security_review/phase_8.md`
+  - タイル属性変化の権限チェック（ownerUid 一致・Admin SDK のみ書き込み）
+- [ ] A1/Fun レビュー → `docs/fun_review/phase_8.md`
+  - 浄化食料のバランス確認（-0.08 が適切か）
+  - 季節変化速度の確認（0.005/ターンで体感変化があるか）
+- [ ] `tests/integration/tileAttributeFlow.test.ts`: plant → タイル変化 → 次ターン確認
+- [ ] implementation_plan.md 更新・コミット・PR作成
 
 ---
 

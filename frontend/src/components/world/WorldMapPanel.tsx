@@ -37,8 +37,8 @@ const TW = 20  // タイル半幅
 const TH = 10  // タイル半高さ（2:1 比率）
 
 /** スライムアイコンのサイズ（タイル幅 40 に対して 14:20 ≈ 35% / 100%） */
-const ICON_W = 14
-const ICON_H = 20
+const ICON_W = 21
+const ICON_H = 30
 
 /** タイル属性ごとの RGB 値（ブレンド計算用に事前定義） */
 type RGB = { r: number; g: number; b: number }
@@ -97,12 +97,18 @@ function getDominantAttr(tile: Tile): 'fire' | 'water' | 'earth' | 'wind' | null
 /**
  * タイルの fill 色を属性値の重み付きブレンドで返す
  * - 全属性が実質ゼロ → ニュートラルグレー
- * - 混合属性タイルは複数色を属性比でブレンド
+ * - 支配属性がある場合はグラデーション参照を返す
+ * - 混合属性タイル（支配属性なし相当）は複数色を属性比でブレンド
  */
 function getBlendedFill(tile: Tile, hovered: boolean): string {
   const { fire, water, earth, wind } = tile.attributes
   const total = fire + water + earth + wind
   if (total < 0.01) return hovered ? NEUTRAL_FILL_HOVER : NEUTRAL_FILL
+
+  const dominant = getDominantAttr(tile)
+  if (dominant !== null) {
+    return hovered ? `url(#grad-${dominant}-hover)` : `url(#grad-${dominant})`
+  }
 
   const palette = hovered ? TILE_RGB_HOVER : TILE_RGB
   const r = Math.round((fire * palette.fire.r + water * palette.water.r + earth * palette.earth.r + wind * palette.wind.r) / total)
@@ -204,6 +210,41 @@ export function WorldMapPanel({ mapId, slimes, selectedSlimeId, onTileClick }: W
         }}
         aria-label="スライムマップ"
       >
+        <defs>
+          <linearGradient id="grad-fire" gradientTransform="rotate(45)">
+            <stop offset="0%" stopColor="#ff4500" />
+            <stop offset="100%" stopColor="#ff8c00" />
+          </linearGradient>
+          <linearGradient id="grad-fire-hover" gradientTransform="rotate(45)">
+            <stop offset="0%" stopColor="#e03c00" />
+            <stop offset="100%" stopColor="#e07800" />
+          </linearGradient>
+          <linearGradient id="grad-water" gradientTransform="rotate(45)">
+            <stop offset="0%" stopColor="#1e90ff" />
+            <stop offset="100%" stopColor="#00bfff" />
+          </linearGradient>
+          <linearGradient id="grad-water-hover" gradientTransform="rotate(45)">
+            <stop offset="0%" stopColor="#1070dd" />
+            <stop offset="100%" stopColor="#00a0dd" />
+          </linearGradient>
+          <linearGradient id="grad-earth" gradientTransform="rotate(45)">
+            <stop offset="0%" stopColor="#228b22" />
+            <stop offset="100%" stopColor="#8b6914" />
+          </linearGradient>
+          <linearGradient id="grad-earth-hover" gradientTransform="rotate(45)">
+            <stop offset="0%" stopColor="#1a6e1a" />
+            <stop offset="100%" stopColor="#6e5210" />
+          </linearGradient>
+          <linearGradient id="grad-wind" gradientTransform="rotate(45)">
+            <stop offset="0%" stopColor="#87ceeb" />
+            <stop offset="100%" stopColor="#e0f7fa" />
+          </linearGradient>
+          <linearGradient id="grad-wind-hover" gradientTransform="rotate(45)">
+            <stop offset="0%" stopColor="#6ab8d8" />
+            <stop offset="100%" stopColor="#c0eef5" />
+          </linearGradient>
+        </defs>
+
         {tiles.map((tile) => {
           const dominant = getDominantAttr(tile)
           const tileKey = `${tile.x},${tile.y}`

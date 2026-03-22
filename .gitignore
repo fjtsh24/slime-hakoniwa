@@ -19,3 +19,4 @@ tests/reports/*.json
 *.bak
 slime-sim-prototype-firebase-adminsdk-*.json
 coverage/
+.claude/settings.local.json
