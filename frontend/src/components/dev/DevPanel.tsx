@@ -37,11 +37,27 @@ interface SlimeSummary {
   skillIds: string[]
 }
 
+const SEASONS = [
+  { value: 'spring', label: '春' },
+  { value: 'summer', label: '夏' },
+  { value: 'autumn', label: '秋' },
+  { value: 'winter', label: '冬' },
+] as const
+
+const WEATHERS = [
+  { value: 'sunny',  label: '晴れ' },
+  { value: 'rainy',  label: '雨' },
+  { value: 'stormy', label: '嵐' },
+  { value: 'foggy',  label: '霧' },
+] as const
+
 export function DevPanel() {
   const [slimes, setSlimes] = useState<SlimeSummary[]>([])
   const [selectedSlimeId, setSelectedSlimeId] = useState('')
   const [log, setLog] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
+  const [selectedSeason, setSelectedSeason] = useState<string>('spring')
+  const [selectedWeather, setSelectedWeather] = useState<string>('sunny')
 
   function addLog(msg: string) {
     setLog((prev) => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev.slice(0, 19)])
@@ -78,6 +94,27 @@ export function DevPanel() {
       const data = await res.json()
       addLog(data.message ?? JSON.stringify(data))
       await fetchSlimes()
+    } catch (e) {
+      addLog(`エラー: ${e}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function setWorld(type: 'season' | 'weather') {
+    setLoading(true)
+    try {
+      const body: Record<string, unknown> = { worldId: WORLD_ID }
+      if (type === 'season') body['season'] = selectedSeason
+      if (type === 'weather') body['weather'] = selectedWeather
+
+      const res = await fetch(`${DEV_API}/set-world`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+      addLog(data.message ?? JSON.stringify(data))
     } catch (e) {
       addLog(`エラー: ${e}`)
     } finally {
@@ -175,6 +212,47 @@ export function DevPanel() {
                 {preset.label}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* 季節・天候変更 */}
+        <div>
+          <div className="text-gray-400 mb-1">ワールド状態変更</div>
+          <div className="flex gap-1 mb-1">
+            <select
+              value={selectedSeason}
+              onChange={(e) => setSelectedSeason(e.target.value)}
+              className="flex-1 bg-gray-700 rounded px-2 py-1 text-white"
+            >
+              {SEASONS.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+            <button
+              onClick={() => setWorld('season')}
+              disabled={loading}
+              className="bg-green-700 hover:bg-green-600 disabled:opacity-40 rounded px-2 py-1"
+            >
+              季節変更
+            </button>
+          </div>
+          <div className="flex gap-1">
+            <select
+              value={selectedWeather}
+              onChange={(e) => setSelectedWeather(e.target.value)}
+              className="flex-1 bg-gray-700 rounded px-2 py-1 text-white"
+            >
+              {WEATHERS.map((w) => (
+                <option key={w.value} value={w.value}>{w.label}</option>
+              ))}
+            </select>
+            <button
+              onClick={() => setWorld('weather')}
+              disabled={loading}
+              className="bg-sky-700 hover:bg-sky-600 disabled:opacity-40 rounded px-2 py-1"
+            >
+              天候変更
+            </button>
           </div>
         </div>
 
