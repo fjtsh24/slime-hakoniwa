@@ -120,6 +120,9 @@ export const EVENT_COLORS: Record<TurnEventType, string> = {
   weather_change: 'bg-sky-100 text-sky-700',
   area_unlock: 'bg-emerald-100 text-emerald-700',
   item_spawn: 'bg-amber-100 text-amber-700',
+  plant_success: 'bg-green-100 text-green-700',
+  plant_fail: 'bg-gray-100 text-gray-500',
+  season_tile_change: 'bg-teal-50 text-teal-600',
 }
 
 /** WorldLogPanel「重要のみ」プリセットのイベント種別 */

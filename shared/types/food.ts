@@ -3,6 +3,7 @@
  */
 
 import { SlimeStats, RacialValues } from "./slime";
+import { TileAttributes } from "./map";
 
 /** 食料カテゴリ */
 export type FoodCategory = "slime" | "plant" | "human" | "beast" | "spirit" | "fish";
@@ -33,4 +34,6 @@ export interface Food {
   alwaysAvailable?: boolean;
   /** アイコン画像の公開パス（/assets/food/... 形式）。未設定の場合は絵文字フォールバック */
   imageUrl?: string;
+  /** タイルに植えたときの属性変化量。未定義の食料は plant 不可 */
+  tileAttributeDelta?: Partial<TileAttributes>;
 }

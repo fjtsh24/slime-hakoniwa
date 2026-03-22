@@ -26,6 +26,10 @@ export type TurnEventType =
   | "inventory_full"
   | "inventory_not_found"
   | "battle_incapacitated"
+  // --- Phase 8: plant アクション・季節タイル変化イベント ---
+  | "plant_success"
+  | "plant_fail"
+  | "season_tile_change"
   // --- Phase 6向け予約列挙（ワールドイベント） ---
   | "season_change"
   | "weather_change"

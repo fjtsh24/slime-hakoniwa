@@ -76,12 +76,14 @@ function makeGatherReservation(overrides?: Partial<ActionReservation>): ActionRe
 }
 
 function makeTile(x: number, y: number, attrs: Partial<{ fire: number; water: number; earth: number; wind: number }> = {}): Tile {
+  const baseAttrs = { fire: 0, water: 0, earth: 0, wind: 0, ...attrs }
   return {
     id: `tile-${x}-${y}`,
     mapId: 'map-test-001',
     x,
     y,
-    attributes: { fire: 0, water: 0, earth: 0, wind: 0, ...attrs },
+    attributes: baseAttrs,
+    baseAttributes: baseAttrs,
   }
 }
 

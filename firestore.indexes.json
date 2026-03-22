@@ -101,6 +101,31 @@
         { "fieldPath": "eventType",  "order": "ASCENDING" },
         { "fieldPath": "processedAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "tiles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "mapId", "order": "ASCENDING" },
+        { "fieldPath": "x",     "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "tiles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "mapId", "order": "ASCENDING" },
+        { "fieldPath": "y",     "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "tiles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "mapId", "order": "ASCENDING" },
+        { "fieldPath": "x",     "order": "ASCENDING" },
+        { "fieldPath": "y",     "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

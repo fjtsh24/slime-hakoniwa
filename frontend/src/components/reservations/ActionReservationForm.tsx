@@ -64,6 +64,7 @@ const ACTION_LABELS: Record<ActionType, string> = {
   fish: '釣り',
   hunt: '狩猟',
   merge: '融合',
+  plant: '植え付け',
 }
 
 const STAT_LABELS: Record<string, string> = {
@@ -136,7 +137,8 @@ export function ActionReservationForm({
 
     setTileLoading(true)
     const q = query(
-      collection(db, 'maps', slimeMapId, 'tiles'),
+      collection(db, 'tiles'),
+      where('mapId', '==', slimeMapId),
       where('x', '==', slimeTileX),
       where('y', '==', slimeTileY),
     )

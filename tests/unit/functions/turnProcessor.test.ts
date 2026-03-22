@@ -1236,6 +1236,7 @@ describe('executeReservedAction - move (タイルあり)', () => {
       x: 2,
       y: 3,
       attributes: { fire: 0.8, water: 0.1, earth: 0.0, wind: 0.0 },
+      baseAttributes: { fire: 0.8, water: 0.1, earth: 0.0, wind: 0.0 },
     }
 
     const result = await executeReservedAction(slime, reservation, undefined, [tile])
