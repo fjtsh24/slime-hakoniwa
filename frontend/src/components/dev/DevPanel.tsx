@@ -58,6 +58,7 @@ export function DevPanel() {
   const [loading, setLoading] = useState(false)
   const [selectedSeason, setSelectedSeason] = useState<string>('spring')
   const [selectedWeather, setSelectedWeather] = useState<string>('sunny')
+  const [minimized, setMinimized] = useState(true)
 
   function addLog(msg: string) {
     setLog((prev) => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev.slice(0, 19)])
@@ -143,20 +144,29 @@ export function DevPanel() {
   const selected = slimes.find((s) => s.id === selectedSlimeId)
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-80 bg-gray-900 text-white rounded-xl shadow-2xl text-xs border border-yellow-500">
+    <div className={`fixed bottom-4 right-16 z-50 bg-gray-900 text-white rounded-xl shadow-2xl text-xs border border-yellow-500 transition-all duration-200 ${minimized ? 'w-auto' : 'w-80'}`}>
       {/* ヘッダー */}
-      <div className="flex items-center justify-between px-3 py-2 bg-yellow-500 text-gray-900 rounded-t-xl">
+      <div
+        className="flex items-center justify-between px-3 py-2 bg-yellow-500 text-gray-900 rounded-t-xl cursor-pointer select-none"
+        onClick={() => setMinimized((v) => !v)}
+        title={minimized ? '展開' : '最小化'}
+      >
         <span className="font-bold text-sm">🛠 Dev Panel</span>
-        <button
-          onClick={fetchSlimes}
-          disabled={loading}
-          className="text-gray-900 underline text-xs disabled:opacity-50"
-        >
-          更新
-        </button>
+        <div className="flex items-center gap-2">
+          {!minimized && (
+            <button
+              onClick={(e) => { e.stopPropagation(); fetchSlimes() }}
+              disabled={loading}
+              className="text-gray-900 underline text-xs disabled:opacity-50"
+            >
+              更新
+            </button>
+          )}
+          <span className="text-gray-900 font-bold leading-none">{minimized ? '▲' : '▼'}</span>
+        </div>
       </div>
 
-      <div className="p-3 flex flex-col gap-3">
+      {!minimized && <div className="p-3 flex flex-col gap-3">
         {/* スライム選択 */}
         <div>
           <div className="text-gray-400 mb-1">スライム選択</div>
@@ -273,7 +283,7 @@ export function DevPanel() {
             ))}
           </div>
         )}
-      </div>
+      </div>}
     </div>
   )
 }
