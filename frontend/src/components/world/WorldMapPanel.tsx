@@ -35,20 +35,26 @@ interface WorldMapPanelProps {
 const TW = 20  // タイル半幅
 const TH = 10  // タイル半高さ（2:1 比率）
 
-/** タイル属性ごとの fill 色 */
-const TILE_FILL: Record<'fire' | 'water' | 'earth' | 'wind', string> = {
-  fire:  '#fecaca',  // red-200
-  water: '#bfdbfe',  // blue-200
-  earth: '#fef08a',  // yellow-200
-  wind:  '#d1fae5',  // emerald-100
+/** タイル属性ごとの RGB 値（ブレンド計算用に事前定義） */
+type RGB = { r: number; g: number; b: number }
+
+const TILE_RGB: Record<'fire' | 'water' | 'earth' | 'wind', RGB> = {
+  fire:  { r: 0xfe, g: 0xca, b: 0xca },  // red-200   #fecaca
+  water: { r: 0xbf, g: 0xdb, b: 0xfe },  // blue-200  #bfdbfe
+  earth: { r: 0xfe, g: 0xf0, b: 0x8a },  // yellow-200 #fef08a
+  wind:  { r: 0xd1, g: 0xfa, b: 0xe5 },  // emerald-100 #d1fae5
 }
 
-const TILE_FILL_HOVER: Record<'fire' | 'water' | 'earth' | 'wind', string> = {
-  fire:  '#fca5a5',  // red-300
-  water: '#93c5fd',  // blue-300
-  earth: '#fde047',  // yellow-300
-  wind:  '#a7f3d0',  // emerald-200
+const TILE_RGB_HOVER: Record<'fire' | 'water' | 'earth' | 'wind', RGB> = {
+  fire:  { r: 0xfc, g: 0xa5, b: 0xa5 },  // red-300   #fca5a5
+  water: { r: 0x93, g: 0xc5, b: 0xfd },  // blue-300  #93c5fd
+  earth: { r: 0xfd, g: 0xe0, b: 0x47 },  // yellow-300 #fde047
+  wind:  { r: 0xa7, g: 0xf3, b: 0xd0 },  // emerald-200 #a7f3d0
 }
+
+/** 全属性が実質ゼロの場合のニュートラル色 */
+const NEUTRAL_FILL       = '#e5e7eb'  // gray-200
+const NEUTRAL_FILL_HOVER = '#d1d5db'  // gray-300
 
 const TILE_ICONS: Record<'fire' | 'water' | 'earth' | 'wind', string> = {
   fire:  '🔥',
@@ -67,13 +73,36 @@ const SLIME_OFFSETS: [number, number][][] = [
   [[-6, -3], [6, -3], [0, 4]],
 ]
 
-/** タイルの支配属性を返す（タイブレーク時はランダム） */
-function getDominantAttr(tile: Tile): 'fire' | 'water' | 'earth' | 'wind' {
+/**
+ * タイルの支配属性を返す（アイコン表示用）
+ * - 全属性が実質ゼロ（合計 < 0.01）の場合は null を返す
+ * - タイブレークは座標ベースで決定論的に解決（レンダリング毎に変わらない）
+ */
+function getDominantAttr(tile: Tile): 'fire' | 'water' | 'earth' | 'wind' | null {
   const attrs = tile.attributes
   const keys = ['fire', 'water', 'earth', 'wind'] as const
+  const total = keys.reduce((s, k) => s + attrs[k], 0)
+  if (total < 0.01) return null
   const maxVal = Math.max(...keys.map((k) => attrs[k]))
   const candidates = keys.filter((k) => attrs[k] === maxVal)
-  return candidates[Math.floor(Math.random() * candidates.length)]
+  return candidates[(tile.x * 3 + tile.y * 7) % candidates.length]
+}
+
+/**
+ * タイルの fill 色を属性値の重み付きブレンドで返す
+ * - 全属性が実質ゼロ → ニュートラルグレー
+ * - 混合属性タイルは複数色を属性比でブレンド
+ */
+function getBlendedFill(tile: Tile, hovered: boolean): string {
+  const { fire, water, earth, wind } = tile.attributes
+  const total = fire + water + earth + wind
+  if (total < 0.01) return hovered ? NEUTRAL_FILL_HOVER : NEUTRAL_FILL
+
+  const palette = hovered ? TILE_RGB_HOVER : TILE_RGB
+  const r = Math.round((fire * palette.fire.r + water * palette.water.r + earth * palette.earth.r + wind * palette.wind.r) / total)
+  const g = Math.round((fire * palette.fire.g + water * palette.water.g + earth * palette.earth.g + wind * palette.wind.g) / total)
+  const b = Math.round((fire * palette.fire.b + water * palette.water.b + earth * palette.earth.b + wind * palette.wind.b) / total)
+  return `rgb(${r},${g},${b})`
 }
 
 /** 季節・天候に応じた CSS filter 文字列を生成する */
@@ -188,7 +217,7 @@ export function WorldMapPanel({ mapId, slimes, selectedSlimeId, onTileClick }: W
             `${cx - TW},${cy}`,
           ].join(' ')
 
-          const fill = isHovered ? TILE_FILL_HOVER[dominant] : TILE_FILL[dominant]
+          const fill = getBlendedFill(tile, isHovered)
 
           return (
             <g
@@ -211,8 +240,8 @@ export function WorldMapPanel({ mapId, slimes, selectedSlimeId, onTileClick }: W
                 strokeWidth={isSelected ? 1.5 : 0.5}
               />
 
-              {/* 属性アイコン（スライムがいない場合のみ） */}
-              {slimesOnTile.length === 0 && (
+              {/* 属性アイコン（スライムがいない場合のみ・全属性ゼロは非表示） */}
+              {slimesOnTile.length === 0 && dominant !== null && (
                 <text
                   x={cx}
                   y={cy + 4}
