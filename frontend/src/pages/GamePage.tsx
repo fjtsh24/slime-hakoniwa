@@ -334,6 +334,11 @@ export function GamePage() {
                             ⚠️ 空腹です！食事を予約してください
                           </p>
                         )}
+                        {world && (s.incapacitatedUntilTurn ?? 0) > world.currentTurn && (
+                          <p className="text-xs text-slate-500 font-medium mt-0.5">
+                            行動不能: あと{(s.incapacitatedUntilTurn ?? 0) - world.currentTurn}ターン
+                          </p>
+                        )}
                         <div className="flex gap-3 mt-0.5">
                           <span className="text-xs text-gray-400">
                             HP:{s.stats.hp} ATK:{s.stats.atk} ({s.tileX},{s.tileY})

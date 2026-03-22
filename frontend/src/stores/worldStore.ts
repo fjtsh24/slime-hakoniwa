@@ -32,6 +32,11 @@ function convertTimestamps(data: Record<string, unknown>): World {
     nextTurnAt: convert(data.nextTurnAt) as Date,
     turnIntervalSec: data.turnIntervalSec as number,
     createdAt: convert(data.createdAt) as Date,
+    status: data.status as World['status'],
+    weather: data.weather as World['weather'],
+    weatherEndsAtTurn: data.weatherEndsAtTurn as number | undefined,
+    season: data.season as World['season'],
+    seasonStartTurn: data.seasonStartTurn as number | undefined,
   }
 }
 

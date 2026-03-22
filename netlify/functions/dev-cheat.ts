@@ -9,6 +9,7 @@
  *   GET  /dev-cheat/slimes?worldId= — ワールド内スライム一覧
  *   POST /dev-cheat/set-slime       — スライムのステータス・種族値・スキルを上書き
  *   POST /dev-cheat/force-turn      — 指定ワールドのターン処理を即時実行
+ *   POST /dev-cheat/set-world       — ワールドの季節・天候を直接書き換え
  */
 
 import type { Handler, HandlerResponse } from '@netlify/functions'
@@ -170,6 +171,48 @@ const handler: Handler = async (event): Promise<HandlerResponse> => {
         worldId: body.worldId,
         turnBefore: before,
         turnAfter: after,
+      })
+    }
+
+    // POST /dev-cheat/set-world
+    if (method === 'POST' && path === '/set-world') {
+      const body = JSON.parse(event.body ?? '{}') as {
+        worldId?: string
+        season?: 'spring' | 'summer' | 'autumn' | 'winter'
+        weather?: 'sunny' | 'rainy' | 'stormy' | 'foggy'
+        weatherEndsAtTurn?: number
+      }
+
+      if (!body.worldId) return json(400, { error: 'worldId が必要です' })
+
+      const worldRef = db.collection('worlds').doc(body.worldId)
+      const worldSnap = await worldRef.get()
+      if (!worldSnap.exists) return json(404, { error: 'ワールドが見つかりません' })
+
+      const currentTurn = worldSnap.data()!['currentTurn'] as number
+      const updates: Record<string, unknown> = {}
+
+      if (body.season !== undefined) {
+        updates['season'] = body.season
+        updates['seasonStartTurn'] = currentTurn
+      }
+      if (body.weather !== undefined) {
+        updates['weather'] = body.weather
+        // weatherEndsAtTurn が未指定の場合は currentTurn + 10 をデフォルトとする
+        updates['weatherEndsAtTurn'] = body.weatherEndsAtTurn ?? currentTurn + 10
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return json(400, { error: 'season または weather のいずれかを指定してください' })
+      }
+
+      await worldRef.update(updates)
+
+      return json(200, {
+        message: 'ワールドを更新しました',
+        worldId: body.worldId,
+        currentTurn,
+        ...updates,
       })
     }
 

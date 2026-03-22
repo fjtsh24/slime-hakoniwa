@@ -13,7 +13,7 @@ function getSpeciesName(speciesId: string): string {
   return slimeSpecies.find((s) => s.id === speciesId)?.name ?? speciesId
 }
 
-export function PlayerProfilePage() {
+export function PlayerMapPage() {
   const { handle } = useParams<{ handle: string }>()
   const [profile, setProfile] = useState<PublicProfileData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -53,6 +53,11 @@ export function PlayerProfilePage() {
     return (
       <div className="min-h-screen bg-green-50 flex flex-col items-center justify-center gap-4">
         <p className="text-gray-600">{error ?? 'プレイヤーが見つかりません'}</p>
+        {handle && (
+          <Link to={`/players/${handle}`} className="text-green-600 hover:underline text-sm">
+            ← プロフィールに戻る
+          </Link>
+        )}
         <Link to="/encyclopedia" className="text-green-600 hover:underline text-sm">
           スライム図鑑を見る
         </Link>
@@ -63,43 +68,38 @@ export function PlayerProfilePage() {
   return (
     <div className="min-h-screen bg-green-50">
       <header className="bg-green-700 text-white shadow px-4 py-3 flex items-center gap-3">
-        <Link to="/game" className="text-sm opacity-80 hover:opacity-100">← ゲームに戻る</Link>
-        <h1 className="text-xl font-bold">プレイヤープロフィール</h1>
+        <Link
+          to={`/players/${profile.publicHandle}`}
+          className="text-sm opacity-80 hover:opacity-100"
+        >
+          ← プロフィールに戻る
+        </Link>
+        <h1 className="text-xl font-bold">
+          {profile.displayName || profile.publicHandle} のマップ
+        </h1>
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-8 flex flex-col gap-6">
 
-        {/* プレイヤー情報 */}
-        <section className="bg-white rounded-xl shadow p-5">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-green-200 flex items-center justify-center text-2xl font-bold text-green-700">
-              {profile.publicHandle[0]?.toUpperCase() ?? '?'}
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-gray-800">
-                {profile.displayName || profile.publicHandle}
-              </h2>
-              <p className="text-sm text-gray-500">@{profile.publicHandle}</p>
-            </div>
-          </div>
+        {/* マップ表示エリア（準備中） */}
+        {/* TODO(Phase7): mapId を公開APIに追加し WorldMapPanel を表示する */}
+        {/* TODO(Phase7): fetch ロジック・スライム一覧を PlayerProfilePage と共通フック usePublicProfile(handle) に切り出す */}
+        <section className="bg-white rounded-xl shadow p-8 text-center">
+          <div className="text-4xl mb-3">🗺️</div>
+          <p className="text-gray-600 font-medium mb-1">マップ閲覧機能は準備中です</p>
+          <p className="text-xs text-gray-400">
+            将来のアップデートでこのプレイヤーのワールドマップを閲覧できるようになります
+          </p>
         </section>
 
         {/* スライム一覧 */}
         <section className="bg-white rounded-xl shadow p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-gray-700">
-              所持スライム
-              <span className="ml-2 text-sm font-normal text-gray-400">
-                {profile.slimeSummaries.length}体
-              </span>
-            </h3>
-            <Link
-              to={`/players/${profile.publicHandle}/map`}
-              className="text-sm text-green-600 hover:underline"
-            >
-              マップを見る →
-            </Link>
-          </div>
+          <h3 className="font-bold text-gray-700 mb-4">
+            所持スライム
+            <span className="ml-2 text-sm font-normal text-gray-400">
+              {profile.slimeSummaries.length}体
+            </span>
+          </h3>
 
           {profile.slimeSummaries.length === 0 ? (
             <p className="text-sm text-gray-400">スライムはまだいません</p>
@@ -110,7 +110,6 @@ export function PlayerProfilePage() {
                   key={slime.id}
                   className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border border-gray-100"
                 >
-                  {/* カラードット */}
                   <div
                     className="w-8 h-8 rounded-full flex-shrink-0 slime-idle"
                     style={{ backgroundColor: slime.color ?? '#86efac' }}
@@ -119,7 +118,6 @@ export function PlayerProfilePage() {
                     <div className="font-medium text-gray-800 truncate">{slime.name}</div>
                     <div className="text-xs text-gray-500">{getSpeciesName(slime.speciesId)}</div>
                   </div>
-                  {/* ステータス */}
                   <div className="grid grid-cols-4 gap-1 text-xs text-center flex-shrink-0">
                     {[
                       { label: 'HP', value: slime.stats.hp },

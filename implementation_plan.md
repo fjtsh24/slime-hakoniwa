@@ -427,20 +427,37 @@
 - [x] `worlds/{worldId}` スキーマに `weather / season` フィールド追加（shared/types/world.ts）
 - [x] SEASON_DURATION_TURNS = 120（約5日/季節）
 
-### Phase 6 Week 2 残課題（Week 3 以降）
+### Week 3: /players/:handle/map・天候季節テスト・ライブフィード拡張 ✅（2026-03-22完了）
 
-- `/players/:handle/map` 他プレイヤーマップ閲覧ページ（A4/FE）
-- LiveFeedPage に天候・季節イベント表示追加（A1/Fun M-2）
-- 天候継続ターン数の乱数幅導入（A1/Fun M-1）
-- `checkWeatherTransition` / `checkSeasonTransition` ユニットテスト追加（A7/QA M-3）
-- world.ts の `weather` 型を文字列リテラルユニオンに強化（A2/Sec M-1）
-- 図鑑の進化条件説明文を登録誘導文に変更（A1/Fun M-3）
+**Phase 6 Week 2 残課題の消化**
+- [x] `/players/:handle/map` 他プレイヤーマップ閲覧ページ（準備中プレースホルダー、Phase 7 で本実装）
+  - `TODO(Phase7)`: mapId を公開 API に追加して WorldMapPanel を表示
+  - `TODO(Phase7)`: PlayerProfilePage と共通フック `usePublicProfile(handle)` に切り出す
+- [x] LiveFeedPage に天候・季節イベント表示追加（weather_change/season_change カード実装）
+- [x] 天候継続ターン数の乱数幅導入（minDuration/maxDuration で抽選）
+- [x] `checkWeatherTransition` / `checkSeasonTransition` ユニットテスト追加（WT-01〜05 / ST-W-01〜07）
+- [x] world.ts の `weather` 型を `'sunny'|'rainy'|'stormy'|'foggy'` literal union に強化
+- [x] 図鑑の進化条件説明文を登録誘導文に変更（EncyclopediaPage）
+- [x] /public/live バックエンドで actorType:'world' イベントを Promise.all でマージ
+- [x] publicApi.test.ts を Promise.all 並行取得対応・makeWorldLog ヘルパー追加
+
+**テスト総数**: 154件全通過（WT: +5件、ST-W: +7件、ST-W-02b境界値 +1件）
+
+### Phase 6 Week 3 残課題（Phase 7 以降）
+
+- PlayerProfilePage/PlayerMapPage の fetch ロジック共通フック化（A7/QA H-03 TODO）
+- mapId を公開 API に追加して PlayerMapPage を本実装（A1/Fun M-1）
+- eventData の `from`/`to` 値を enum で検証してから返す（A2/Sec S-1）
+- 天候 ID の命名体系統一（設計書 `weather-sunny` vs 実装 `sunny`）（A1/Fun M-2）
 
 ### レビュー完了 ✅（2026-03-22）
 
 - [x] A7/QA レビュー → `docs/qa_review/phase_6_w2.md`（141件全通過・M-1/M-2 即修正済み）
 - [x] A2/Sec レビュー → `docs/security_review/phase_6_w2.md`（MUST-1〜3 全達成）
 - [x] A1/Fun レビュー → `docs/fun_review/phase_6_w2.md`（H-1/H-2 即修正済み）
+- [x] A7/QA Phase 6 W3 レビュー（H-01/H-03 対応済み・154件全通過）
+- [x] A2/Sec Phase 6 W3 レビュー（MUST: 0件・条件付き承認）
+- [x] A1/Fun Phase 6 W3 レビュー（High: LiveFeed 型不整合 対応済み）
 
 **対人戦闘（PvP）について**
 - Phase 6では実装しない
