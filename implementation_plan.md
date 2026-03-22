@@ -9,8 +9,8 @@
 | Phase 3 | スライム育成基本 | 3週間 | ✅ 完了 |
 | Phase 4 | 進化・分裂・融合 | 3週間 | ✅ 完了 |
 | Phase 5 | マップ描画・UI完成 | 3週間 | ✅ 完了 |
-| Phase 6 | ソーシャル・野生スライム | 2週間 | 未着手 |
-| Phase 7 | チューニング・リリース準備 | 2週間 | 未着手 |
+| Phase 6 | ソーシャル・野生スライム | 2週間 | ✅ 完了 |
+| Phase 7 | チューニング・リリース準備 | 2週間 | 進行中 |
 
 ---
 
@@ -468,20 +468,58 @@
 
 ## Phase 7: チューニング・リリース準備
 
-### 実装内容
+### 完了済み（Week 1〜2）
+
+- [x] セキュリティ強化（S-1: worldId検証、S-4: merge対象オーナー確認）
+- [x] 公開API拡張（/public/players/:handle に mapId 追加）
+- [x] `usePublicProfile` 共通フック + PlayerMapPage 本実装
+- [x] テスト追加（dropTableConsistency, ST-H, INC, AA, MV 計15件）
+- [x] SVG アイソメトリックマップ化（Step 2）
+- [x] タイル色ブレンド（属性値の重み付きRGB加重平均、全ゼロ→グレー、決定論的タイブレーク）
+- [x] 食料画像アセット統合（foods.ts に imageUrl、食料セレクタをカードグリッドに変更）
+- [x] dropTable × foods 整合性テスト追加
+- [x] gather テーブルにフルーツ・キノコ追加
+
+### 残タスク（Week 3〜4）
+
+#### マップ UI・体験向上（A1/Fun + A4/FE 議論結果 2026-03-22）
+
+- [x] **右パネル折りたたみ実装**（GamePage.tsx）
+  - `rightPanelCollapsed` state でトグル
+  - 折りたたみ時マップ全幅表示、300ms transition
+  - ◀/▶ トグルボタンをパネル間に配置（PCのみ）
+
+- [x] **マップ上スライム画像表示**
+  - SVG `<image href="slime-base.png">` で `<circle>` を置き換え
+  - drop-shadow フィルタでスライムカラーを表現
+  - 足元をタイル中心に合わせた配置
+
+- [x] **立ち絵キャラクターの進化スライム統合**
+  - 立ち絵 7体を `/public/assets/characters/` にコピー
+  - 新規 species 4体追加（slime-011〜014）と進化条件設定
+    - slime-011: ウェーブスライム（アクア + spirit 食）→ chara_water_wave_spirit.png
+    - slime-012: フォグスライム（ウィンド + spirit 食）→ chara_wind_fog.png
+    - slime-013: バットバードスライム（ウィンド + beast 食）→ chara_wind_batbird.png
+    - slime-014: フェアリースライム（ウィンド + human 食）→ chara_wind_fairy.png
+  - SlimeSpecies に `illustrationUrl?: string` 追加
+  - 図鑑ページ（EncyclopediaPage）に立ち絵表示・14種族対応進化ツリー
+
+- [ ] **SVG タイルグラデーション**（タイルリッチ化 Tier 1）
+  - `<defs>` に属性別 `<linearGradient>` 定義
+  - ベタ色 → グラデーションで奥行き感
+
+#### その他 Phase 7 タスク
 
 - [ ] Google Analytics 実装（`VITE_GA_MEASUREMENT_ID`）
-- [ ] パフォーマンス計測・最適化
-  - ターン処理時間の計測とCloud Functionsタイムアウト内の確認
-  - Firestoreインデックス最適化（`firestore.indexes.json`）
-- [ ] セキュリティルール最終レビュー（OWASP Top 10確認）
-- [ ] エラーハンドリング・ユーザー向けエラーメッセージの整備
 - [ ] テストカバレッジ最終確認（コアロジック80%以上）
-- [ ] ダンジョン機能の基本実装（後期段階コンテンツ）
-- [ ] **Step 3 スライム視覚化（A1/Fun + A4/FE 設計済み）**
-  - SVG パスモーフィング + 種族別シルエットスプライト
-  - アニメーション分岐（基本ぷるぷる / 重い呼吸 / 速い揺れ）
-  - 前提: Step 2 SVG マップ化 + アート素材の制作が完了していること
+- [ ] セキュリティルール最終レビュー
+
+### タイルグラフィック専門家依頼（Phase 8 以降）
+
+- 依頼書: `docs/art_commission_brief.md` 作成済み（2026-03-22）
+- 優先度: タイルセット4属性（fire/water/earth/wind）+ 基本スライムアイコン5体
+- AIエージェントの限界: SVGコードによるパターン・グラデーションまで可能。
+  手描き/ピクセルアートは人間の専門家が必要
 
 ---
 

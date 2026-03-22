@@ -5,18 +5,20 @@ import { slimeSpecies } from '../../../shared/data/slimeSpecies'
 const TIER_COLUMNS = [
   { ids: ['slime-001'] },
   { ids: ['slime-002', 'slime-003', 'slime-004', 'slime-005'] },
-  { ids: ['slime-006', 'slime-007', 'slime-008', 'slime-009', 'slime-010'] },
+  { ids: ['slime-006', 'slime-007', 'slime-008', 'slime-009', 'slime-010', 'slime-011', 'slime-012', 'slime-013', 'slime-014'] },
 ]
+
+const SVG_H = 420
 
 /** ノードの座標を計算する */
 function buildNodePositions(): Record<string, { x: number; y: number }> {
   const COL_X = [80, 240, 400]
-  const NODE_H = 36
-  const NODE_GAP = 12
+  const NODE_H = 32
+  const NODE_GAP = 10
   const positions: Record<string, { x: number; y: number }> = {}
   TIER_COLUMNS.forEach((col, colIdx) => {
     const totalH = col.ids.length * NODE_H + (col.ids.length - 1) * NODE_GAP
-    const startY = (220 - totalH) / 2
+    const startY = (SVG_H - totalH) / 2
     col.ids.forEach((id, rowIdx) => {
       positions[id] = {
         x: COL_X[colIdx],
@@ -31,23 +33,26 @@ const NODE_FILL: Record<string, string> = {
   'slime-001': '#dcfce7', 'slime-002': '#fee2e2', 'slime-003': '#dbeafe',
   'slime-004': '#fef9c3', 'slime-005': '#d1fae5', 'slime-006': '#f3e8ff',
   'slime-007': '#ffedd5', 'slime-008': '#cffafe', 'slime-009': '#ffe4e6',
-  'slime-010': '#ede9fe',
+  'slime-010': '#ede9fe', 'slime-011': '#e0f2fe', 'slime-012': '#f5f3ff',
+  'slime-013': '#fef3c7', 'slime-014': '#fce7f3',
 }
 const NODE_STROKE: Record<string, string> = {
   'slime-001': '#86efac', 'slime-002': '#fca5a5', 'slime-003': '#93c5fd',
   'slime-004': '#fde047', 'slime-005': '#6ee7b7', 'slime-006': '#d8b4fe',
   'slime-007': '#fdba74', 'slime-008': '#67e8f9', 'slime-009': '#fda4af',
-  'slime-010': '#c4b5fd',
+  'slime-010': '#c4b5fd', 'slime-011': '#7dd3fc', 'slime-012': '#a78bfa',
+  'slime-013': '#fbbf24', 'slime-014': '#f9a8d4',
 }
 const SHORT_NAME: Record<string, string> = {
   'slime-001': 'スライム', 'slime-002': 'ファイア', 'slime-003': 'アクア',
   'slime-004': 'アース', 'slime-005': 'ウィンド', 'slime-006': 'ダーク',
   'slime-007': 'ライト', 'slime-008': 'ドラゴン', 'slime-009': 'マリン',
-  'slime-010': 'フォレスト',
+  'slime-010': 'フォレスト', 'slime-011': 'ウェーブ', 'slime-012': 'フォグ',
+  'slime-013': 'バットバード', 'slime-014': 'フェアリー',
 }
 
 const NODE_W = 70
-const NODE_H_SVG = 28
+const NODE_H_SVG = 26
 
 function EvolutionTreeSVG() {
   const positions = buildNodePositions()
@@ -59,7 +64,7 @@ function EvolutionTreeSVG() {
   }
 
   return (
-    <svg viewBox="0 0 480 220" className="w-full h-auto" role="img" aria-label="スライム進化ツリー">
+    <svg viewBox={`0 0 480 ${SVG_H}`} className="w-full h-auto" role="img" aria-label="スライム進化ツリー">
       <defs>
         <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
           <path d="M0,0 L0,6 L6,3 z" fill="#9ca3af" />
@@ -68,7 +73,7 @@ function EvolutionTreeSVG() {
 
       {/* Tierラベル */}
       {[{ x: 80, label: '基本種' }, { x: 240, label: '第1進化' }, { x: 400, label: '第2進化' }].map(({ x, label }) => (
-        <text key={label} x={x} y={12} textAnchor="middle" fontSize="8" fill="#9ca3af" fontWeight="500">{label}</text>
+        <text key={label} x={x} y={16} textAnchor="middle" fontSize="8" fill="#9ca3af" fontWeight="500">{label}</text>
       ))}
 
       {/* エッジ */}
@@ -97,7 +102,7 @@ function EvolutionTreeSVG() {
             <rect width={NODE_W} height={NODE_H_SVG} rx={6}
               fill={NODE_FILL[species.id] ?? '#f3f4f6'}
               stroke={NODE_STROKE[species.id] ?? '#d1d5db'} strokeWidth="1.5" />
-            <text x={NODE_W / 2} y={NODE_H_SVG / 2 + 4} textAnchor="middle" fontSize="9" fontWeight="600" fill="#374151">
+            <text x={NODE_W / 2} y={NODE_H_SVG / 2 + 4} textAnchor="middle" fontSize="8" fontWeight="600" fill="#374151">
               {SHORT_NAME[species.id] ?? species.name}
             </text>
           </g>
@@ -119,6 +124,10 @@ const SPECIES_COLORS: Record<string, string> = {
   'slime-008': 'bg-cyan-100 border-cyan-300',
   'slime-009': 'bg-rose-100 border-rose-300',
   'slime-010': 'bg-violet-100 border-violet-300',
+  'slime-011': 'bg-sky-100 border-sky-300',
+  'slime-012': 'bg-indigo-100 border-indigo-300',
+  'slime-013': 'bg-amber-100 border-amber-300',
+  'slime-014': 'bg-pink-100 border-pink-300',
 }
 
 const TIER_LABEL: Record<string, string> = {
@@ -132,6 +141,10 @@ const TIER_LABEL: Record<string, string> = {
   'slime-008': '第2進化',
   'slime-009': '第2進化',
   'slime-010': '第2進化',
+  'slime-011': '第2進化',
+  'slime-012': '第2進化',
+  'slime-013': '第2進化',
+  'slime-014': '第2進化',
 }
 
 export function EncyclopediaPage() {
@@ -165,18 +178,30 @@ export function EncyclopediaPage() {
               key={species.id}
               className={`border-2 rounded-xl p-4 ${SPECIES_COLORS[species.id] ?? 'bg-gray-100 border-gray-300'}`}
             >
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <h3 className="font-bold text-gray-800">{species.name}</h3>
-                  <span className="text-xs text-gray-500">{TIER_LABEL[species.id] ?? ''}</span>
+              <div className="flex items-start gap-3 mb-2">
+                {/* 立ち絵（illustrationUrl がある場合のみ表示） */}
+                {species.illustrationUrl && (
+                  <img
+                    src={species.illustrationUrl}
+                    alt={species.name}
+                    className="w-16 h-20 object-contain flex-shrink-0 rounded-lg bg-white/50"
+                    loading="lazy"
+                  />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between mb-1">
+                    <div>
+                      <h3 className="font-bold text-gray-800">{species.name}</h3>
+                      <span className="text-xs text-gray-500">{TIER_LABEL[species.id] ?? ''}</span>
+                    </div>
+                    <span className="text-xs text-gray-400 font-mono flex-shrink-0 ml-1">{species.id}</span>
+                  </div>
+                  <p className="text-xs text-gray-600">{species.description}</p>
                 </div>
-                <span className="text-xs text-gray-400 font-mono">{species.id}</span>
               </div>
 
-              <p className="text-xs text-gray-600 mb-3">{species.description}</p>
-
               {/* ベースステータス */}
-              <div className="grid grid-cols-4 gap-1 text-xs text-center">
+              <div className="grid grid-cols-4 gap-1 text-xs text-center mt-3">
                 {[
                   { label: 'HP', value: species.baseStats.hp },
                   { label: 'ATK', value: species.baseStats.atk },

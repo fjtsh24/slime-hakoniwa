@@ -16,6 +16,7 @@ import { rmSync, mkdirSync, existsSync } from 'fs'
 import { setTimeout } from 'timers/promises'
 
 const FIRESTORE_PORT = 8080
+const AUTH_PORT = 9099
 const MAX_WAIT_SEC = 60
 const EMULATOR_DATA_DIR = './emulator-data'
 
@@ -39,22 +40,37 @@ emulator.on('error', (err) => {
   process.exit(1)
 })
 
-// 3. Firestore エミュレータの起動を待機
-console.log(`Firestore エミュレータ (localhost:${FIRESTORE_PORT}) の起動を待機中...`)
-let ready = false
-for (let i = 0; i < MAX_WAIT_SEC; i++) {
-  await setTimeout(1000)
-  try {
-    execSync(`curl -sf http://localhost:${FIRESTORE_PORT}/ > /dev/null 2>&1`)
-    ready = true
-    break
-  } catch {
-    process.stdout.write('.')
-  }
-}
-console.log('')
+// Ctrl+C でエミュレータが --export-on-exit のデータ書き出しを行う間、
+// Node プロセスが先に終了してターミナルが取り戻されないよう待機する。
+// （firebase は同じプロセスグループなので既に SIGINT を受け取っている）
+process.on('SIGINT', () => {
+  console.log('\nエミュレータのデータをエクスポート中... 完了するまでお待ちください。')
+})
+emulator.on('exit', (code) => {
+  process.exit(code ?? 0)
+})
 
-if (!ready) {
+// 3. Firestore・Auth エミュレータの起動を待機
+async function waitForPort(port, label) {
+  console.log(`${label} (localhost:${port}) の起動を待機中...`)
+  for (let i = 0; i < MAX_WAIT_SEC; i++) {
+    await setTimeout(1000)
+    try {
+      execSync(`curl -sf http://localhost:${port}/ > /dev/null 2>&1`)
+      console.log(`\n${label} 起動完了`)
+      return true
+    } catch {
+      process.stdout.write('.')
+    }
+  }
+  console.log('')
+  return false
+}
+
+const firestoreReady = await waitForPort(FIRESTORE_PORT, 'Firestore エミュレータ')
+const authReady = await waitForPort(AUTH_PORT, 'Auth エミュレータ')
+
+if (!firestoreReady || !authReady) {
   console.error(`エミュレータが ${MAX_WAIT_SEC} 秒以内に起動しませんでした`)
   emulator.kill()
   process.exit(1)

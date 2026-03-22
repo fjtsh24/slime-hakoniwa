@@ -10,6 +10,7 @@
  */
 
 import { useState } from 'react'
+import { slimeSpecies } from '../../../../shared/data/slimeSpecies'
 
 // 相対URLにすることで Vite プロキシ (/dev-cheat → localhost:8888) を経由し CORS を回避
 const DEV_API = '/dev-cheat'
@@ -58,6 +59,8 @@ export function DevPanel() {
   const [loading, setLoading] = useState(false)
   const [selectedSeason, setSelectedSeason] = useState<string>('spring')
   const [selectedWeather, setSelectedWeather] = useState<string>('sunny')
+  const [minimized, setMinimized] = useState(true)
+  const [targetSpeciesId, setTargetSpeciesId] = useState('')
 
   function addLog(msg: string) {
     setLog((prev) => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev.slice(0, 19)])
@@ -90,6 +93,26 @@ export function DevPanel() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
+      })
+      const data = await res.json()
+      addLog(data.message ?? JSON.stringify(data))
+      await fetchSlimes()
+    } catch (e) {
+      addLog(`エラー: ${e}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function changeSpecies() {
+    if (!selectedSlimeId) { addLog('スライムを選択してください'); return }
+    if (!targetSpeciesId) { addLog('進化先を選択してください'); return }
+    setLoading(true)
+    try {
+      const res = await fetch(`${DEV_API}/set-slime`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slimeId: selectedSlimeId, speciesId: targetSpeciesId }),
       })
       const data = await res.json()
       addLog(data.message ?? JSON.stringify(data))
@@ -143,20 +166,29 @@ export function DevPanel() {
   const selected = slimes.find((s) => s.id === selectedSlimeId)
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-80 bg-gray-900 text-white rounded-xl shadow-2xl text-xs border border-yellow-500">
+    <div className={`fixed bottom-4 right-16 z-50 bg-gray-900 text-white rounded-xl shadow-2xl text-xs border border-yellow-500 transition-all duration-200 ${minimized ? 'w-auto' : 'w-80'}`}>
       {/* ヘッダー */}
-      <div className="flex items-center justify-between px-3 py-2 bg-yellow-500 text-gray-900 rounded-t-xl">
+      <div
+        className="flex items-center justify-between px-3 py-2 bg-yellow-500 text-gray-900 rounded-t-xl cursor-pointer select-none"
+        onClick={() => setMinimized((v) => !v)}
+        title={minimized ? '展開' : '最小化'}
+      >
         <span className="font-bold text-sm">🛠 Dev Panel</span>
-        <button
-          onClick={fetchSlimes}
-          disabled={loading}
-          className="text-gray-900 underline text-xs disabled:opacity-50"
-        >
-          更新
-        </button>
+        <div className="flex items-center gap-2">
+          {!minimized && (
+            <button
+              onClick={(e) => { e.stopPropagation(); fetchSlimes() }}
+              disabled={loading}
+              className="text-gray-900 underline text-xs disabled:opacity-50"
+            >
+              更新
+            </button>
+          )}
+          <span className="text-gray-900 font-bold leading-none">{minimized ? '▲' : '▼'}</span>
+        </div>
       </div>
 
-      <div className="p-3 flex flex-col gap-3">
+      {!minimized && <div className="p-3 flex flex-col gap-3">
         {/* スライム選択 */}
         <div>
           <div className="text-gray-400 mb-1">スライム選択</div>
@@ -213,6 +245,37 @@ export function DevPanel() {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* 種族変更 */}
+        <div>
+          <div className="text-gray-400 mb-1">種族変更</div>
+          <div className="flex gap-1">
+            <select
+              value={targetSpeciesId}
+              onChange={(e) => setTargetSpeciesId(e.target.value)}
+              className="flex-1 bg-gray-700 rounded px-2 py-1 text-white"
+            >
+              <option value="">-- 進化先を選択 --</option>
+              {slimeSpecies.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} ({s.id})
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={changeSpecies}
+              disabled={loading || !selectedSlimeId || !targetSpeciesId}
+              className="bg-purple-700 hover:bg-purple-600 disabled:opacity-40 rounded px-2 py-1 whitespace-nowrap"
+            >
+              変更
+            </button>
+          </div>
+          {selected && targetSpeciesId && targetSpeciesId !== selected.speciesId && (
+            <div className="mt-1 text-yellow-400">
+              {selected.speciesId} → {targetSpeciesId}
+            </div>
+          )}
         </div>
 
         {/* 季節・天候変更 */}
@@ -273,7 +336,7 @@ export function DevPanel() {
             ))}
           </div>
         )}
-      </div>
+      </div>}
     </div>
   )
 }

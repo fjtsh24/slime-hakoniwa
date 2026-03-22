@@ -1,6 +1,7 @@
 /**
  * スライム種族マスタデータ
- * 10種族を定義（基本種1 + 第1進化4 + 第2進化5）
+ * 14種族を定義（基本種1 + 第1進化4 + 第2進化9）
+ * illustrationUrl: /assets/characters/ 以下の立ち絵画像（図鑑・プロフィール表示用）
  */
 
 import { SlimeSpecies } from "../types";
@@ -89,6 +90,11 @@ export const slimeSpecies: SlimeSpecies[] = [
         requiredStats: { exp: 300 },
         requiredRacialValues: { plant: 0.5 },
       },
+      {
+        targetSpeciesId: "slime-011",
+        requiredStats: { exp: 300 },
+        requiredRacialValues: { spirit: 0.5 },
+      },
     ],
   },
 
@@ -133,6 +139,21 @@ export const slimeSpecies: SlimeSpecies[] = [
         requiredStats: { exp: 300 },
         requiredRacialValues: { fish: 0.5 },
       },
+      {
+        targetSpeciesId: "slime-012",
+        requiredStats: { exp: 300 },
+        requiredRacialValues: { spirit: 0.5 },
+      },
+      {
+        targetSpeciesId: "slime-013",
+        requiredStats: { exp: 300 },
+        requiredRacialValues: { beast: 0.5 },
+      },
+      {
+        targetSpeciesId: "slime-014",
+        requiredStats: { exp: 300 },
+        requiredRacialValues: { human: 0.5 },
+      },
     ],
   },
 
@@ -150,6 +171,7 @@ export const slimeSpecies: SlimeSpecies[] = [
       hunger: 70,
     },
     evolutionConditions: [],
+    illustrationUrl: "/assets/characters/chara_fire_dark.png",
   },
 
   // ===== 7. ライトスライム =====
@@ -166,6 +188,7 @@ export const slimeSpecies: SlimeSpecies[] = [
       hunger: 80,
     },
     evolutionConditions: [],
+    illustrationUrl: "/assets/characters/chara_water_light.png",
   },
 
   // ===== 8. ドラゴンスライム =====
@@ -214,5 +237,74 @@ export const slimeSpecies: SlimeSpecies[] = [
       hunger: 85,
     },
     evolutionConditions: [],
+    illustrationUrl: "/assets/characters/chara_earth_forest.png",
+  },
+
+  // ===== 11. ウェーブスライム（第2進化・新規）=====
+  {
+    id: "slime-011",
+    name: "ウェーブスライム",
+    description: "海底に宿った波の精霊と融合したスライム。spirit 系の食料で育ったアクアスライムが辿り着く神秘の形態。HP・DEF・SPD がバランスよく高い。",
+    baseStats: {
+      hp: 70,
+      atk: 10,
+      def: 25,
+      spd: 20,
+      exp: 0,
+      hunger: 80,
+    },
+    evolutionConditions: [],
+    illustrationUrl: "/assets/characters/chara_water_wave_spirit.png",
+  },
+
+  // ===== 12. フォグスライム（第2進化・新規）=====
+  {
+    id: "slime-012",
+    name: "フォグスライム",
+    description: "紫色の霧を纏う謎めいたスライム。spirit 系の食料で育ったウィンドスライムが辿り着く幻惑の形態。状態異常付与に特化している。",
+    baseStats: {
+      hp: 40,
+      atk: 20,
+      def: 10,
+      spd: 35,
+      exp: 0,
+      hunger: 70,
+    },
+    evolutionConditions: [],
+    illustrationUrl: "/assets/characters/chara_wind_fog.png",
+  },
+
+  // ===== 13. バットバードスライム（第2進化・新規）=====
+  {
+    id: "slime-013",
+    name: "バットバードスライム",
+    description: "空を舞う蝙蝠鳥の翼を得たスライム。beast 系の食料で育ったウィンドスライムが辿り着く飛翔の形態。ATK と SPD が高い。",
+    baseStats: {
+      hp: 45,
+      atk: 28,
+      def: 8,
+      spd: 35,
+      exp: 0,
+      hunger: 72,
+    },
+    evolutionConditions: [],
+    illustrationUrl: "/assets/characters/chara_wind_batbird.png",
+  },
+
+  // ===== 14. フェアリースライム（第2進化・新規）=====
+  {
+    id: "slime-014",
+    name: "フェアリースライム",
+    description: "雲の上で踊る妖精の加護を受けたスライム。human 系の食料で育ったウィンドスライムが辿り着く優雅な形態。全ステータスが平均的に高い。",
+    baseStats: {
+      hp: 55,
+      atk: 18,
+      def: 18,
+      spd: 28,
+      exp: 0,
+      hunger: 78,
+    },
+    evolutionConditions: [],
+    illustrationUrl: "/assets/characters/chara_wind_fairy.png",
   },
 ];

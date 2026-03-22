@@ -119,7 +119,26 @@ async function seed(): Promise<void> {
   });
   console.log("ワールドを作成しました: world-001");
 
-  // ===== 2. マップ =====
+  // ===== 2. ユーザープロファイル（authTrigger が非同期のため seed で直接作成） =====
+  // authTrigger.onUserCreate はランダム mapId を割り当てるが、seed では map-001 を固定で使う。
+  // authTrigger の idempotency チェック（userSnap.exists）により二重作成は防がれる。
+  const userProfileRef = db.collection("users").doc("test-user-001");
+  const userProfileSnap = await userProfileRef.get();
+  if (!userProfileSnap.exists) {
+    await userProfileRef.set({
+      uid: "test-user-001",
+      displayName: "テストユーザー",
+      email: "test@slime.local",
+      mapId: "map-001",
+      createdAt: admin.firestore.Timestamp.fromDate(now),
+      updatedAt: admin.firestore.Timestamp.fromDate(now),
+    });
+    console.log("ユーザープロファイルを作成しました: users/test-user-001 (mapId=map-001)");
+  } else {
+    console.log("ユーザープロファイルは既に存在します（スキップ）");
+  }
+
+  // ===== 3. マップ =====
   const mapRef = db.collection("maps").doc("map-001");
   await mapRef.set({
     id: "map-001",
@@ -133,23 +152,33 @@ async function seed(): Promise<void> {
   console.log("マップを作成しました: map-001");
 
   // ===== 3. タイル（10×10 = 100件） =====
+  // 注意: turnProcessor は /tiles/{id} (top-level) を読む
+  //       フロントエンドは maps/{mapId}/tiles/{id} (subcollection) を読む
+  //       開発用シードでは両パスに書き込む
   console.log("タイルを作成中...");
   const tileBatch = db.batch();
   for (let y = 0; y < 10; y++) {
     for (let x = 0; x < 10; x++) {
       const tileId = `map-001-tile-${x}-${y}`;
-      const tileRef = db.collection("tiles").doc(tileId);
-      tileBatch.set(tileRef, {
+      const attrs = generateTileAttributes(x, y);
+      const tileData = {
         id: tileId,
         mapId: "map-001",
         x,
         y,
-        attributes: generateTileAttributes(x, y),
-      });
+        attributes: attrs,
+      };
+      // top-level（turnProcessor 用）
+      tileBatch.set(db.collection("tiles").doc(tileId), tileData);
+      // subcollection（フロントエンド用）
+      tileBatch.set(
+        db.collection("maps").doc("map-001").collection("tiles").doc(tileId),
+        tileData
+      );
     }
   }
   await tileBatch.commit();
-  console.log("タイルを100件作成しました");
+  console.log("タイルを100件作成しました（/tiles/ および maps/map-001/tiles/ の両パス）");
 
   // ===== 4. テストスライム 3件（ownerUid: "test-user-001"） =====
   const slimesBatch = db.batch();
@@ -255,9 +284,10 @@ async function seed(): Promise<void> {
 
   console.log("\nシードデータの投入が完了しました！");
   console.log("投入件数:");
+  console.log("  - ユーザープロファイル: 1件 (mapId=map-001)");
   console.log("  - ワールド: 1件");
   console.log("  - マップ: 1件");
-  console.log("  - タイル: 100件");
+  console.log("  - タイル: 100件（/tiles/ + maps/map-001/tiles/ 両パス）");
   console.log("  - スライム（テストユーザー所有）: 3件");
   console.log("  - スライム（野生）: 2件");
 }
