@@ -187,6 +187,21 @@ export const worldIdParamSchema = z.object({
 export type WorldIdParam = z.infer<typeof worldIdParamSchema>
 
 /**
+ * スライム改名リクエストのバリデーションスキーマ（PATCH /api/slimes/:slimeId/name）
+ * - 1〜20文字・前後の空白を除去
+ */
+export const renameSlimeSchema = z.object({
+  name: z
+    .string()
+    .min(1, '名前は1文字以上必要です')
+    .max(20, '名前は20文字以下にしてください')
+    .transform((s) => s.trim())
+    .refine((s) => s.length >= 1, '名前は空白のみでは設定できません'),
+})
+
+export type RenameSlimeInput = z.infer<typeof renameSlimeSchema>
+
+/**
  * /api/public/players/:handle パスパラメータのバリデーションスキーマ
  */
 export const publicHandleParamSchema = z.object({
