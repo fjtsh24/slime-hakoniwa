@@ -174,8 +174,8 @@ describe('executePlantAction', () => {
     expect(successEvent).toBeDefined()
 
     // fire 属性が +0.05 されているか
-    const updatedFire = successEvent?.eventData['fire'] as number | undefined
-    expect(updatedFire).toBeCloseTo(0.2 + 0.05, 5)
+    const newAttrs1 = successEvent?.eventData['newAttributes'] as { fire: number } | undefined
+    expect(newAttrs1?.fire).toBeCloseTo(0.2 + 0.05, 5)
 
     // インベントリから1個消費されているか
     const slot = result.updatedSlime.inventory?.find((s) => s.foodId === beastFood.id)
@@ -196,8 +196,8 @@ describe('executePlantAction', () => {
     const successEvent = result.events.find((e) => e.eventType === 'plant_success')
     expect(successEvent).toBeDefined()
 
-    const updatedFire = successEvent?.eventData['fire'] as number | undefined
-    expect(updatedFire).toBeCloseTo(0.5 - 0.08, 5)
+    const newAttrs2 = successEvent?.eventData['newAttributes'] as { fire: number } | undefined
+    expect(newAttrs2?.fire).toBeCloseTo(0.5 - 0.08, 5)
 
     const slot = result.updatedSlime.inventory?.find((s) => s.foodId === purifyFireFood.id)
     expect(slot?.quantity).toBe(1)
@@ -260,10 +260,9 @@ describe('executePlantAction', () => {
     const successEvent = result.events.find((e) => e.eventType === 'plant_success')
     expect(successEvent).toBeDefined()
 
-    const updatedFire = successEvent?.eventData['fire'] as number | undefined
-    expect(updatedFire).toBe(1.0)
-    // 1.0 を超えないことを保証
-    expect(updatedFire).toBeLessThanOrEqual(1.0)
+    const newAttrs5 = successEvent?.eventData['newAttributes'] as { fire: number } | undefined
+    expect(newAttrs5?.fire).toBe(1.0)
+    expect(newAttrs5?.fire).toBeLessThanOrEqual(1.0)
   })
 
   // ----------------------------------------------------------------
@@ -285,10 +284,9 @@ describe('executePlantAction', () => {
     const successEvent = result.events.find((e) => e.eventType === 'plant_success')
     expect(successEvent).toBeDefined()
 
-    const updatedFire = successEvent?.eventData['fire'] as number | undefined
-    expect(updatedFire).toBe(0.0)
-    // 0.0 を下回らないことを保証
-    expect(updatedFire).toBeGreaterThanOrEqual(0.0)
+    const newAttrs6 = successEvent?.eventData['newAttributes'] as { fire: number } | undefined
+    expect(newAttrs6?.fire).toBe(0.0)
+    expect(newAttrs6?.fire).toBeGreaterThanOrEqual(0.0)
   })
 
   // ----------------------------------------------------------------
@@ -305,11 +303,11 @@ describe('executePlantAction', () => {
     const successEvent = result.events.find((e) => e.eventType === 'plant_success')
     expect(successEvent).toBeDefined()
 
-    const data = successEvent?.eventData as Record<string, number> | undefined
-    expect(data?.['fire']).toBeCloseTo(0.3 + 0.01, 5)
-    expect(data?.['water']).toBeCloseTo(0.3 + 0.01, 5)
-    expect(data?.['earth']).toBeCloseTo(0.3 + 0.01, 5)
-    expect(data?.['wind']).toBeCloseTo(0.3 + 0.01, 5)
+    const newAttrs7 = successEvent?.eventData['newAttributes'] as { fire: number; water: number; earth: number; wind: number } | undefined
+    expect(newAttrs7?.fire).toBeCloseTo(0.3 + 0.01, 5)
+    expect(newAttrs7?.water).toBeCloseTo(0.3 + 0.01, 5)
+    expect(newAttrs7?.earth).toBeCloseTo(0.3 + 0.01, 5)
+    expect(newAttrs7?.wind).toBeCloseTo(0.3 + 0.01, 5)
   })
 
   // ----------------------------------------------------------------
