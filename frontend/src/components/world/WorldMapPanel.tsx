@@ -1,12 +1,15 @@
 /**
- * WorldMapPanel — タイルマップ表示パネル（Phase 5）
+ * WorldMapPanel — SVGアイソメトリックタイルマップ（Phase 7 Step 2）
  *
  * 設計方針:
- * - React + CSS Grid（外部ライブラリなし）
- * - 10×10 グリッド（32px/タイル）
- * - 支配属性を背景色で表現（fire→赤、water→青、earth→黄、wind→緑灰）
- * - スライム位置にカラーバー + 絵文字アイコン表示
- * - タイルクリック → onTileClick コールバックで外部に通知
+ * - CSS Grid → SVG ベースのアイソメトリック描画に移行
+ * - 座標変換: isoX = (x - y) * TW, isoY = (x + y) * TH（菱形タイル配置）
+ * - <polygon onClick> でタイルクリック判定（CSS Grid より精度が高い）
+ * - タイルソート順は y → x のまま（painter's algorithm が成立）
+ * - viewBox でレスポンシブ対応
+ * - .slime-idle / .slime-selected CSS アニメーションを <circle> で維持
+ *   （transform-box: fill-box で SVG 座標系に対応）
+ * - ライブラリ追加ゼロ、Firestore 購読・onTileClick・選択ハイライトは無変更
  */
 
 import { useEffect, useState } from 'react'
@@ -28,19 +31,41 @@ interface WorldMapPanelProps {
   onTileClick?: (x: number, y: number) => void
 }
 
-const TILE_COLORS: Record<'fire' | 'water' | 'earth' | 'wind', string> = {
-  fire: 'bg-red-200 hover:bg-red-300',
-  water: 'bg-blue-200 hover:bg-blue-300',
-  earth: 'bg-yellow-200 hover:bg-yellow-300',
-  wind: 'bg-emerald-100 hover:bg-emerald-200',
+/** アイソメトリック座標変換定数（単位: SVG ユーザー座標） */
+const TW = 20  // タイル半幅
+const TH = 10  // タイル半高さ（2:1 比率）
+
+/** タイル属性ごとの fill 色 */
+const TILE_FILL: Record<'fire' | 'water' | 'earth' | 'wind', string> = {
+  fire:  '#fecaca',  // red-200
+  water: '#bfdbfe',  // blue-200
+  earth: '#fef08a',  // yellow-200
+  wind:  '#d1fae5',  // emerald-100
+}
+
+const TILE_FILL_HOVER: Record<'fire' | 'water' | 'earth' | 'wind', string> = {
+  fire:  '#fca5a5',  // red-300
+  water: '#93c5fd',  // blue-300
+  earth: '#fde047',  // yellow-300
+  wind:  '#a7f3d0',  // emerald-200
 }
 
 const TILE_ICONS: Record<'fire' | 'water' | 'earth' | 'wind', string> = {
-  fire: '🔥',
+  fire:  '🔥',
   water: '💧',
   earth: '🌍',
-  wind: '💨',
+  wind:  '💨',
 }
+
+/**
+ * 複数スライムの表示オフセット（タイル中心からの相対位置）
+ * インデックス = slimesOnTile.length - 1 (max 3)
+ */
+const SLIME_OFFSETS: [number, number][][] = [
+  [[0, 0]],
+  [[-6, 0], [6, 0]],
+  [[-6, -3], [6, -3], [0, 4]],
+]
 
 /** タイルの支配属性を返す（タイブレーク時はランダム） */
 function getDominantAttr(tile: Tile): 'fire' | 'water' | 'earth' | 'wind' {
@@ -74,6 +99,7 @@ function getMapFilter(season?: string, weather?: string): string {
 export function WorldMapPanel({ mapId, slimes, selectedSlimeId, onTileClick }: WorldMapPanelProps) {
   const [tiles, setTiles] = useState<Tile[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [hoveredTile, setHoveredTile] = useState<string | null>(null)
   const world = useWorldStore((s) => s.world)
 
   useEffect(() => {
@@ -111,6 +137,17 @@ export function WorldMapPanel({ mapId, slimes, selectedSlimeId, onTileClick }: W
     )
   }
 
+  /**
+   * SVG viewBox: 10×10 タイルがすべて収まる範囲
+   * isoX ∈ [-(N-1)*TW, (N-1)*TW], isoY ∈ [0, (2N-2)*TH]
+   * ± TW/TH のマージンを加えてタイル端を切り抜かない
+   */
+  const N = 10
+  const vbX = -(N - 1) * TW - TW   // -200
+  const vbY = -TH                   // -10
+  const vbW = 2 * ((N - 1) * TW + TW)  // 400
+  const vbH = (2 * (N - 1)) * TH + 2 * TH  // 200
+
   return (
     <div className="bg-white rounded-xl shadow p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between">
@@ -123,66 +160,112 @@ export function WorldMapPanel({ mapId, slimes, selectedSlimeId, onTileClick }: W
         </div>
       </div>
 
-      <div
-        className="grid gap-0.5 mx-auto transition-[filter] duration-700"
+      <svg
+        viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`}
+        className="w-full mx-auto transition-[filter] duration-700"
         style={{
-          gridTemplateColumns: 'repeat(10, minmax(0, 1fr))',
-          width: '100%',
-          maxWidth: 360,
+          maxWidth: 400,
           filter: getMapFilter(world?.season, world?.weather),
         }}
+        aria-label="スライムマップ"
       >
         {tiles.map((tile) => {
           const dominant = getDominantAttr(tile)
           const tileKey = `${tile.x},${tile.y}`
           const slimesOnTile = slimesByTile[tileKey] ?? []
           const isSelected = slimesOnTile.some((s) => s.id === selectedSlimeId)
+          const isHovered = hoveredTile === tileKey
+
+          // アイソメトリック中心座標
+          const cx = (tile.x - tile.y) * TW
+          const cy = (tile.x + tile.y) * TH
+
+          // ダイアモンド形タイルの頂点（上→右→下→左）
+          const points = [
+            `${cx},${cy - TH}`,
+            `${cx + TW},${cy}`,
+            `${cx},${cy + TH}`,
+            `${cx - TW},${cy}`,
+          ].join(' ')
+
+          const fill = isHovered ? TILE_FILL_HOVER[dominant] : TILE_FILL[dominant]
 
           return (
-            <div
+            <g
               key={tile.id}
-              className={`
-                relative aspect-square rounded text-xs flex flex-col items-center justify-center cursor-pointer
-                transition-colors select-none
-                ${TILE_COLORS[dominant]}
-                ${isSelected ? 'ring-2 ring-green-500 ring-inset' : ''}
-              `}
-              title={`(${tile.x},${tile.y}) 火:${tile.attributes.fire.toFixed(2)} 水:${tile.attributes.water.toFixed(2)} 土:${tile.attributes.earth.toFixed(2)} 風:${tile.attributes.wind.toFixed(2)}`}
               onClick={() => onTileClick?.(tile.x, tile.y)}
+              onMouseEnter={() => setHoveredTile(tileKey)}
+              onMouseLeave={() => setHoveredTile(null)}
+              style={{ cursor: onTileClick ? 'pointer' : 'default' }}
             >
+              {/* ツールチップ */}
+              <title>
+                ({tile.x},{tile.y}) 火:{tile.attributes.fire.toFixed(2)} 水:{tile.attributes.water.toFixed(2)} 土:{tile.attributes.earth.toFixed(2)} 風:{tile.attributes.wind.toFixed(2)}
+              </title>
+
+              {/* タイルポリゴン */}
+              <polygon
+                points={points}
+                fill={fill}
+                stroke={isSelected ? '#22c55e' : 'rgba(255,255,255,0.6)'}
+                strokeWidth={isSelected ? 1.5 : 0.5}
+              />
+
               {/* 属性アイコン（スライムがいない場合のみ） */}
               {slimesOnTile.length === 0 && (
-                <span className="text-base leading-none opacity-60">{TILE_ICONS[dominant]}</span>
+                <text
+                  x={cx}
+                  y={cy + 4}
+                  textAnchor="middle"
+                  fontSize={8}
+                  style={{ userSelect: 'none', pointerEvents: 'none' }}
+                >
+                  {TILE_ICONS[dominant]}
+                </text>
               )}
 
-              {/* スライム表示（最大3体） */}
-              {slimesOnTile.length > 0 && (
-                <div className="flex flex-wrap gap-px justify-center items-center w-full h-full p-0.5">
-                  {slimesOnTile.slice(0, 3).map((s) => (
-                    <span
-                      key={s.id}
-                      className={`w-2.5 h-2.5 rounded-full border border-white shadow-sm flex-shrink-0 ${
-                        s.id === selectedSlimeId ? 'slime-selected' : 'slime-idle'
-                      }`}
-                      style={{ backgroundColor: s.color ?? DEFAULT_SLIME_COLOR }}
-                      title={s.name}
-                    />
-                  ))}
-                  {slimesOnTile.length > 3 && (
-                    <span className="text-gray-600 font-bold" style={{ fontSize: 8 }}>
-                      +{slimesOnTile.length - 3}
-                    </span>
-                  )}
-                </div>
+              {/* スライムドット（最大3体） */}
+              {slimesOnTile.slice(0, 3).map((s, i) => {
+                const offsets = SLIME_OFFSETS[Math.min(slimesOnTile.length, 3) - 1]
+                const [ox, oy] = offsets[i]
+                return (
+                  <circle
+                    key={s.id}
+                    cx={cx + ox}
+                    cy={cy + oy}
+                    r={3.5}
+                    fill={s.color ?? DEFAULT_SLIME_COLOR}
+                    stroke="white"
+                    strokeWidth={0.8}
+                    className={s.id === selectedSlimeId ? 'slime-selected' : 'slime-idle'}
+                    style={{ transformBox: 'fill-box', transformOrigin: 'center bottom' }}
+                  />
+                )
+              })}
+
+              {/* 4体以上いる場合の +N 表示 */}
+              {slimesOnTile.length > 3 && (
+                <text
+                  x={cx + 9}
+                  y={cy + 2}
+                  fontSize={5}
+                  fill="#4b5563"
+                  fontWeight="bold"
+                  style={{ pointerEvents: 'none', userSelect: 'none' }}
+                >
+                  +{slimesOnTile.length - 3}
+                </text>
               )}
-            </div>
+            </g>
           )
         })}
-      </div>
+      </svg>
 
-      <p className="text-xs text-gray-400 text-center">
-        タイルをクリックして目標地点に設定できます
-      </p>
+      {onTileClick && (
+        <p className="text-xs text-gray-400 text-center">
+          タイルをクリックして目標地点に設定できます
+        </p>
+      )}
     </div>
   )
 }
