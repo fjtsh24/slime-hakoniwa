@@ -37,7 +37,7 @@ const mergeDataSchema = z
 /** plant（植え付け）用: foodId が必須（Phase 8 追加） */
 const plantDataSchema = z
   .object({
-    foodId: z.string().min(1, 'foodId は必須です'),
+    foodId: z.string().min(1, 'foodId は必須です').max(128, 'foodId が長すぎます'),
   })
   .strict()
 
