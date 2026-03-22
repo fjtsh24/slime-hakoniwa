@@ -12,7 +12,7 @@ export const foods: Food[] = [
   {
     id: "food-slime-001",
     name: "スライムの欠片",
-    description: "スライムの体から落ちた小さな欠片。スライム系の種族値が少し上がる。",
+    description: "スライムの体から落ちた小さな欠片。スライム系の種族値が少し上がる。タイルに植えると全属性をわずかに弱める。",
     category: "slime",
     statDeltas: {},
     racialDeltas: { slime: 0.1 },
@@ -20,6 +20,7 @@ export const foods: Food[] = [
     skillGrantProb: 0.0,
     alwaysAvailable: true,
     imageUrl: "/assets/food/fruits/grape.png",
+    tileAttributeDelta: { fire: -0.02, water: -0.02, earth: -0.02, wind: -0.02 },
   },
   {
     id: "food-slime-002",
@@ -79,7 +80,7 @@ export const foods: Food[] = [
     skillGrantId: "skill-def-002",
     skillGrantProb: 0.08,
     imageUrl: "/assets/food/plants/nut1.png",
-    tileAttributeDelta: { earth: 0.05 },
+    tileAttributeDelta: { wind: 0.05 },
   },
 
   // ===== フルーツ（gather で入手・plant カテゴリ） =====
@@ -93,7 +94,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/fruits/apple.png",
-    tileAttributeDelta: { earth: 0.05 },
+    tileAttributeDelta: { water: 0.05 },
   },
   {
     id: "food-fruit-002",
@@ -105,7 +106,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/fruits/banana.png",
-    tileAttributeDelta: { earth: 0.05 },
+    tileAttributeDelta: { water: 0.05 },
   },
   {
     id: "food-fruit-003",
@@ -117,7 +118,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/fruits/strawberry.png",
-    tileAttributeDelta: { earth: 0.05 },
+    tileAttributeDelta: { water: 0.05 },
   },
   {
     id: "food-fruit-004",
@@ -129,7 +130,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/fruits/melon.png",
-    tileAttributeDelta: { earth: 0.05 },
+    tileAttributeDelta: { water: 0.05 },
   },
   {
     id: "food-fruit-005",
@@ -141,7 +142,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/fruits/cherry.png",
-    tileAttributeDelta: { earth: 0.05 },
+    tileAttributeDelta: { water: 0.05 },
   },
   {
     id: "food-fruit-006",
@@ -153,7 +154,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/fruits/watermelon.png",
-    tileAttributeDelta: { earth: 0.05 },
+    tileAttributeDelta: { water: 0.05 },
   },
   {
     id: "food-fruit-007",
@@ -165,7 +166,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/fruits/lemon.png",
-    tileAttributeDelta: { earth: 0.05 },
+    tileAttributeDelta: { wind: 0.05 },
   },
 
   // ===== キノコ（gather で入手・plant カテゴリ） =====

@@ -17,7 +17,7 @@ import { wildMonsters } from '../../../shared/data/wildMonsters'
 import { skillDefinitions } from '../../../shared/data/skillDefinitions'
 import type { DropEntry } from '../../../shared/types/dropTable'
 import type { SkillDefinition } from '../../../shared/types/skill'
-import { INVENTORY_MAX_SLOTS, RACIAL_VALUE_MAX, TILE_DELTA_MAX, TILE_DELTA_MIN } from '../../../shared/constants/game'
+import { INVENTORY_MAX_SLOTS, RACIAL_VALUE_MAX, TILE_DELTA_MAX, TILE_DELTA_MIN, SEASON_TILE_DELTA_PER_TURN } from '../../../shared/constants/game'
 import { logger } from '../../../shared/lib/logger'
 
 // ----------------------------------------------------------------
@@ -468,6 +468,14 @@ export async function processWorldTurn(worldId: string): Promise<void> {
         await logBatch.commit()
       }
     }
+    // 季節タイル自動変化（全タイルに SEASON_TILE_DELTA_PER_TURN を適用）
+    const uniqueMapIds = [...new Set(slimeDocs.map((d) => (d.data() as Slime).mapId).filter(Boolean))]
+    try {
+      await applySeasonalTileDelta(worldId, currentSeason, uniqueMapIds, newTurn)
+    } catch (e) {
+      logger.warn('[turnProcessor] 季節タイル変化失敗', { worldId, error: String(e) })
+    }
+
     logger.info('[turnProcessor] ターン完了', {
       worldId,
       turn: newTurn,
@@ -1452,10 +1460,9 @@ export async function executeReservedAction(
  * 自律行動を実行する
  *
  * 優先順位:
- *  1. hunger < 40 かつインベントリに食料あり → 自動食事（auto_eat）
- *  2. hunger >= 40                           → 歩き回る（walk）
- *  3. hunger >= 20 かつ食料なし              → 休息・HP微回復（rest）
- *  4. hunger < 20                            → 行動不能（weak）
+ *  1. hunger < 40  → スライムの欠片（alwaysAvailable）で自動食事（auto_eat）
+ *                    インベントリを参照・消費しないためプレイヤー予約と競合しない
+ *  2. hunger >= 40 → 歩き回る（walk）
  *
  * 自動食事の注意:
  *  - インベントリ先頭スロットを1個消費する
@@ -1472,31 +1479,26 @@ export async function executeAutonomousAction(slime: Slime): Promise<ActionResul
   }
   const events: ActionResult['events'] = []
 
-  // ── 自動食事（hunger < 40 かつインベントリに食料あり）────────────────
-  if (slime.stats.hunger < 40 && (updatedSlime.inventory?.length ?? 0) > 0) {
-    const slot = updatedSlime.inventory![0]
-    const food = staticFoods.find((f) => f.id === slot.foodId)
-
+  // ── 自動食事（hunger < 40）────────────────────────────────────────────
+  // alwaysAvailable な食料（スライムの欠片）を使用してインベントリを消費しない。
+  // プレイヤーが予約した食料と競合しないようにするため、インベントリは参照しない。
+  if (slime.stats.hunger < 40) {
+    const food = staticFoods.find((f) => f.alwaysAvailable)
     if (food) {
-      const removeResult = removeFromInventory(updatedSlime.inventory!, slot.foodId, 1)
-      if (removeResult.success) {
-        updatedSlime = { ...updatedSlime, inventory: removeResult.inventory }
-        // statDeltas（HP等）を適用。racialDeltas・スキル付与は自立食事では省略。
-        updatedSlime = applyFoodEffects(updatedSlime, food)
-        const hungerBefore = updatedSlime.stats.hunger
-        updatedSlime.stats.hunger = clamp(updatedSlime.stats.hunger + 30, 0, 100)
-        logger.debug('[executeAutonomousAction] 自動食事', {
-          slimeId: slime.id,
-          foodId: food.id,
-          hungerBefore,
-          hungerAfter: updatedSlime.stats.hunger,
-        })
-        events.push({
-          eventType: 'autonomous',
-          eventData: { action: 'auto_eat', foodId: food.id, hunger: slime.stats.hunger },
-        })
-        return { updatedSlime, events }
-      }
+      updatedSlime = applyFoodEffects(updatedSlime, food)
+      const hungerBefore = updatedSlime.stats.hunger
+      updatedSlime.stats.hunger = clamp(updatedSlime.stats.hunger + 30, 0, 100)
+      logger.debug('[executeAutonomousAction] 自動食事（スライムの欠片）', {
+        slimeId: slime.id,
+        foodId: food.id,
+        hungerBefore,
+        hungerAfter: updatedSlime.stats.hunger,
+      })
+      events.push({
+        eventType: 'autonomous',
+        eventData: { action: 'auto_eat', foodId: food.id, hunger: slime.stats.hunger },
+      })
+      return { updatedSlime, events }
     }
   }
 
@@ -1932,4 +1934,124 @@ export function checkSeasonTransition(
     nextSeason,
     currentTurn,
   })
+}
+
+// ----------------------------------------------------------------
+// computeSeasonalTileDelta（純粋関数・テスト対象）
+// ----------------------------------------------------------------
+
+/** 季節→タイル変化対象属性マップ */
+const SEASON_ATTR_MAP: Record<string, keyof TileAttributes> = {
+  spring: 'water',
+  summer: 'fire',
+  autumn: 'wind',
+  winter: 'earth',
+}
+
+/**
+ * 季節に応じたタイル属性の1ターン分の変化を計算して返す（純粋関数）
+ *
+ * - spring → water +SEASON_TILE_DELTA_PER_TURN
+ * - summer → fire  +SEASON_TILE_DELTA_PER_TURN
+ * - autumn → wind  +SEASON_TILE_DELTA_PER_TURN
+ * - winter → earth +SEASON_TILE_DELTA_PER_TURN
+ * - 上限 1.0 にclamp、元のオブジェクトは変更しない（イミュータブル）
+ */
+export function computeSeasonalTileDelta(
+  attrs: TileAttributes,
+  season: string
+): TileAttributes {
+  const targetAttr = SEASON_ATTR_MAP[season]
+  if (!targetAttr) return { ...attrs }
+
+  const currentVal = attrs[targetAttr] ?? 0
+  const newVal = clamp(currentVal + SEASON_TILE_DELTA_PER_TURN, 0, 1.0)
+  return { ...attrs, [targetAttr]: newVal }
+}
+
+// ----------------------------------------------------------------
+// applySeasonalTileDelta（Firestore 操作・istanbul ignore）
+// ----------------------------------------------------------------
+
+/**
+ * 指定ワールド内の全タイルに季節変化を適用する
+ *
+ * - mapIds: このワールドに属するマップIDの配列（slimeDocs から導出）
+ * - WriteBatch を499件ごとに分割してコミット
+ * - season_tile_change イベントを turnLogs に記録
+ */
+/* istanbul ignore next */
+export async function applySeasonalTileDelta(
+  worldId: string,
+  season: string,
+  mapIds: string[],
+  currentTurn: number
+): Promise<void> {
+  if (mapIds.length === 0) return
+
+  const targetAttr = SEASON_ATTR_MAP[season]
+  if (!targetAttr) return
+
+  const BATCH_SIZE = 499
+  let batch = db().batch()
+  let batchCount = 0
+  let totalUpdated = 0
+
+  for (const mapId of mapIds) {
+    try {
+      const tilesSnap = await db().collection('tiles').where('mapId', '==', mapId).get()
+      for (const tileDoc of tilesSnap.docs) {
+        const tile = { id: tileDoc.id, ...tileDoc.data() } as Tile
+        const newAttrs = computeSeasonalTileDelta(tile.attributes, season)
+        const newVal = newAttrs[targetAttr]
+
+        const tileRef = db().collection('tiles').doc(tile.id)
+        batch.update(tileRef, { [`attributes.${targetAttr}`]: newVal })
+        batchCount++
+        totalUpdated++
+
+        if (batchCount >= BATCH_SIZE) {
+          await batch.commit()
+          batch = db().batch()
+          batchCount = 0
+        }
+      }
+    } catch (e) {
+      logger.warn('[applySeasonalTileDelta] タイル取得失敗', { worldId, mapId, error: String(e) })
+    }
+  }
+
+  if (batchCount > 0) {
+    await batch.commit()
+  }
+
+  if (totalUpdated > 0) {
+    // season_tile_change イベントを turnLogs に記録
+    const logBatch = db().batch()
+    const logRef = db().collection('turnLogs').doc(randomUUID())
+    logBatch.set(logRef, {
+      worldId,
+      slimeId: null,
+      actorType: 'world',
+      turnNumber: currentTurn,
+      eventType: 'season_tile_change',
+      eventData: {
+        season,
+        attribute: targetAttr,
+        delta: SEASON_TILE_DELTA_PER_TURN,
+        tileCount: totalUpdated,
+      },
+      processedAt: FieldValue.serverTimestamp(),
+    })
+    await logBatch.commit()
+
+    logger.info('[applySeasonalTileDelta] 完了', {
+      worldId,
+      season,
+      targetAttr,
+      delta: SEASON_TILE_DELTA_PER_TURN,
+      totalUpdated,
+      currentTurn,
+    })
+  }
 }

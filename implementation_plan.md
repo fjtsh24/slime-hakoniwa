@@ -564,54 +564,55 @@
 - [x] `shared/types/turnLog.ts` に `plant_success` / `plant_fail` / `season_tile_change` を追加
 - [x] `shared/constants/game.ts` に `TILE_DELTA_MAX` / `TILE_DELTA_MIN` / `SEASON_TILE_DELTA_PER_TURN` を追加
 
-### Week 2: plantアクション実装（TDD）
+### Week 2: plantアクション実装（TDD）✅（2026-03-22完了）
 
 **型・マスタデータ（A5/DB）**
 - [x] `shared/types/food.ts` の `Food` 型に `tileAttributeDelta?: Partial<TileAttributes>` を追加（Week 1 で対応済み）
-- [ ] `shared/data/foods.ts` に浄化食料4種を追加
+- [x] `shared/data/foods.ts` に浄化食料4種を追加
   - `food-purify-fire`: fire -0.08（消炎草）
   - `food-purify-water`: water -0.08（乾燥砂）
   - `food-purify-earth`: earth -0.08（溶岩石）
   - `food-purify-wind`: wind -0.08（重石）
-- [ ] `shared/data/foods.ts` 既存食料に `tileAttributeDelta` を追加（beast/fish/plant/spirit/human カテゴリ）
+- [x] `shared/data/foods.ts` 既存食料に `tileAttributeDelta` を追加（beast→fire/fish→water/plant→earth/spirit→wind +0.05、human 全属性 +0.01）
 - [x] `shared/types/action.ts` に `PlantActionData { foodId: string }` を追加（Week 1 で対応済み）
-- [ ] `validation.ts` の plant アクション zodスキーマ追加
+- [x] `validation.ts` の plant アクション zodスキーマ追加
 
 **バックエンド（A3/BE）**
-- [ ] `turnProcessor.ts` に `executePlantAction` を実装
+- [x] `turnProcessor.ts` に `case 'plant'` を実装
   - スライムのインベントリから foodId の食料を1個消費
   - `food.tileAttributeDelta` を現在のタイル属性値に加算（0.0〜1.0にclamp）
   - Firestore `/tiles/{tileId}` を更新（WriteBatch）
-- [ ] `api.ts` の `/api/reservations` に plant アクション追加（zodスキーマ）
+- [x] `api.ts` の `/api/reservations` に plant アクション追加（validation.ts のスキーマで対応済み）
 
 **テスト（A7/QA 先行作成）**
-- [ ] `tests/unit/plantAction.test.ts`: インベントリ消費・属性加算・clamp・インベントリ不足時エラー
+- [x] `tests/unit/plantAction.test.ts`: 8件（インベントリ消費・属性加算・clamp・インベントリ不足・tileAttributeDelta未定義・タイル不在・複数属性変化）全通過
 
-### Week 3: 季節自動変化 + フロントエンドUI
+### Week 3: 季節自動変化 + フロントエンドUI ✅（2026-03-22完了）
 
 **バックエンド（A3/BE）**
-- [ ] `turnProcessor.ts` に `applySeasonalTileDelta` を実装
+- [x] `turnProcessor.ts` に `applySeasonalTileDelta` を実装
   - 春→water +0.005、夏→fire +0.005、秋→wind +0.005、冬→earth +0.005
   - 全タイルに適用（WriteBatch・500件超は分割）
   - 上限 1.0 にclamp
-- [ ] テスト: `tests/unit/seasonalTileDelta.test.ts`（spring/summer/autumn/winter 各ケース）
+- [x] テスト: `tests/unit/seasonalTileDelta.test.ts`（spring/summer/autumn/winter 各ケース・9ケース全パス）
 
 **フロントエンドUI（A4/FE）**
-- [ ] `ActionReservationForm.tsx` の plantアクション UI追加
+- [x] `ActionReservationForm.tsx` の plantアクション UI追加
   - 対象食料セレクタ（`tileAttributeDelta` が定義された food のみ表示）
   - 現在タイル属性 + 予想変化量のプレビュー表示
-- [ ] `WorldMapPanel.tsx` のツールチップに baseAttributes との差分表示（オプション）
+  - 浄化食料・土属性ヒントの説明文追加
+- [x] `foods.ts` の `tileAttributeDelta` 多様化（フルーツ→water、世界樹の葉/レモン→wind、草・キノコ→earth）
 
-### Week 4: レビュー・統合テスト
+### Week 4: レビュー・統合テスト ✅（2026-03-22完了）
 
-- [ ] A7/QA レビュー → `docs/qa_review/phase_8.md`
-- [ ] A2/Sec レビュー → `docs/security_review/phase_8.md`
+- [x] A7/QA レビュー → `docs/qa_review/phase_8.md`
+- [x] A2/Sec レビュー → `docs/security_review/phase_8.md`
   - タイル属性変化の権限チェック（ownerUid 一致・Admin SDK のみ書き込み）
-- [ ] A1/Fun レビュー → `docs/fun_review/phase_8.md`
+- [x] A1/Fun レビュー → `docs/fun_review/phase_8.md`
   - 浄化食料のバランス確認（-0.08 が適切か）
   - 季節変化速度の確認（0.005/ターンで体感変化があるか）
-- [ ] `tests/integration/tileAttributeFlow.test.ts`: plant → タイル変化 → 次ターン確認
-- [ ] implementation_plan.md 更新・コミット・PR作成
+- [ ] `tests/integration/tileAttributeFlow.test.ts`: plant → タイル変化 → 次ターン確認（Phase 9 以降）
+- [x] implementation_plan.md 更新・コミット・PR作成
 
 ---
 

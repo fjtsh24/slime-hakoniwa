@@ -136,11 +136,13 @@ function makeReservation(overrides?: Partial<ActionReservation>): ActionReservat
 }
 
 // ================================================================
-// 1. executeAutonomousAction — hunger < 20 (weak) パス
+// 1. executeAutonomousAction — hunger < 40 → auto_eat（スライムの欠片）
 // ================================================================
+// 自律行動の食事は常に alwaysAvailable な food-slime-001（スライムの欠片）を使用。
+// インベントリを参照・消費しないため、プレイヤー予約と競合しない。
 
-describe('executeAutonomousAction — hunger < 20 (weak パス)', () => {
-  it('COV-AU-01: hunger < 20 かつインベントリが空の場合、HP が変化せず "weak" イベントが記録される', async () => {
+describe('executeAutonomousAction — hunger < 40 → auto_eat（スライムの欠片）', () => {
+  it('COV-AU-01: hunger < 20 でもスライムの欠片で auto_eat され hunger+30 される', async () => {
     const slime = makeSlime({
       stats: makeStats({ hunger: 10, hp: 50 }),
       inventory: [],
@@ -148,16 +150,19 @@ describe('executeAutonomousAction — hunger < 20 (weak パス)', () => {
 
     const result = await executeAutonomousAction(slime)
 
-    // HP は変化しない（弱って動けない）
+    // hunger が +30 回復される
+    expect(result.updatedSlime.stats.hunger).toBe(40)
+    // HP は変化しない（スライムの欠片の statDeltas は空）
     expect(result.updatedSlime.stats.hp).toBe(50)
-    // autonomous イベントの action が "weak" であること
-    const weakEvent = result.events.find(
-      (e) => e.eventType === 'autonomous' && e.eventData['action'] === 'weak'
+    // auto_eat イベントが記録される
+    const eatEvent = result.events.find(
+      (e) => e.eventType === 'autonomous' && e.eventData['action'] === 'auto_eat'
     )
-    expect(weakEvent).toBeDefined()
+    expect(eatEvent).toBeDefined()
+    expect(eatEvent?.eventData['foodId']).toBe('food-slime-001')
   })
 
-  it('COV-AU-02: hunger = 0 でもインベントリが空なら weak パスを通る', async () => {
+  it('COV-AU-02: hunger = 0 でもスライムの欠片で auto_eat される', async () => {
     const slime = makeSlime({
       stats: makeStats({ hunger: 0, hp: 30 }),
       inventory: [],
@@ -165,14 +170,15 @@ describe('executeAutonomousAction — hunger < 20 (weak パス)', () => {
 
     const result = await executeAutonomousAction(slime)
 
+    expect(result.updatedSlime.stats.hunger).toBe(30)
     expect(result.updatedSlime.stats.hp).toBe(30)
-    const weakEvent = result.events.find(
-      (e) => e.eventType === 'autonomous' && e.eventData['action'] === 'weak'
+    const eatEvent = result.events.find(
+      (e) => e.eventType === 'autonomous' && e.eventData['action'] === 'auto_eat'
     )
-    expect(weakEvent).toBeDefined()
+    expect(eatEvent).toBeDefined()
   })
 
-  it('COV-AU-03: hunger = 19 は weak パス（hunger < 20 の上限境界値）', async () => {
+  it('COV-AU-03: hunger = 19 もスライムの欠片で auto_eat（hunger < 40 の境界値）', async () => {
     const slime = makeSlime({
       stats: makeStats({ hunger: 19, hp: 40 }),
       inventory: [],
@@ -180,11 +186,12 @@ describe('executeAutonomousAction — hunger < 20 (weak パス)', () => {
 
     const result = await executeAutonomousAction(slime)
 
-    const weakEvent = result.events.find(
-      (e) => e.eventType === 'autonomous' && e.eventData['action'] === 'weak'
-    )
-    expect(weakEvent).toBeDefined()
+    expect(result.updatedSlime.stats.hunger).toBe(49)
     expect(result.updatedSlime.stats.hp).toBe(40) // HP 変化なし
+    const eatEvent = result.events.find(
+      (e) => e.eventType === 'autonomous' && e.eventData['action'] === 'auto_eat'
+    )
+    expect(eatEvent).toBeDefined()
   })
 })
 
@@ -208,7 +215,7 @@ describe('executeAutonomousAction — hunger 境界値（walk vs rest）', () =>
     expect(walkEvent).toBeDefined()
   })
 
-  it('COV-AU-05: hunger = 39 は rest パス（HP微回復）', async () => {
+  it('COV-AU-05: hunger = 39 は auto_eat（hunger < 40 の上限境界値）', async () => {
     const slime = makeSlime({
       stats: makeStats({ hunger: 39, hp: 50, atk: 10, def: 10 }),
       inventory: [],
@@ -216,15 +223,16 @@ describe('executeAutonomousAction — hunger 境界値（walk vs rest）', () =>
 
     const result = await executeAutonomousAction(slime)
 
-    // maxHp = 10 + 10 + 50 = 70、healAmount = floor(70 * 0.05) = 3
-    expect(result.updatedSlime.stats.hp).toBeGreaterThan(50)
-    const restEvent = result.events.find(
-      (e) => e.eventType === 'autonomous' && e.eventData['action'] === 'rest'
+    // スライムの欠片は statDeltas が空なので HP は変化しない
+    expect(result.updatedSlime.stats.hp).toBe(50)
+    expect(result.updatedSlime.stats.hunger).toBe(69)
+    const eatEvent = result.events.find(
+      (e) => e.eventType === 'autonomous' && e.eventData['action'] === 'auto_eat'
     )
-    expect(restEvent).toBeDefined()
+    expect(eatEvent).toBeDefined()
   })
 
-  it('COV-AU-06: hunger = 20 は rest パス（hunger >= 20 の下限境界値）', async () => {
+  it('COV-AU-06: hunger = 20 も auto_eat（hunger < 40 のため）', async () => {
     const slime = makeSlime({
       stats: makeStats({ hunger: 20, hp: 50 }),
       inventory: [],
@@ -232,11 +240,12 @@ describe('executeAutonomousAction — hunger 境界値（walk vs rest）', () =>
 
     const result = await executeAutonomousAction(slime)
 
-    const restEvent = result.events.find(
-      (e) => e.eventType === 'autonomous' && e.eventData['action'] === 'rest'
+    const eatEvent = result.events.find(
+      (e) => e.eventType === 'autonomous' && e.eventData['action'] === 'auto_eat'
     )
-    expect(restEvent).toBeDefined()
-    expect(result.updatedSlime.stats.hp).toBeGreaterThanOrEqual(50)
+    expect(eatEvent).toBeDefined()
+    expect(result.updatedSlime.stats.hunger).toBe(50)
+    expect(result.updatedSlime.stats.hp).toBe(50) // HP 変化なし
   })
 })
 
@@ -336,7 +345,7 @@ describe('processSlimeTurn — 季節補正 hungerDecrement', () => {
     expect(after).toBe(55)
   })
 
-  it('COV-ST-06: hunger が hungerDecrement 以下の場合、0 にクランプされる', async () => {
+  it('COV-ST-06: hunger < 40 では auto_eat が先に発動し hunger_decrease が続く', async () => {
     const slime = makeSlime({
       stats: makeStats({ hunger: 3, hp: 50 }),
       inventory: [],
@@ -346,11 +355,11 @@ describe('processSlimeTurn — 季節補正 hungerDecrement', () => {
       season: 'summer', // decrement = 7
     })
 
-    // 3 - 7 = -4 → clamp → 0
+    // hunger=3 → auto_eat(+30) → 33 → summer decrement(-7) → 26
     const hungerEvent = result.events.find((e) => e.eventType === 'hunger_decrease')
     expect(hungerEvent).toBeDefined()
     const after = hungerEvent!.eventData['after'] as number
-    expect(after).toBe(0)
+    expect(after).toBe(26)
   })
 })
 

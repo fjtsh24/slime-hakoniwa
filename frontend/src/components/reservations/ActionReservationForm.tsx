@@ -76,7 +76,7 @@ const STAT_LABELS: Record<string, string> = {
   hunger: '満腹度',
 }
 
-const AVAILABLE_ACTIONS: ActionType[] = ['eat', 'gather', 'fish', 'hunt', 'battle', 'merge', 'move', 'rest']
+const AVAILABLE_ACTIONS: ActionType[] = ['eat', 'gather', 'fish', 'hunt', 'plant', 'battle', 'merge', 'move', 'rest']
 
 const HUNT_CATEGORIES = [
   { value: 'beast', label: '獣系' },
@@ -102,12 +102,14 @@ export function ActionReservationForm({
   const [actionType, setActionType] = useState<ActionType>('eat')
   const [turnNumber, setTurnNumber] = useState<number>(currentTurn + 1)
   const [reservedTurns, setReservedTurns] = useState<number[]>([])
+  const [reservedFoodQty, setReservedFoodQty] = useState<Record<string, number>>({})
   const [foodId, setFoodId] = useState<string>(foods[0]?.id ?? '')
   const [targetX, setTargetX] = useState<number>(0)
   const [targetY, setTargetY] = useState<number>(0)
   const [huntCategory, setHuntCategory] = useState<string>('beast')
   const [huntStrength, setHuntStrength] = useState<string>('weak')
   const [mergeTargetSlimeId, setMergeTargetSlimeId] = useState<string>('')
+  const [plantFoodId, setPlantFoodId] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [currentTile, setCurrentTile] = useState<Tile | null>(null)
@@ -120,6 +122,23 @@ export function ActionReservationForm({
     setTargetX(clickedTile.x)
     setTargetY(clickedTile.y)
   }, [clickedTile])
+
+  // plant アクション選択時: インベントリにある tileAttributeDelta 食料の先頭を初期選択
+  useEffect(() => {
+    if (actionType !== 'plant') return
+    const slime = slimes.find((s) => s.id === selectedSlimeId)
+    const inventory = slime?.inventory ?? []
+    const first = foods.find((f) => {
+      if (!f.tileAttributeDelta || !Object.values(f.tileAttributeDelta).some((v) => v !== 0)) return false
+      if (f.alwaysAvailable) return true
+      const rawQty = inventory.find((s) => s.foodId === f.id)?.quantity ?? 0
+      return rawQty - (reservedFoodQty[f.id] ?? 0) > 0
+    })
+    if (first && plantFoodId !== first.id) {
+      setPlantFoodId(first.id)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actionType, selectedSlimeId, reservedFoodQty])
 
   // 選択中スライムの現在タイル属性を購読
   // 依存値はプリミティブのみ（slimes 配列全体を入れると毎回 unsubscribe が走りタイルが取得できない）
@@ -173,6 +192,16 @@ export function ActionReservationForm({
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const turns = snapshot.docs.map((d) => d.data().turnNumber as number)
       setReservedTurns(turns)
+      // eat / plant 予約の食料消費数を集計
+      const foodQty: Record<string, number> = {}
+      for (const doc of snapshot.docs) {
+        const data = doc.data()
+        if ((data.actionType === 'eat' || data.actionType === 'plant') && data.actionData?.foodId) {
+          const fid = data.actionData.foodId as string
+          foodQty[fid] = (foodQty[fid] ?? 0) + 1
+        }
+      }
+      setReservedFoodQty(foodQty)
       setTurnNumber(nextAvailableTurns(currentTurn + 1, turns, 1, currentTurn + MAX_RESERVATION_TURN_DISTANCE)[0])
     })
 
@@ -200,6 +229,9 @@ export function ActionReservationForm({
       } else if (actionType === 'merge') {
         if (!mergeTargetSlimeId) throw new Error('融合対象スライムを選択してください')
         actionData = { targetSlimeId: mergeTargetSlimeId }
+      } else if (actionType === 'plant') {
+        if (!plantFoodId) throw new Error('植え付ける食料を選択してください')
+        actionData = { foodId: plantFoodId }
       }
 
       const body = {
@@ -234,6 +266,7 @@ export function ActionReservationForm({
       setFoodId(foods[0]?.id ?? '')
       setTargetX(0)
       setTargetY(0)
+      setPlantFoodId('')
       onSuccess?.()
     } catch (err) {
       logger.error('submit error', { error: err instanceof Error ? err.message : String(err) })
@@ -309,12 +342,16 @@ export function ActionReservationForm({
             const selectedSlime = slimes.find((s) => s.id === selectedSlimeId)
             // inventory フィールドが Firestore に存在しない既存スライムは [] として扱う
             const inventory = selectedSlime?.inventory ?? []
+            // 予約消費後の実質利用可能数を計算するヘルパー
+            const getAvailableQty = (f: typeof foods[number]) => {
+              if (f.alwaysAvailable) return Infinity
+              const raw = inventory.find((s) => s.foodId === f.id)?.quantity ?? 0
+              return Math.max(0, raw - (reservedFoodQty[f.id] ?? 0))
+            }
             // 所持あり → 先頭、未所持 → 末尾に並べ替え
             const sorted = [...foods].sort((a, b) => {
-              const aQty = inventory.find((s) => s.foodId === a.id)?.quantity ?? 0
-              const bQty = inventory.find((s) => s.foodId === b.id)?.quantity ?? 0
-              const aHas = aQty > 0 || a.alwaysAvailable === true
-              const bHas = bQty > 0 || b.alwaysAvailable === true
+              const aHas = getAvailableQty(a) > 0
+              const bHas = getAvailableQty(b) > 0
               return Number(bHas) - Number(aHas)
             })
             return (
@@ -326,8 +363,9 @@ export function ActionReservationForm({
                 {/* 食料カードグリッド */}
                 <div className="grid grid-cols-4 gap-1.5 max-h-56 overflow-y-auto pr-0.5">
                   {sorted.map((f) => {
-                    const qty = inventory.find((s) => s.foodId === f.id)?.quantity ?? 0
-                    const available = qty > 0 || f.alwaysAvailable === true
+                    const availQty = getAvailableQty(f)
+                    const available = availQty > 0
+                    const reserved = reservedFoodQty[f.id] ?? 0
                     const isSelected = foodId === f.id
                     return (
                       <button
@@ -353,8 +391,11 @@ export function ActionReservationForm({
                           {f.name}
                         </span>
                         <span className={`text-xs font-bold ${available ? 'text-green-700' : 'text-gray-400'}`}>
-                          {f.alwaysAvailable ? '∞' : `×${qty}`}
+                          {f.alwaysAvailable ? '∞' : `×${availQty === Infinity ? '∞' : availQty}`}
                         </span>
+                        {reserved > 0 && (
+                          <span className="text-xs text-orange-500 leading-none">予約{reserved}</span>
+                        )}
                       </button>
                     )
                   })}
@@ -567,6 +608,113 @@ export function ActionReservationForm({
                   ))}
                 </select>
               </div>
+            )}
+          </div>
+        )
+      })()}
+
+      {actionType === 'plant' && (() => {
+        const plantSlime = slimes.find((s) => s.id === selectedSlimeId)
+        const inventory = plantSlime?.inventory ?? []
+        // tileAttributeDelta が定義されていてインベントリに1個以上ある食料のみ表示
+        const plantableFoods = foods.filter((f) => {
+          if (!f.tileAttributeDelta || !Object.values(f.tileAttributeDelta).some((v) => v !== 0)) return false
+          if (f.alwaysAvailable) return true
+          const raw = inventory.find((s) => s.foodId === f.id)?.quantity ?? 0
+          return raw - (reservedFoodQty[f.id] ?? 0) > 0
+        })
+        const ATTR_LABELS: Record<string, string> = { fire: '🔥火', water: '💧水', earth: '🌍土', wind: '💨風' }
+        const selectedFood = plantableFoods.find((f) => f.id === plantFoodId) ?? plantableFoods[0]
+        return (
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1 text-xs bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+              <p className="text-gray-700 font-medium">🌱 植え付けアクション</p>
+              <p className="text-gray-600">インベントリの食料を現在地のタイルに植えて、タイル属性を変化させます。食料は1個消費されます。</p>
+              <p className="text-gray-500">土属性が高いタイルでは gather で植物系食料が出やすくなります。浄化食料（消炎草・乾燥砂など）は hunt/battle の強敵からレアドロップで入手できます。</p>
+            </div>
+            {plantableFoods.length === 0 ? (
+              <p className="text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                植え付けに使える食料がインベントリにありません。gather・fish・hunt で食料を獲得してから植え付けましょう。浄化食料は hunt/battle の強敵からドロップします。
+              </p>
+            ) : (
+              <>
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium text-gray-600">植える食料</label>
+                  <div className="grid grid-cols-3 gap-1.5 max-h-40 overflow-y-auto pr-0.5">
+                    {plantableFoods.map((f) => {
+                      const raw = inventory.find((s) => s.foodId === f.id)?.quantity ?? 0
+                      const reserved = f.alwaysAvailable ? 0 : (reservedFoodQty[f.id] ?? 0)
+                      const qty = f.alwaysAvailable ? Infinity : Math.max(0, raw - reserved)
+                      const isSelected = (plantFoodId || selectedFood?.id) === f.id
+                      return (
+                        <button
+                          key={f.id}
+                          type="button"
+                          onClick={() => setPlantFoodId(f.id)}
+                          className={[
+                            'flex flex-col items-center gap-0.5 p-1.5 rounded-lg border text-center transition-all',
+                            isSelected
+                              ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-300 shadow-sm'
+                              : 'border-gray-200 bg-white hover:border-emerald-300 hover:bg-emerald-50',
+                          ].join(' ')}
+                          title={f.name}
+                        >
+                          {f.imageUrl
+                            ? <img src={f.imageUrl} alt={f.name} className="w-9 h-9 object-contain" loading="lazy" />
+                            : <span className="w-9 h-9 flex items-center justify-center text-2xl">🌿</span>
+                          }
+                          <span className="text-xs leading-tight text-gray-700 font-medium line-clamp-2 w-full">{f.name}</span>
+                          <span className="text-xs font-bold text-emerald-700">{qty === Infinity ? '∞' : `×${qty}`}</span>
+                          {reserved > 0 && (
+                            <span className="text-xs text-orange-500 leading-none">予約{reserved}</span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* 選択食料のタイル効果プレビュー */}
+                {(() => {
+                  const food = plantableFoods.find((f) => f.id === (plantFoodId || selectedFood?.id))
+                  if (!food?.tileAttributeDelta) return null
+                  const attrs = currentTile?.attributes
+                  return (
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs text-gray-600">
+                      <p className="font-medium text-gray-800 mb-1">{food.name} を植えた場合のタイル変化:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {(['fire', 'water', 'earth', 'wind'] as const).map((attr) => {
+                          const delta = food.tileAttributeDelta?.[attr] ?? 0
+                          if (delta === 0) return null
+                          const current = attrs?.[attr] ?? 0
+                          const next = Math.max(0, Math.min(1.0, current + delta))
+                          return (
+                            <span key={attr} className="flex items-center gap-1">
+                              <span>{ATTR_LABELS[attr]}</span>
+                              {attrs ? (
+                                <span className="font-mono">
+                                  {current.toFixed(2)}
+                                  <span className={delta > 0 ? 'text-emerald-700 font-bold' : 'text-red-600 font-bold'}>
+                                    {delta > 0 ? `+${delta.toFixed(2)}` : `${delta.toFixed(2)}`}
+                                  </span>
+                                  → {next.toFixed(2)}
+                                </span>
+                              ) : (
+                                <span className="font-mono">
+                                  <span className={delta > 0 ? 'text-emerald-700 font-bold' : 'text-red-600 font-bold'}>
+                                    {delta > 0 ? `+${delta.toFixed(2)}` : `${delta.toFixed(2)}`}
+                                  </span>
+                                </span>
+                              )}
+                            </span>
+                          )
+                        })}
+                      </div>
+                      {tileLoading && <p className="text-gray-400 mt-1">タイル情報読み込み中...</p>}
+                    </div>
+                  )
+                })()}
+              </>
             )}
           </div>
         )

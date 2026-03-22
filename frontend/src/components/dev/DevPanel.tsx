@@ -11,6 +11,7 @@
 
 import { useState } from 'react'
 import { slimeSpecies } from '../../../../shared/data/slimeSpecies'
+import { foods } from '../../../../shared/data/foods'
 
 // 相対URLにすることで Vite プロキシ (/dev-cheat → localhost:8888) を経由し CORS を回避
 const DEV_API = '/dev-cheat'
@@ -61,6 +62,8 @@ export function DevPanel() {
   const [selectedWeather, setSelectedWeather] = useState<string>('sunny')
   const [minimized, setMinimized] = useState(true)
   const [targetSpeciesId, setTargetSpeciesId] = useState('')
+  const [inventoryFoodId, setInventoryFoodId] = useState('')
+  const [inventoryQty, setInventoryQty] = useState(10)
 
   function addLog(msg: string) {
     setLog((prev) => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev.slice(0, 19)])
@@ -117,6 +120,25 @@ export function DevPanel() {
       const data = await res.json()
       addLog(data.message ?? JSON.stringify(data))
       await fetchSlimes()
+    } catch (e) {
+      addLog(`エラー: ${e}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function addInventory() {
+    if (!selectedSlimeId) { addLog('スライムを選択してください'); return }
+    if (!inventoryFoodId) { addLog('食料を選択してください'); return }
+    setLoading(true)
+    try {
+      const res = await fetch(`${DEV_API}/set-inventory`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slimeId: selectedSlimeId, addItems: [{ foodId: inventoryFoodId, quantity: inventoryQty }] }),
+      })
+      const data = await res.json()
+      addLog(data.message ?? JSON.stringify(data))
     } catch (e) {
       addLog(`エラー: ${e}`)
     } finally {
@@ -276,6 +298,38 @@ export function DevPanel() {
               {selected.speciesId} → {targetSpeciesId}
             </div>
           )}
+        </div>
+
+        {/* アイテム付与 */}
+        <div>
+          <div className="text-gray-400 mb-1">アイテム付与</div>
+          <div className="flex gap-1">
+            <select
+              value={inventoryFoodId}
+              onChange={(e) => setInventoryFoodId(e.target.value)}
+              className="flex-1 bg-gray-700 rounded px-2 py-1 text-white text-xs min-w-0"
+            >
+              <option value="">-- 食料を選択 --</option>
+              {foods.map((f) => (
+                <option key={f.id} value={f.id}>{f.name}</option>
+              ))}
+            </select>
+            <input
+              type="number"
+              min={1}
+              max={99}
+              value={inventoryQty}
+              onChange={(e) => setInventoryQty(Number(e.target.value))}
+              className="w-12 bg-gray-700 rounded px-1 py-1 text-white text-center"
+            />
+            <button
+              onClick={addInventory}
+              disabled={loading || !selectedSlimeId || !inventoryFoodId}
+              className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-40 rounded px-2 py-1 whitespace-nowrap"
+            >
+              付与
+            </button>
+          </div>
         </div>
 
         {/* 季節・天候変更 */}

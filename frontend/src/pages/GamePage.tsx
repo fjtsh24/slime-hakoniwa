@@ -163,12 +163,6 @@ export function GamePage() {
         <div className="flex items-center gap-3">
           <span className="text-sm opacity-90">{user.displayName ?? user.email}</span>
           <Link
-            to="/map-settings"
-            className="text-xs bg-green-600 hover:bg-green-500 px-3 py-1.5 rounded transition"
-          >
-            マップ設定
-          </Link>
-          <Link
             to="/encyclopedia"
             className="text-xs bg-green-600 hover:bg-green-500 px-3 py-1.5 rounded transition"
           >

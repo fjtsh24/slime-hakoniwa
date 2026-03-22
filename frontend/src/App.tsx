@@ -6,7 +6,6 @@ import { trackPageView } from './lib/analytics'
 import { LoginPage } from './components/auth/LoginPage'
 import { GamePage } from './pages/GamePage'
 import { SetupPage } from './pages/SetupPage'
-import { MapSettingsPage } from './pages/MapSettingsPage'
 import { CreditsPage } from './pages/CreditsPage'
 import { EncyclopediaPage } from './pages/EncyclopediaPage'
 import { PlayerProfilePage } from './pages/PlayerProfilePage'
@@ -83,10 +82,6 @@ function AppRoutes() {
       <Route
         path="/game"
         element={hasMap ? <GamePage /> : <Navigate to="/setup" replace />}
-      />
-      <Route
-        path="/map-settings"
-        element={hasMap ? <MapSettingsPage /> : <Navigate to="/setup" replace />}
       />
       <Route
         path="/"
