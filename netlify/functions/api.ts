@@ -10,6 +10,7 @@ import {
   registerHandleSchema,
   publicHandleParamSchema,
   worldIdParamSchema,
+  renameSlimeSchema,
 } from './helpers/validation'
 import { logger } from '../../shared/lib/logger'
 import {
@@ -273,6 +274,60 @@ const handler: Handler = async (event): Promise<HandlerResponse> => {
       ...reservation,
       createdAt: now.toDate().toISOString(),
     })
+  }
+
+  // =========================================================
+  // PATCH /slimes/:slimeId/name — スライム改名
+  // =========================================================
+  const renameSlimeMatch = path.match(/^\/slimes\/([^/]+)\/name$/)
+  if (method === 'PATCH' && renameSlimeMatch) {
+    // 1. IDトークン検証
+    let uid: string
+    try {
+      const result = await verifyIdToken(
+        event.headers['authorization'] ?? event.headers['Authorization']
+      )
+      uid = result.uid
+    } catch (authError) {
+      logger.error('[API] 認証エラー', { method, path, error: String(authError) })
+      return jsonResponse(401, { error: '認証に失敗しました' })
+    }
+
+    const slimeId = renameSlimeMatch[1]
+
+    // 2. リクエストボディのバリデーション
+    let body: unknown
+    try {
+      body = JSON.parse(event.body ?? '{}')
+    } catch {
+      return jsonResponse(400, { error: 'リクエストボディが不正な JSON です' })
+    }
+    const parseResult = renameSlimeSchema.safeParse(body)
+    if (!parseResult.success) {
+      return jsonResponse(400, {
+        error: 'バリデーションエラー',
+        details: parseResult.error.flatten(),
+      })
+    }
+    const { name } = parseResult.data
+
+    // 3. Firestore からスライムを取得し ownerUid == uid を確認
+    const slimeDoc = await db.collection('slimes').doc(slimeId).get()
+    if (!slimeDoc.exists) {
+      return jsonResponse(404, { error: 'スライムが見つかりません' })
+    }
+    if ((slimeDoc.data() as { ownerUid: string }).ownerUid !== uid) {
+      return jsonResponse(403, { error: 'このスライムを操作する権限がありません' })
+    }
+
+    // 4. name を更新（Admin SDK 経由）
+    await slimeDoc.ref.update({
+      name,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    })
+
+    logger.info('[API] スライム改名完了', { method, path, uid, slimeId, name, durationMs: Date.now() - startMs })
+    return jsonResponse(200, { slimeId, name })
   }
 
   // =========================================================

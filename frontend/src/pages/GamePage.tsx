@@ -65,6 +65,10 @@ export function GamePage() {
     () => localStorage.getItem('slime_handle_prompt_dismissed') === 'true'
   )
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false)
+  const [editingSlimeId, setEditingSlimeId] = useState<string | null>(null)
+  const [editingName, setEditingName] = useState('')
+  const [isRenaming, setIsRenaming] = useState(false)
+  const [renameError, setRenameError] = useState<string | null>(null)
 
   // ワールド購読
   useEffect(() => {
@@ -137,6 +141,49 @@ export function GamePage() {
   const handleTileClick = (x: number, y: number) => {
     logger.debug('タイルクリック', { x, y })
     setClickedTile({ x, y })
+  }
+
+  const handleRenameStart = (slime: Slime, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setEditingSlimeId(slime.id)
+    setEditingName(slime.name)
+    setRenameError(null)
+  }
+
+  const handleRenameSubmit = async (slimeId: string, e?: React.FormEvent) => {
+    e?.preventDefault()
+    if (!user) return
+    const trimmed = editingName.trim()
+    if (trimmed.length === 0 || trimmed.length > 20) {
+      setRenameError('名前は1〜20文字で入力してください')
+      return
+    }
+    setIsRenaming(true)
+    setRenameError(null)
+    try {
+      const idToken = await getIdToken(user)
+      const res = await fetch(`/api/slimes/${slimeId}/name`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setRenameError((data as { error?: string }).error ?? 'エラーが発生しました')
+      } else {
+        setEditingSlimeId(null)
+      }
+    } catch {
+      setRenameError('エラーが発生しました')
+    } finally {
+      setIsRenaming(false)
+    }
+  }
+
+  const handleRenameCancel = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setEditingSlimeId(null)
+    setRenameError(null)
   }
 
   // 認証ロード中
@@ -316,7 +363,52 @@ export function GamePage() {
                           {/* テキスト情報 */}
                           <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-bold">{s.name}</span>
+                              {editingSlimeId === s.id ? (
+                                <form
+                                  onSubmit={(e) => handleRenameSubmit(s.id, e)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="flex items-center gap-1 flex-wrap"
+                                >
+                                  <input
+                                    type="text"
+                                    value={editingName}
+                                    onChange={(e) => setEditingName(e.target.value)}
+                                    maxLength={20}
+                                    autoFocus
+                                    className="text-sm font-bold border border-green-400 rounded px-1.5 py-0.5 w-32 focus:outline-none focus:ring-2 focus:ring-green-400"
+                                  />
+                                  <button
+                                    type="submit"
+                                    disabled={isRenaming}
+                                    className="text-xs bg-green-600 text-white px-2 py-0.5 rounded hover:bg-green-700 disabled:opacity-50 transition"
+                                  >
+                                    {isRenaming ? '…' : '保存'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={handleRenameCancel}
+                                    className="text-xs text-gray-400 hover:text-gray-600 px-1"
+                                  >
+                                    取消
+                                  </button>
+                                  {renameError && (
+                                    <span className="text-xs text-red-500 w-full">{renameError}</span>
+                                  )}
+                                </form>
+                              ) : (
+                                <>
+                                  <span className="font-bold">{s.name}</span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleRenameStart(s, e)}
+                                    className="text-gray-300 hover:text-green-500 transition p-0.5 rounded leading-none"
+                                    title="名前を変更"
+                                    aria-label="名前を変更"
+                                  >
+                                    ✏️
+                                  </button>
+                                </>
+                              )}
                               <span
                                 className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
                                   s.stats.hunger < 20
