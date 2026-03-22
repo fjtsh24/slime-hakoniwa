@@ -40,6 +40,16 @@ emulator.on('error', (err) => {
   process.exit(1)
 })
 
+// Ctrl+C でエミュレータが --export-on-exit のデータ書き出しを行う間、
+// Node プロセスが先に終了してターミナルが取り戻されないよう待機する。
+// （firebase は同じプロセスグループなので既に SIGINT を受け取っている）
+process.on('SIGINT', () => {
+  console.log('\nエミュレータのデータをエクスポート中... 完了するまでお待ちください。')
+})
+emulator.on('exit', (code) => {
+  process.exit(code ?? 0)
+})
+
 // 3. Firestore・Auth エミュレータの起動を待機
 async function waitForPort(port, label) {
   console.log(`${label} (localhost:${port}) の起動を待機中...`)
