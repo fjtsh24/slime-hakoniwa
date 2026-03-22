@@ -253,21 +253,28 @@ export function WorldMapPanel({ mapId, slimes, selectedSlimeId, onTileClick }: W
                 </text>
               )}
 
-              {/* スライムドット（最大3体） */}
+              {/* スライムアイコン（最大3体） */}
               {slimesOnTile.slice(0, 3).map((s, i) => {
                 const offsets = SLIME_OFFSETS[Math.min(slimesOnTile.length, 3) - 1]
                 const [ox, oy] = offsets[i]
+                const iconSize = 10
+                const ix = cx + ox - iconSize / 2
+                const iy = cy + oy - iconSize   // 足元をタイル中心に合わせる
+                const slimeColor = s.color ?? DEFAULT_SLIME_COLOR
                 return (
-                  <circle
+                  <image
                     key={s.id}
-                    cx={cx + ox}
-                    cy={cy + oy}
-                    r={3.5}
-                    fill={s.color ?? DEFAULT_SLIME_COLOR}
-                    stroke="white"
-                    strokeWidth={0.8}
+                    href="/assets/slimes/slime-base.png"
+                    x={ix}
+                    y={iy}
+                    width={iconSize}
+                    height={iconSize}
                     className={s.id === selectedSlimeId ? 'slime-selected' : 'slime-idle'}
-                    style={{ transformBox: 'fill-box', transformOrigin: 'center bottom' }}
+                    style={{
+                      transformBox: 'fill-box',
+                      transformOrigin: 'center bottom',
+                      filter: `drop-shadow(0 0 2px ${slimeColor}) drop-shadow(0 0 1px ${slimeColor})`,
+                    }}
                   />
                 )
               })}
