@@ -544,32 +544,37 @@
 - **パス統一**: `/maps/{mapId}/tiles/` サブコレクションを廃止し `/tiles/{tileId}` に一本化
 - **baseAttributes**: タイルの初期値（不変）を保持するフィールドを追加
 
-### Week 1: /tiles/ パス統一（前提条件）
+### Week 1: /tiles/ パス統一（前提条件）✅（2026-03-22完了）
 
 **バックエンド・DB（A3/BE・A5/DB）**
-- [ ] `firestore.rules` に `/tiles/{tileId}` の認証済み読み取りルール追加
-- [ ] `/maps/{mapId}/tiles/{tileId}` サブコレクションのルール削除
-- [ ] `firestore.indexes.json` に `/tiles/{tileId}` の mapId インデックス追加
-- [ ] `functions/src/triggers/authTrigger.ts` のタイル書き込みをサブコレクション → top-level に変更
-- [ ] `seed.ts` のタイル書き込みをサブコレクション廃止（top-level のみ）
+- [x] `firestore.rules` に `/tiles/{tileId}` の認証済み読み取りルール追加
+- [x] `/maps/{mapId}/tiles/{tileId}` サブコレクションのルール削除
+- [x] `firestore.indexes.json` に `/tiles/{tileId}` の mapId インデックス追加
+- [x] `functions/src/triggers/authTrigger.ts` のタイル書き込みをサブコレクション → top-level に変更
+- [x] `seed.ts` のタイル書き込みをサブコレクション廃止（top-level のみ）
 
 **フロントエンド（A4/FE）**
-- [ ] `WorldMapPanel.tsx`: `maps/{mapId}/tiles` → `tiles` + `where('mapId', '==', mapId)` クエリに変更
-- [ ] `ActionReservationForm.tsx`: タイル購読パスを同様に変更
+- [x] `WorldMapPanel.tsx`: `maps/{mapId}/tiles` → `tiles` + `where('mapId', '==', mapId)` クエリに変更
+- [x] `ActionReservationForm.tsx`: タイル購読パスを同様に変更
 
 **型定義（A5/DB）**
-- [ ] `shared/types/map.ts` の `Tile` 型に `baseAttributes: TileAttributes` を追加
+- [x] `shared/types/map.ts` の `Tile` 型に `baseAttributes: TileAttributes` を追加
+- [x] `shared/types/food.ts` の `Food` 型に `tileAttributeDelta?: Partial<TileAttributes>` を追加
+- [x] `shared/types/action.ts` に `PlantActionData { foodId: string }` を追加
+- [x] `shared/types/turnLog.ts` に `plant_success` / `plant_fail` / `season_tile_change` を追加
+- [x] `shared/constants/game.ts` に `TILE_DELTA_MAX` / `TILE_DELTA_MIN` / `SEASON_TILE_DELTA_PER_TURN` を追加
 
 ### Week 2: plantアクション実装（TDD）
 
 **型・マスタデータ（A5/DB）**
-- [ ] `shared/types/food.ts` の `Food` 型に `tileAttributeDelta?: Partial<TileAttributes>` を追加（範囲: -1.0〜+1.0）
+- [x] `shared/types/food.ts` の `Food` 型に `tileAttributeDelta?: Partial<TileAttributes>` を追加（Week 1 で対応済み）
 - [ ] `shared/data/foods.ts` に浄化食料4種を追加
-  - `food-purify-fire`: fire -0.08（水浄化草）
-  - `food-purify-water`: water -0.08（乾燥苔）
-  - `food-purify-earth`: earth -0.08（風蘭）
-  - `food-purify-wind`: wind -0.08（焦土キノコ）
-- [ ] `shared/types/action.ts` に `PlantActionData { foodId: string }` を追加
+  - `food-purify-fire`: fire -0.08（消炎草）
+  - `food-purify-water`: water -0.08（乾燥砂）
+  - `food-purify-earth`: earth -0.08（溶岩石）
+  - `food-purify-wind`: wind -0.08（重石）
+- [ ] `shared/data/foods.ts` 既存食料に `tileAttributeDelta` を追加（beast/fish/plant/spirit/human カテゴリ）
+- [x] `shared/types/action.ts` に `PlantActionData { foodId: string }` を追加（Week 1 で対応済み）
 - [ ] `validation.ts` の plant アクション zodスキーマ追加
 
 **バックエンド（A3/BE）**

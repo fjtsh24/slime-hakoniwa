@@ -16,6 +16,10 @@
  *
  * ⚠️ foods.ts に存在しない foodId を追加すると turnProcessor でサイレントに無視される。
  *    変更後は tests/unit/dropTableConsistency.test.ts を必ず実行すること。
+ *
+ * Phase 8 W2 追加:
+ *   food-purify-fire / food-purify-water / food-purify-earth / food-purify-wind
+ *   hunt/battle の strong テーブルに低確率（weight 3〜5）で追加
  */
 
 import { DropTableEntry } from "../types/dropTable";
@@ -225,8 +229,9 @@ export const dropTables: DropTableEntry[] = [
     actionType: "hunt",
     tileCondition: null,
     drops: [
-      { foodId: "food-beast-002", weight: 55, minQty: 1, maxQty: 3 },
-      { foodId: "food-beast-001", weight: 30, minQty: 2, maxQty: 4 },
+      { foodId: "food-beast-002",    weight: 55, minQty: 1, maxQty: 3 },
+      { foodId: "food-beast-001",    weight: 30, minQty: 2, maxQty: 4 },
+      { foodId: "food-purify-fire",  weight:  4, minQty: 1, maxQty: 1 }, // 浄化食料（レア）
     ],
   },
   {
@@ -234,8 +239,9 @@ export const dropTables: DropTableEntry[] = [
     actionType: "hunt",
     tileCondition: null,
     drops: [
-      { foodId: "food-plant-003", weight: 50, minQty: 1, maxQty: 2 },
-      { foodId: "food-plant-002", weight: 35, minQty: 1, maxQty: 2 },
+      { foodId: "food-plant-003",    weight: 50, minQty: 1, maxQty: 2 },
+      { foodId: "food-plant-002",    weight: 35, minQty: 1, maxQty: 2 },
+      { foodId: "food-purify-earth", weight:  4, minQty: 1, maxQty: 1 }, // 浄化食料（レア）
     ],
   },
 
@@ -263,8 +269,9 @@ export const dropTables: DropTableEntry[] = [
     actionType: "hunt",
     tileCondition: null,
     drops: [
-      { foodId: "food-fish-002", weight: 55, minQty: 1, maxQty: 3 },
-      { foodId: "food-fish-001", weight: 30, minQty: 2, maxQty: 4 },
+      { foodId: "food-fish-002",     weight: 55, minQty: 1, maxQty: 3 },
+      { foodId: "food-fish-001",     weight: 30, minQty: 2, maxQty: 4 },
+      { foodId: "food-purify-water", weight:  4, minQty: 1, maxQty: 1 }, // 浄化食料（レア）
     ],
   },
   {
@@ -291,8 +298,12 @@ export const dropTables: DropTableEntry[] = [
     actionType: "hunt",
     tileCondition: null,
     drops: [
-      { foodId: "food-human-002", weight: 55, minQty: 1, maxQty: 2 },
-      { foodId: "food-human-001", weight: 30, minQty: 2, maxQty: 3 },
+      { foodId: "food-human-002",    weight: 55, minQty: 1, maxQty: 2 },
+      { foodId: "food-human-001",    weight: 30, minQty: 2, maxQty: 3 },
+      { foodId: "food-purify-fire",  weight:  2, minQty: 1, maxQty: 1 }, // 浄化食料（極レア）
+      { foodId: "food-purify-water", weight:  2, minQty: 1, maxQty: 1 }, // 浄化食料（極レア）
+      { foodId: "food-purify-earth", weight:  2, minQty: 1, maxQty: 1 }, // 浄化食料（極レア）
+      { foodId: "food-purify-wind",  weight:  2, minQty: 1, maxQty: 1 }, // 浄化食料（極レア）
     ],
   },
   {
@@ -322,6 +333,7 @@ export const dropTables: DropTableEntry[] = [
       { foodId: "food-spirit-drop-strong-001", weight: 40, minQty: 1, maxQty: 1 },
       { foodId: "food-spirit-drop-strong-002", weight: 30, minQty: 1, maxQty: 1 },
       { foodId: "food-spirit-drop-normal-001", weight: 20, minQty: 1, maxQty: 2 },
+      { foodId: "food-purify-wind",            weight:  4, minQty: 1, maxQty: 1 }, // 浄化食料（レア）
     ],
   },
   {
@@ -363,8 +375,9 @@ export const dropTables: DropTableEntry[] = [
     actionType: "battle",
     tileCondition: null,
     drops: [
-      { foodId: "food-beast-002", weight: 55, minQty: 1, maxQty: 2 },
-      { foodId: "food-beast-001", weight: 30, minQty: 2, maxQty: 4 },
+      { foodId: "food-beast-002",    weight: 55, minQty: 1, maxQty: 2 },
+      { foodId: "food-beast-001",    weight: 30, minQty: 2, maxQty: 4 },
+      { foodId: "food-purify-fire",  weight:  4, minQty: 1, maxQty: 1 }, // 浄化食料（レア）
     ],
   },
   {
@@ -372,8 +385,9 @@ export const dropTables: DropTableEntry[] = [
     actionType: "battle",
     tileCondition: null,
     drops: [
-      { foodId: "food-plant-003", weight: 50, minQty: 1, maxQty: 2 },
-      { foodId: "food-plant-002", weight: 35, minQty: 1, maxQty: 2 },
+      { foodId: "food-plant-003",    weight: 50, minQty: 1, maxQty: 2 },
+      { foodId: "food-plant-002",    weight: 35, minQty: 1, maxQty: 2 },
+      { foodId: "food-purify-earth", weight:  4, minQty: 1, maxQty: 1 }, // 浄化食料（レア）
     ],
   },
   {
@@ -399,8 +413,9 @@ export const dropTables: DropTableEntry[] = [
     actionType: "battle",
     tileCondition: null,
     drops: [
-      { foodId: "food-fish-002", weight: 60, minQty: 1, maxQty: 3 },
-      { foodId: "food-fish-001", weight: 30, minQty: 2, maxQty: 4 },
+      { foodId: "food-fish-002",     weight: 60, minQty: 1, maxQty: 3 },
+      { foodId: "food-fish-001",     weight: 30, minQty: 2, maxQty: 4 },
+      { foodId: "food-purify-water", weight:  4, minQty: 1, maxQty: 1 }, // 浄化食料（レア）
     ],
   },
   {
@@ -427,8 +442,12 @@ export const dropTables: DropTableEntry[] = [
     actionType: "battle",
     tileCondition: null,
     drops: [
-      { foodId: "food-human-002", weight: 60, minQty: 1, maxQty: 2 },
-      { foodId: "food-human-001", weight: 25, minQty: 2, maxQty: 3 },
+      { foodId: "food-human-002",    weight: 60, minQty: 1, maxQty: 2 },
+      { foodId: "food-human-001",    weight: 25, minQty: 2, maxQty: 3 },
+      { foodId: "food-purify-fire",  weight:  2, minQty: 1, maxQty: 1 }, // 浄化食料（極レア）
+      { foodId: "food-purify-water", weight:  2, minQty: 1, maxQty: 1 }, // 浄化食料（極レア）
+      { foodId: "food-purify-earth", weight:  2, minQty: 1, maxQty: 1 }, // 浄化食料（極レア）
+      { foodId: "food-purify-wind",  weight:  2, minQty: 1, maxQty: 1 }, // 浄化食料（極レア）
     ],
   },
   {
@@ -456,6 +475,7 @@ export const dropTables: DropTableEntry[] = [
     drops: [
       { foodId: "food-spirit-drop-strong-001", weight: 45, minQty: 1, maxQty: 1 },
       { foodId: "food-spirit-drop-strong-002", weight: 35, minQty: 1, maxQty: 1 },
+      { foodId: "food-purify-wind",            weight:  4, minQty: 1, maxQty: 1 }, // 浄化食料（レア）
     ],
   },
   {
