@@ -37,8 +37,8 @@ const TW = 20  // タイル半幅
 const TH = 10  // タイル半高さ（2:1 比率）
 
 /** スライムアイコンのサイズ（タイル幅 40 に対して 14:20 ≈ 35% / 100%） */
-const ICON_W = 14
-const ICON_H = 20
+const ICON_W = 21
+const ICON_H = 30
 
 /** タイル属性ごとの RGB 値（ブレンド計算用に事前定義） */
 type RGB = { r: number; g: number; b: number }
