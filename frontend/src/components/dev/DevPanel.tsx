@@ -10,6 +10,7 @@
  */
 
 import { useState } from 'react'
+import { slimeSpecies } from '../../../../shared/data/slimeSpecies'
 
 // 相対URLにすることで Vite プロキシ (/dev-cheat → localhost:8888) を経由し CORS を回避
 const DEV_API = '/dev-cheat'
@@ -59,6 +60,7 @@ export function DevPanel() {
   const [selectedSeason, setSelectedSeason] = useState<string>('spring')
   const [selectedWeather, setSelectedWeather] = useState<string>('sunny')
   const [minimized, setMinimized] = useState(true)
+  const [targetSpeciesId, setTargetSpeciesId] = useState('')
 
   function addLog(msg: string) {
     setLog((prev) => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev.slice(0, 19)])
@@ -91,6 +93,26 @@ export function DevPanel() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
+      })
+      const data = await res.json()
+      addLog(data.message ?? JSON.stringify(data))
+      await fetchSlimes()
+    } catch (e) {
+      addLog(`エラー: ${e}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function changeSpecies() {
+    if (!selectedSlimeId) { addLog('スライムを選択してください'); return }
+    if (!targetSpeciesId) { addLog('進化先を選択してください'); return }
+    setLoading(true)
+    try {
+      const res = await fetch(`${DEV_API}/set-slime`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slimeId: selectedSlimeId, speciesId: targetSpeciesId }),
       })
       const data = await res.json()
       addLog(data.message ?? JSON.stringify(data))
@@ -223,6 +245,37 @@ export function DevPanel() {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* 種族変更 */}
+        <div>
+          <div className="text-gray-400 mb-1">種族変更</div>
+          <div className="flex gap-1">
+            <select
+              value={targetSpeciesId}
+              onChange={(e) => setTargetSpeciesId(e.target.value)}
+              className="flex-1 bg-gray-700 rounded px-2 py-1 text-white"
+            >
+              <option value="">-- 進化先を選択 --</option>
+              {slimeSpecies.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} ({s.id})
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={changeSpecies}
+              disabled={loading || !selectedSlimeId || !targetSpeciesId}
+              className="bg-purple-700 hover:bg-purple-600 disabled:opacity-40 rounded px-2 py-1 whitespace-nowrap"
+            >
+              変更
+            </button>
+          </div>
+          {selected && targetSpeciesId && targetSpeciesId !== selected.speciesId && (
+            <div className="mt-1 text-yellow-400">
+              {selected.speciesId} → {targetSpeciesId}
+            </div>
+          )}
         </div>
 
         {/* 季節・天候変更 */}
