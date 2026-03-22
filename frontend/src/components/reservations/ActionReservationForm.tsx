@@ -120,21 +120,29 @@ export function ActionReservationForm({
   }, [clickedTile])
 
   // 選択中スライムの現在タイル属性を購読
+  // 依存値はプリミティブのみ（slimes 配列全体を入れると毎回 unsubscribe が走りタイルが取得できない）
+  const selectedSlime = slimes.find((s) => s.id === selectedSlimeId)
+  const slimeMapId = selectedSlime?.mapId
+  const slimeTileX = selectedSlime?.tileX
+  const slimeTileY = selectedSlime?.tileY
+
   useEffect(() => {
-    const slime = slimes.find((s) => s.id === selectedSlimeId)
-    if (!slime) { setCurrentTile(null); return }
+    if (!slimeMapId || slimeTileX === undefined || slimeTileY === undefined) {
+      setCurrentTile(null)
+      return
+    }
 
     const unsubscribe = onSnapshot(
-      collection(db, 'maps', slime.mapId, 'tiles'),
+      collection(db, 'maps', slimeMapId, 'tiles'),
       (snap) => {
         const tile = snap.docs
           .map((d) => d.data() as Tile)
-          .find((t) => t.x === slime.tileX && t.y === slime.tileY) ?? null
+          .find((t) => t.x === slimeTileX && t.y === slimeTileY) ?? null
         setCurrentTile(tile)
       }
     )
     return () => unsubscribe()
-  }, [selectedSlimeId, slimes])
+  }, [slimeMapId, slimeTileX, slimeTileY])
 
   // 選択中スライムのpending予約ターン番号を購読し、次の空きターンを自動セット
   useEffect(() => {
