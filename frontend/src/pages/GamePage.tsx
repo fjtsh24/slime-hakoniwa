@@ -259,17 +259,6 @@ export function GamePage() {
           </div>
 
           {/* 右カラム: スライム操作パネル群（スクロール） */}
-          {/* 折りたたみトグルボタン（PCのみ表示） */}
-          <button
-            onClick={() => setRightPanelCollapsed((v) => !v)}
-            className="hidden md:flex items-center justify-center w-5 self-stretch flex-shrink-0 text-gray-300 hover:text-green-500 hover:bg-green-50 rounded transition-colors cursor-pointer"
-            aria-label={rightPanelCollapsed ? '操作パネルを開く' : '操作パネルを閉じる'}
-            title={rightPanelCollapsed ? '操作パネルを開く' : '操作パネルを閉じる'}
-          >
-            <span className="text-base leading-none select-none">
-              {rightPanelCollapsed ? '▶' : '◀'}
-            </span>
-          </button>
           <div className={`flex flex-col gap-4 min-w-0 transition-all duration-300 overflow-hidden ${rightPanelCollapsed ? 'hidden md:hidden' : 'flex-1'}`}>
 
             {/* ワールドログ（全スライム統合） */}
@@ -456,6 +445,19 @@ export function GamePage() {
           </div>
         </div>
       </main>
+
+      {/* 操作パネル折りたたみ — 固定フロートボタン（PC専用・常時表示） */}
+      <button
+        onClick={() => setRightPanelCollapsed((v) => !v)}
+        className="hidden md:flex fixed right-4 top-1/2 -translate-y-1/2 items-center justify-center w-8 h-8 bg-white shadow-md hover:bg-green-50 border border-green-200 rounded-full text-gray-400 hover:text-green-600 transition-all z-40 focus:outline-none focus:ring-2 focus:ring-green-400"
+        aria-label={rightPanelCollapsed ? '操作パネルを開く' : '操作パネルを閉じる'}
+        title={rightPanelCollapsed ? '操作パネルを開く' : '操作パネルを閉じる'}
+      >
+        <span className="text-sm leading-none select-none">
+          {rightPanelCollapsed ? '▶' : '◀'}
+        </span>
+      </button>
+
       {import.meta.env.DEV && <DevPanel />}
     </div>
   )
