@@ -216,6 +216,48 @@ const handler: Handler = async (event): Promise<HandlerResponse> => {
       })
     }
 
+    // POST /dev-cheat/set-inventory
+    if (method === 'POST' && path === '/set-inventory') {
+      const body = JSON.parse(event.body ?? '{}') as {
+        slimeId?: string
+        addItems?: { foodId: string; quantity: number }[]
+        inventory?: { foodId: string; quantity: number }[]
+      }
+
+      if (!body.slimeId) return json(400, { error: 'slimeId が必要です' })
+      if (!body.addItems && !body.inventory) return json(400, { error: 'addItems または inventory が必要です' })
+
+      const ref = db.collection('slimes').doc(body.slimeId)
+      const snap = await ref.get()
+      if (!snap.exists) return json(404, { error: 'スライムが見つかりません' })
+
+      let newInventory: { foodId: string; quantity: number }[]
+
+      if (body.inventory !== undefined) {
+        newInventory = body.inventory
+      } else {
+        const current = (snap.data()!['inventory'] ?? []) as { foodId: string; quantity: number }[]
+        const map = new Map<string, number>(current.map((s) => [s.foodId, s.quantity]))
+        for (const item of body.addItems!) {
+          map.set(item.foodId, (map.get(item.foodId) ?? 0) + item.quantity)
+        }
+        newInventory = Array.from(map.entries())
+          .filter(([, qty]) => qty > 0)
+          .map(([foodId, quantity]) => ({ foodId, quantity }))
+      }
+
+      await ref.update({
+        inventory: newInventory,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      })
+
+      return json(200, {
+        message: `インベントリを更新しました（${newInventory.length}種）`,
+        slimeId: body.slimeId,
+        inventory: newInventory,
+      })
+    }
+
     return json(404, { error: `不明なパス: ${path}` })
   } catch (err) {
     logger.error('[dev-cheat] エラー', { err })

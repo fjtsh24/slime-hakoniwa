@@ -102,6 +102,7 @@ export function ActionReservationForm({
   const [actionType, setActionType] = useState<ActionType>('eat')
   const [turnNumber, setTurnNumber] = useState<number>(currentTurn + 1)
   const [reservedTurns, setReservedTurns] = useState<number[]>([])
+  const [reservedFoodQty, setReservedFoodQty] = useState<Record<string, number>>({})
   const [foodId, setFoodId] = useState<string>(foods[0]?.id ?? '')
   const [targetX, setTargetX] = useState<number>(0)
   const [targetY, setTargetY] = useState<number>(0)
@@ -127,17 +128,16 @@ export function ActionReservationForm({
     if (actionType !== 'plant') return
     const slime = slimes.find((s) => s.id === selectedSlimeId)
     const inventory = slime?.inventory ?? []
-    const first = foods.find(
-      (f) =>
-        f.tileAttributeDelta &&
-        Object.values(f.tileAttributeDelta).some((v) => v !== 0) &&
-        (inventory.find((s) => s.foodId === f.id)?.quantity ?? 0) > 0
-    )
+    const first = foods.find((f) => {
+      if (!f.tileAttributeDelta || !Object.values(f.tileAttributeDelta).some((v) => v !== 0)) return false
+      const rawQty = inventory.find((s) => s.foodId === f.id)?.quantity ?? 0
+      return rawQty - (reservedFoodQty[f.id] ?? 0) > 0
+    })
     if (first && plantFoodId !== first.id) {
       setPlantFoodId(first.id)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [actionType, selectedSlimeId])
+  }, [actionType, selectedSlimeId, reservedFoodQty])
 
   // 選択中スライムの現在タイル属性を購読
   // 依存値はプリミティブのみ（slimes 配列全体を入れると毎回 unsubscribe が走りタイルが取得できない）
@@ -191,6 +191,16 @@ export function ActionReservationForm({
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const turns = snapshot.docs.map((d) => d.data().turnNumber as number)
       setReservedTurns(turns)
+      // eat / plant 予約の食料消費数を集計
+      const foodQty: Record<string, number> = {}
+      for (const doc of snapshot.docs) {
+        const data = doc.data()
+        if ((data.actionType === 'eat' || data.actionType === 'plant') && data.actionData?.foodId) {
+          const fid = data.actionData.foodId as string
+          foodQty[fid] = (foodQty[fid] ?? 0) + 1
+        }
+      }
+      setReservedFoodQty(foodQty)
       setTurnNumber(nextAvailableTurns(currentTurn + 1, turns, 1, currentTurn + MAX_RESERVATION_TURN_DISTANCE)[0])
     })
 
@@ -331,12 +341,16 @@ export function ActionReservationForm({
             const selectedSlime = slimes.find((s) => s.id === selectedSlimeId)
             // inventory フィールドが Firestore に存在しない既存スライムは [] として扱う
             const inventory = selectedSlime?.inventory ?? []
+            // 予約消費後の実質利用可能数を計算するヘルパー
+            const getAvailableQty = (f: typeof foods[number]) => {
+              if (f.alwaysAvailable) return Infinity
+              const raw = inventory.find((s) => s.foodId === f.id)?.quantity ?? 0
+              return Math.max(0, raw - (reservedFoodQty[f.id] ?? 0))
+            }
             // 所持あり → 先頭、未所持 → 末尾に並べ替え
             const sorted = [...foods].sort((a, b) => {
-              const aQty = inventory.find((s) => s.foodId === a.id)?.quantity ?? 0
-              const bQty = inventory.find((s) => s.foodId === b.id)?.quantity ?? 0
-              const aHas = aQty > 0 || a.alwaysAvailable === true
-              const bHas = bQty > 0 || b.alwaysAvailable === true
+              const aHas = getAvailableQty(a) > 0
+              const bHas = getAvailableQty(b) > 0
               return Number(bHas) - Number(aHas)
             })
             return (
@@ -348,8 +362,9 @@ export function ActionReservationForm({
                 {/* 食料カードグリッド */}
                 <div className="grid grid-cols-4 gap-1.5 max-h-56 overflow-y-auto pr-0.5">
                   {sorted.map((f) => {
-                    const qty = inventory.find((s) => s.foodId === f.id)?.quantity ?? 0
-                    const available = qty > 0 || f.alwaysAvailable === true
+                    const availQty = getAvailableQty(f)
+                    const available = availQty > 0
+                    const reserved = reservedFoodQty[f.id] ?? 0
                     const isSelected = foodId === f.id
                     return (
                       <button
@@ -375,8 +390,11 @@ export function ActionReservationForm({
                           {f.name}
                         </span>
                         <span className={`text-xs font-bold ${available ? 'text-green-700' : 'text-gray-400'}`}>
-                          {f.alwaysAvailable ? '∞' : `×${qty}`}
+                          {f.alwaysAvailable ? '∞' : `×${availQty === Infinity ? '∞' : availQty}`}
                         </span>
+                        {reserved > 0 && (
+                          <span className="text-xs text-orange-500 leading-none">予約{reserved}</span>
+                        )}
                       </button>
                     )
                   })}
@@ -598,11 +616,11 @@ export function ActionReservationForm({
         const plantSlime = slimes.find((s) => s.id === selectedSlimeId)
         const inventory = plantSlime?.inventory ?? []
         // tileAttributeDelta が定義されていてインベントリに1個以上ある食料のみ表示
-        const plantableFoods = foods.filter((f) =>
-          f.tileAttributeDelta &&
-          Object.values(f.tileAttributeDelta).some((v) => v !== 0) &&
-          (inventory.find((s) => s.foodId === f.id)?.quantity ?? 0) > 0
-        )
+        const plantableFoods = foods.filter((f) => {
+          if (!f.tileAttributeDelta || !Object.values(f.tileAttributeDelta).some((v) => v !== 0)) return false
+          const raw = inventory.find((s) => s.foodId === f.id)?.quantity ?? 0
+          return raw - (reservedFoodQty[f.id] ?? 0) > 0
+        })
         const ATTR_LABELS: Record<string, string> = { fire: '🔥火', water: '💧水', earth: '🌍土', wind: '💨風' }
         const selectedFood = plantableFoods.find((f) => f.id === plantFoodId) ?? plantableFoods[0]
         return (
@@ -622,7 +640,9 @@ export function ActionReservationForm({
                   <label className="text-sm font-medium text-gray-600">植える食料</label>
                   <div className="grid grid-cols-3 gap-1.5 max-h-40 overflow-y-auto pr-0.5">
                     {plantableFoods.map((f) => {
-                      const qty = inventory.find((s) => s.foodId === f.id)?.quantity ?? 0
+                      const raw = inventory.find((s) => s.foodId === f.id)?.quantity ?? 0
+                      const reserved = reservedFoodQty[f.id] ?? 0
+                      const qty = Math.max(0, raw - reserved)
                       const isSelected = (plantFoodId || selectedFood?.id) === f.id
                       return (
                         <button
@@ -643,6 +663,9 @@ export function ActionReservationForm({
                           }
                           <span className="text-xs leading-tight text-gray-700 font-medium line-clamp-2 w-full">{f.name}</span>
                           <span className="text-xs font-bold text-emerald-700">×{qty}</span>
+                          {reserved > 0 && (
+                            <span className="text-xs text-orange-500 leading-none">予約{reserved}</span>
+                          )}
                         </button>
                       )
                     })}
