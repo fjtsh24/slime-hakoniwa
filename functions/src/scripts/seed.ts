@@ -88,13 +88,14 @@ async function seed(): Promise<void> {
 
   // ===== 0. Auth Emulator にテストユーザーを作成 =====
   try {
+    const testPassword = process.env.TEST_USER_PASSWORD ?? 'test1234'
     await admin.auth().createUser({
       uid: "test-user-001",
       email: "test@slime.local",
-      password: "test1234",
+      password: testPassword,
       displayName: "テストユーザー",
     });
-    console.log("Auth Emulator にテストユーザーを作成しました: test@slime.local / test1234");
+    console.log("Auth Emulator にテストユーザーを作成しました: test@slime.local");
   } catch (e) {
     const code = (e as { code?: string }).code;
     if (code === "auth/uid-already-exists" || code === "auth/email-already-exists") {
