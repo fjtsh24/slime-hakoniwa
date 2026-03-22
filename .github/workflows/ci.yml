@@ -48,7 +48,10 @@ jobs:
       - name: Build
         run: cd functions && npm run build
       - name: Test with coverage (unit only)
-        run: cd functions && npx jest --testPathPattern="tests/unit" --coverage --forceExit --coverageReporters=html --coverageDirectory=../tests/reports/functions-coverage
+        run: |
+          cd functions && npx jest --testPathPattern="tests/unit" --coverage --forceExit \
+            --coverageReporters=html --coverageDirectory=../tests/reports/functions-coverage \
+            --collectCoverageFrom='["functions/src/**/*.ts","shared/**/*.ts"]'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
