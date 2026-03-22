@@ -1480,31 +1480,26 @@ export async function executeAutonomousAction(slime: Slime): Promise<ActionResul
   }
   const events: ActionResult['events'] = []
 
-  // ── 自動食事（hunger < 40 かつインベントリに食料あり）────────────────
-  if (slime.stats.hunger < 40 && (updatedSlime.inventory?.length ?? 0) > 0) {
-    const slot = updatedSlime.inventory![0]
-    const food = staticFoods.find((f) => f.id === slot.foodId)
-
+  // ── 自動食事（hunger < 40）────────────────────────────────────────────
+  // alwaysAvailable な食料（スライムの欠片）を使用してインベントリを消費しない。
+  // プレイヤーが予約した食料と競合しないようにするため、インベントリは参照しない。
+  if (slime.stats.hunger < 40) {
+    const food = staticFoods.find((f) => f.alwaysAvailable)
     if (food) {
-      const removeResult = removeFromInventory(updatedSlime.inventory!, slot.foodId, 1)
-      if (removeResult.success) {
-        updatedSlime = { ...updatedSlime, inventory: removeResult.inventory }
-        // statDeltas（HP等）を適用。racialDeltas・スキル付与は自立食事では省略。
-        updatedSlime = applyFoodEffects(updatedSlime, food)
-        const hungerBefore = updatedSlime.stats.hunger
-        updatedSlime.stats.hunger = clamp(updatedSlime.stats.hunger + 30, 0, 100)
-        logger.debug('[executeAutonomousAction] 自動食事', {
-          slimeId: slime.id,
-          foodId: food.id,
-          hungerBefore,
-          hungerAfter: updatedSlime.stats.hunger,
-        })
-        events.push({
-          eventType: 'autonomous',
-          eventData: { action: 'auto_eat', foodId: food.id, hunger: slime.stats.hunger },
-        })
-        return { updatedSlime, events }
-      }
+      updatedSlime = applyFoodEffects(updatedSlime, food)
+      const hungerBefore = updatedSlime.stats.hunger
+      updatedSlime.stats.hunger = clamp(updatedSlime.stats.hunger + 30, 0, 100)
+      logger.debug('[executeAutonomousAction] 自動食事（スライムの欠片）', {
+        slimeId: slime.id,
+        foodId: food.id,
+        hungerBefore,
+        hungerAfter: updatedSlime.stats.hunger,
+      })
+      events.push({
+        eventType: 'autonomous',
+        eventData: { action: 'auto_eat', foodId: food.id, hunger: slime.stats.hunger },
+      })
+      return { updatedSlime, events }
     }
   }
 
