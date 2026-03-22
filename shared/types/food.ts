@@ -31,4 +31,6 @@ export interface Food {
    * 省略時は false として扱う
    */
   alwaysAvailable?: boolean;
+  /** アイコン画像の公開パス（/assets/food/... 形式）。未設定の場合は絵文字フォールバック */
+  imageUrl?: string;
 }

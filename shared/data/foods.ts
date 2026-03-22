@@ -1,6 +1,8 @@
 /**
  * 食料マスタデータ
- * FoodCategory ごとに最低2種類ずつ定義
+ *
+ * - FoodCategory ごとに最低2種類ずつ定義
+ * - imageUrl: /assets/food/ 以下の公開パス（素材クレジット → frontend/src/lib/foodIconMap.ts 参照）
  */
 
 import { Food } from "../types";
@@ -17,6 +19,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     alwaysAvailable: true,
+    imageUrl: "/assets/food/fruits/grape.png",
   },
   {
     id: "food-slime-002",
@@ -27,6 +30,7 @@ export const foods: Food[] = [
     racialDeltas: { slime: 0.2 },
     skillGrantId: null,
     skillGrantProb: 0.0,
+    imageUrl: "/assets/food/fruits/blueberry.png",
   },
   {
     id: "food-slime-003",
@@ -37,6 +41,7 @@ export const foods: Food[] = [
     racialDeltas: { slime: 0.15 },
     skillGrantId: "skill-def-001",
     skillGrantProb: 0.1,
+    imageUrl: "/assets/food/fruits/dragon_fruit.png",
   },
 
   // ===== plant 種 =====
@@ -49,6 +54,7 @@ export const foods: Food[] = [
     racialDeltas: { water: 0.05 },
     skillGrantId: null,
     skillGrantProb: 0.0,
+    imageUrl: "/assets/food/plants/herb1.png",
   },
   {
     id: "food-plant-002",
@@ -59,6 +65,7 @@ export const foods: Food[] = [
     racialDeltas: { water: 0.1, plant: 0.05 },
     skillGrantId: null,
     skillGrantProb: 0.0,
+    imageUrl: "/assets/food/plants/herb2.png",
   },
   {
     id: "food-plant-003",
@@ -69,6 +76,121 @@ export const foods: Food[] = [
     racialDeltas: { plant: 0.2, earth: 0.05 },
     skillGrantId: "skill-def-002",
     skillGrantProb: 0.08,
+    imageUrl: "/assets/food/plants/nut1.png",
+  },
+
+  // ===== フルーツ（gather で入手・plant カテゴリ） =====
+  {
+    id: "food-fruit-001",
+    name: "リンゴ",
+    description: "みずみずしいリンゴ。HP を回復し、plant 種族値が少し上がる。",
+    category: "plant",
+    statDeltas: { hp: 3 },
+    racialDeltas: { water: 0.03, plant: 0.03 },
+    skillGrantId: null,
+    skillGrantProb: 0.0,
+    imageUrl: "/assets/food/fruits/apple.png",
+  },
+  {
+    id: "food-fruit-002",
+    name: "バナナ",
+    description: "エネルギー豊富なバナナ。HP と EXP が回復し、beast 種族値も少し上がる。",
+    category: "plant",
+    statDeltas: { hp: 2, exp: 2 },
+    racialDeltas: { plant: 0.04, beast: 0.02 },
+    skillGrantId: null,
+    skillGrantProb: 0.0,
+    imageUrl: "/assets/food/fruits/banana.png",
+  },
+  {
+    id: "food-fruit-003",
+    name: "イチゴ",
+    description: "甘酸っぱいイチゴ。素早さが上がり、spirit 種族値も少し伸びる。",
+    category: "plant",
+    statDeltas: { hp: 2, spd: 1 },
+    racialDeltas: { plant: 0.04, spirit: 0.02 },
+    skillGrantId: null,
+    skillGrantProb: 0.0,
+    imageUrl: "/assets/food/fruits/strawberry.png",
+  },
+  {
+    id: "food-fruit-004",
+    name: "メロン",
+    description: "高級なメロン。たっぷりの HP 回復と plant 種族値の大幅上昇。",
+    category: "plant",
+    statDeltas: { hp: 6 },
+    racialDeltas: { plant: 0.1, water: 0.05 },
+    skillGrantId: null,
+    skillGrantProb: 0.0,
+    imageUrl: "/assets/food/fruits/melon.png",
+  },
+  {
+    id: "food-fruit-005",
+    name: "サクランボ",
+    description: "真っ赤な宝石のようなサクランボ。ATK が上がり、fire 種族値も少し伸びる。",
+    category: "plant",
+    statDeltas: { hp: 2, atk: 1 },
+    racialDeltas: { fire: 0.03, plant: 0.04 },
+    skillGrantId: null,
+    skillGrantProb: 0.0,
+    imageUrl: "/assets/food/fruits/cherry.png",
+  },
+  {
+    id: "food-fruit-006",
+    name: "スイカ",
+    description: "みずみずしいスイカ。HP を大きく回復し、水属性種族値が上がる。",
+    category: "plant",
+    statDeltas: { hp: 5 },
+    racialDeltas: { water: 0.08, plant: 0.03 },
+    skillGrantId: null,
+    skillGrantProb: 0.0,
+    imageUrl: "/assets/food/fruits/watermelon.png",
+  },
+  {
+    id: "food-fruit-007",
+    name: "レモン",
+    description: "酸っぱいレモン。素早さと EXP が大きく上がり、wind 種族値も伸びる。",
+    category: "plant",
+    statDeltas: { spd: 2, exp: 3 },
+    racialDeltas: { wind: 0.04, plant: 0.03 },
+    skillGrantId: null,
+    skillGrantProb: 0.0,
+    imageUrl: "/assets/food/fruits/lemon.png",
+  },
+
+  // ===== キノコ（gather で入手・plant カテゴリ） =====
+  {
+    id: "food-mush-001",
+    name: "きのこ",
+    description: "森で採れた普通のきのこ。HP が回復し、earth 種族値が少し上がる。",
+    category: "plant",
+    statDeltas: { hp: 3 },
+    racialDeltas: { earth: 0.05, plant: 0.03 },
+    skillGrantId: null,
+    skillGrantProb: 0.0,
+    imageUrl: "/assets/food/plants/mushroom1.png",
+  },
+  {
+    id: "food-mush-002",
+    name: "毒きのこ",
+    description: "危険な色の毒きのこ。ATK が大きく上がるが、fire 種族値の影響が強い。",
+    category: "plant",
+    statDeltas: { atk: 5, exp: 5 },
+    racialDeltas: { fire: 0.05, earth: 0.03 },
+    skillGrantId: null,
+    skillGrantProb: 0.0,
+    imageUrl: "/assets/food/plants/mushroom2.png",
+  },
+  {
+    id: "food-mush-003",
+    name: "霊きのこ",
+    description: "幻想的に光る霊きのこ。大量の EXP と DEF が得られ、spirit 種族値も上がる。",
+    category: "plant",
+    statDeltas: { exp: 10, def: 2 },
+    racialDeltas: { spirit: 0.05, earth: 0.05 },
+    skillGrantId: null,
+    skillGrantProb: 0.0,
+    imageUrl: "/assets/food/plants/mushroom3.png",
   },
 
   // ===== human 種 =====
@@ -81,6 +203,7 @@ export const foods: Food[] = [
     racialDeltas: { human: 0.1 },
     skillGrantId: null,
     skillGrantProb: 0.0,
+    imageUrl: "/assets/food/prepared/preserved_meat.png",
   },
   {
     id: "food-human-002",
@@ -91,6 +214,7 @@ export const foods: Food[] = [
     racialDeltas: { human: 0.15 },
     skillGrantId: "skill-def-003",
     skillGrantProb: 0.05,
+    imageUrl: "/assets/food/prepared/bread.png",
   },
 
   // ===== beast 種 =====
@@ -103,6 +227,7 @@ export const foods: Food[] = [
     racialDeltas: { beast: 0.1 },
     skillGrantId: null,
     skillGrantProb: 0.0,
+    imageUrl: "/assets/food/prepared/meat.png",
   },
   {
     id: "food-beast-002",
@@ -113,6 +238,7 @@ export const foods: Food[] = [
     racialDeltas: { beast: 0.25, fire: 0.05 },
     skillGrantId: "skill-def-004",
     skillGrantProb: 0.12,
+    imageUrl: "/assets/food/fruits/persimmon.png",
   },
 
   // ===== spirit 種 =====
@@ -125,6 +251,7 @@ export const foods: Food[] = [
     racialDeltas: { spirit: 0.1, wind: 0.05 },
     skillGrantId: null,
     skillGrantProb: 0.0,
+    imageUrl: "/assets/food/fruits/peaches.png",
   },
   {
     id: "food-spirit-002",
@@ -135,6 +262,7 @@ export const foods: Food[] = [
     racialDeltas: { spirit: 0.2 },
     skillGrantId: "skill-def-005",
     skillGrantProb: 0.15,
+    imageUrl: "/assets/food/fruits/kiwi_fruit.png",
   },
 
   // ===== fish 種 =====
@@ -147,6 +275,7 @@ export const foods: Food[] = [
     racialDeltas: { fish: 0.1, water: 0.05 },
     skillGrantId: null,
     skillGrantProb: 0.0,
+    imageUrl: "/assets/food/prepared/fish_river.png",
   },
   {
     id: "food-fish-002",
@@ -157,6 +286,7 @@ export const foods: Food[] = [
     racialDeltas: { fish: 0.2, water: 0.1 },
     skillGrantId: "skill-def-006",
     skillGrantProb: 0.1,
+    imageUrl: "/assets/food/prepared/fish_deep.png",
   },
 
   // ===== spirit ドロップ食料（Phase 6 W2: spirit モンスター由来）=====
@@ -169,6 +299,7 @@ export const foods: Food[] = [
     racialDeltas: { spirit: 0.05 },
     skillGrantId: null,
     skillGrantProb: 0.0,
+    imageUrl: "/assets/food/fruits/apricot.png",
   },
   {
     id: "food-spirit-drop-weak-002",
@@ -179,6 +310,7 @@ export const foods: Food[] = [
     racialDeltas: { spirit: 0.05, wind: 0.02 },
     skillGrantId: null,
     skillGrantProb: 0.0,
+    imageUrl: "/assets/food/fruits/japanese_pear.png",
   },
   {
     id: "food-spirit-drop-normal-001",
@@ -189,6 +321,7 @@ export const foods: Food[] = [
     racialDeltas: { spirit: 0.1, wind: 0.05 },
     skillGrantId: null,
     skillGrantProb: 0.0,
+    imageUrl: "/assets/food/fruits/pear.png",
   },
   {
     id: "food-spirit-drop-normal-002",
@@ -199,6 +332,7 @@ export const foods: Food[] = [
     racialDeltas: { spirit: 0.12 },
     skillGrantId: null,
     skillGrantProb: 0.0,
+    imageUrl: "/assets/food/fruits/grape_fruit.png",
   },
   {
     id: "food-spirit-drop-strong-001",
@@ -209,6 +343,7 @@ export const foods: Food[] = [
     racialDeltas: { spirit: 0.25, wind: 0.1 },
     skillGrantId: null,
     skillGrantProb: 0.0,
+    imageUrl: "/assets/food/fruits/mango.png",
   },
   {
     id: "food-spirit-drop-strong-002",
@@ -219,6 +354,7 @@ export const foods: Food[] = [
     racialDeltas: { spirit: 0.3 },
     skillGrantId: null,
     skillGrantProb: 0.0,
+    imageUrl: "/assets/food/fruits/pineapple.png",
   },
 
   // ===== slime ドロップ食料（Phase 6 W2: slime モンスター由来）=====
@@ -231,6 +367,7 @@ export const foods: Food[] = [
     racialDeltas: { slime: 0.05 },
     skillGrantId: null,
     skillGrantProb: 0.0,
+    imageUrl: "/assets/food/fruits/green_apple.png",
   },
   {
     id: "food-slime-drop-weak-002",
@@ -241,6 +378,7 @@ export const foods: Food[] = [
     racialDeltas: { slime: 0.05 },
     skillGrantId: null,
     skillGrantProb: 0.0,
+    imageUrl: "/assets/food/fruits/blueberry_jam.png",
   },
   {
     id: "food-slime-drop-normal-001",
@@ -251,6 +389,7 @@ export const foods: Food[] = [
     racialDeltas: { slime: 0.12 },
     skillGrantId: null,
     skillGrantProb: 0.0,
+    imageUrl: "/assets/food/fruits/mandarin_orange.png",
   },
   {
     id: "food-slime-drop-normal-002",
@@ -261,6 +400,7 @@ export const foods: Food[] = [
     racialDeltas: { slime: 0.15 },
     skillGrantId: null,
     skillGrantProb: 0.0,
+    imageUrl: "/assets/food/fruits/strawberry_jam.png",
   },
   {
     id: "food-slime-drop-strong-001",
@@ -271,6 +411,7 @@ export const foods: Food[] = [
     racialDeltas: { slime: 0.3 },
     skillGrantId: null,
     skillGrantProb: 0.0,
+    imageUrl: "/assets/food/fruits/marmalade.png",
   },
   {
     id: "food-slime-drop-strong-002",
@@ -281,5 +422,6 @@ export const foods: Food[] = [
     racialDeltas: { slime: 0.4 },
     skillGrantId: null,
     skillGrantProb: 0.0,
+    imageUrl: "/assets/food/fruits/tomato.png",
   },
 ];

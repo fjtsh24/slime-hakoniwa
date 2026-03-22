@@ -11,6 +11,11 @@ import {
 } from '../../../../shared/constants/game'
 import { createLogger } from '../../lib/logger'
 
+/** カテゴリの日本語ラベル */
+const CATEGORY_LABELS: Record<string, string> = {
+  slime: 'スライム', plant: '植物', human: '人間', beast: '獣', spirit: '精霊', fish: '魚',
+}
+
 const logger = createLogger('ActionReservationForm')
 
 /** タイル属性から支配属性と期待できる食料カテゴリを返す */
@@ -282,29 +287,56 @@ export function ActionReservationForm({
             const selectedSlime = slimes.find((s) => s.id === selectedSlimeId)
             // inventory フィールドが Firestore に存在しない既存スライムは [] として扱う
             const inventory = selectedSlime?.inventory ?? []
+            // 所持あり → 先頭、未所持 → 末尾に並べ替え
+            const sorted = [...foods].sort((a, b) => {
+              const aQty = inventory.find((s) => s.foodId === a.id)?.quantity ?? 0
+              const bQty = inventory.find((s) => s.foodId === b.id)?.quantity ?? 0
+              const aHas = aQty > 0 || a.alwaysAvailable === true
+              const bHas = bQty > 0 || b.alwaysAvailable === true
+              return Number(bHas) - Number(aHas)
+            })
             return (
               <>
                 <p className="text-xs text-gray-500 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
                   インベントリに所持している食料のみ食べられます。
                   gather・fish・hunt で食料を獲得してから食べましょう。
                 </p>
-                <select
-                  value={foodId}
-                  onChange={(e) => setFoodId(e.target.value)}
-                  className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                  required
-                >
-                  {foods.map((f) => {
+                {/* 食料カードグリッド */}
+                <div className="grid grid-cols-4 gap-1.5 max-h-56 overflow-y-auto pr-0.5">
+                  {sorted.map((f) => {
                     const qty = inventory.find((s) => s.foodId === f.id)?.quantity ?? 0
-                    const hasItem = qty > 0 || f.alwaysAvailable === true
+                    const available = qty > 0 || f.alwaysAvailable === true
+                    const isSelected = foodId === f.id
                     return (
-                      <option key={f.id} value={f.id} disabled={!hasItem}>
-                        {f.name}（{f.category}）{f.alwaysAvailable ? ' ×∞' : ` ×${qty}`}
-                        {!hasItem ? ' ─ 未所持' : ''}
-                      </option>
+                      <button
+                        key={f.id}
+                        type="button"
+                        disabled={!available}
+                        onClick={() => setFoodId(f.id)}
+                        className={[
+                          'flex flex-col items-center gap-0.5 p-1.5 rounded-lg border text-center transition-all',
+                          isSelected
+                            ? 'border-green-500 bg-green-50 ring-2 ring-green-300 shadow-sm'
+                            : available
+                              ? 'border-gray-200 bg-white hover:border-green-300 hover:bg-green-50'
+                              : 'border-gray-100 bg-gray-50 opacity-35 cursor-not-allowed',
+                        ].join(' ')}
+                        title={f.name}
+                      >
+                        {f.imageUrl
+                          ? <img src={f.imageUrl} alt={f.name} className="w-9 h-9 object-contain" loading="lazy" />
+                          : <span className="w-9 h-9 flex items-center justify-center text-2xl">🍽️</span>
+                        }
+                        <span className="text-xs leading-tight text-gray-700 font-medium line-clamp-2 w-full">
+                          {f.name}
+                        </span>
+                        <span className={`text-xs font-bold ${available ? 'text-green-700' : 'text-gray-400'}`}>
+                          {f.alwaysAvailable ? '∞' : `×${qty}`}
+                        </span>
+                      </button>
                     )
                   })}
-                </select>
+                </div>
               </>
             )
           })()}
@@ -319,17 +351,26 @@ export function ActionReservationForm({
               .filter(([, v]) => v !== undefined && v !== 0)
               .map(([k, v]) => `${k}+${v}`)
             return (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-xs text-gray-600 flex flex-col gap-1">
-                <p className="text-gray-500 italic">{selected.description}</p>
-                {statLines.length > 0 && (
-                  <p><span className="font-medium text-green-700">ステータス: </span>{statLines.join(' / ')}</p>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-xs text-gray-600 flex gap-3">
+                {selected.imageUrl && (
+                  <img src={selected.imageUrl} alt={selected.name} className="w-12 h-12 object-contain flex-shrink-0" />
                 )}
-                {racialLines.length > 0 && (
-                  <p><span className="font-medium text-blue-700">種族値: </span>{racialLines.join(' / ')}</p>
-                )}
-                {selected.skillGrantProb > 0 && (
-                  <p><span className="font-medium text-purple-700">スキル習得確率: </span>{Math.round(selected.skillGrantProb * 100)}%</p>
-                )}
+                <div className="flex flex-col gap-1 min-w-0">
+                  <p className="font-medium text-gray-800">
+                    {selected.name}
+                    <span className="ml-1.5 text-gray-400 font-normal">{CATEGORY_LABELS[selected.category] ?? selected.category}</span>
+                  </p>
+                  <p className="text-gray-500 italic">{selected.description}</p>
+                  {statLines.length > 0 && (
+                    <p><span className="font-medium text-green-700">ステータス: </span>{statLines.join(' / ')}</p>
+                  )}
+                  {racialLines.length > 0 && (
+                    <p><span className="font-medium text-blue-700">種族値: </span>{racialLines.join(' / ')}</p>
+                  )}
+                  {selected.skillGrantProb > 0 && (
+                    <p><span className="font-medium text-purple-700">スキル習得確率: </span>{Math.round(selected.skillGrantProb * 100)}%</p>
+                  )}
+                </div>
               </div>
             )
           })()}

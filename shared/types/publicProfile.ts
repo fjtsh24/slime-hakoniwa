@@ -39,6 +39,8 @@ export interface PublicProfile {
   lastHandleChangedAt: Date | null;
   /** 最終更新日時 */
   updatedAt: Date;
+  /** プレイヤーのマップID（公開API レスポンスでのみ返す・Firestoreドキュメントには含まない） */
+  mapId?: string | null;
 }
 
 /**

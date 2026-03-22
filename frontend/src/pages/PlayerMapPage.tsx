@@ -1,13 +1,9 @@
-import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
+import { usePublicProfile } from '../hooks/usePublicProfile'
+import { WorldMapPanel } from '../components/world/WorldMapPanel'
 import { slimeSpecies } from '../../../shared/data/slimeSpecies'
-import type { SlimeSummary } from '../../../shared/types/publicProfile'
-
-interface PublicProfileData {
-  publicHandle: string
-  displayName: string
-  slimeSummaries: SlimeSummary[]
-}
+import type { Slime } from '../../../shared/types/slime'
 
 function getSpeciesName(speciesId: string): string {
   return slimeSpecies.find((s) => s.id === speciesId)?.name ?? speciesId
@@ -15,31 +11,7 @@ function getSpeciesName(speciesId: string): string {
 
 export function PlayerMapPage() {
   const { handle } = useParams<{ handle: string }>()
-  const [profile, setProfile] = useState<PublicProfileData | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!handle) return
-    setIsLoading(true)
-    setError(null)
-
-    fetch(`/api/public/players/${encodeURIComponent(handle)}`)
-      .then(async (res) => {
-        if (res.status === 404) {
-          setError('プレイヤーが見つかりません')
-          return
-        }
-        if (!res.ok) {
-          setError('プロフィールの取得に失敗しました')
-          return
-        }
-        const data = await res.json() as PublicProfileData
-        setProfile(data)
-      })
-      .catch(() => setError('通信エラーが発生しました'))
-      .finally(() => setIsLoading(false))
-  }, [handle])
+  const { profile, isLoading, error } = usePublicProfile(handle)
 
   if (isLoading) {
     return (
@@ -65,6 +37,24 @@ export function PlayerMapPage() {
     )
   }
 
+  // slimeSummaries を WorldMapPanel が受け取る Slime 型に変換（readonly 表示用）
+  const slimesForMap: Slime[] = profile.slimeSummaries.map((s) => ({
+    id: s.id,
+    ownerUid: null,
+    mapId: profile.mapId ?? '',
+    worldId: '',
+    speciesId: s.speciesId,
+    tileX: 0,
+    tileY: 0,
+    name: s.name,
+    stats: { ...s.stats, exp: 0, hunger: 0 },
+    racialValues: { fire: 0, water: 0, earth: 0, wind: 0, slime: 0, plant: 0, human: 0, beast: 0, spirit: 0, fish: 0 },
+    isWild: false,
+    color: s.color ?? undefined,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }))
+
   return (
     <div className="min-h-screen bg-green-50">
       <header className="bg-green-700 text-white shadow px-4 py-3 flex items-center gap-3">
@@ -81,16 +71,21 @@ export function PlayerMapPage() {
 
       <main className="max-w-2xl mx-auto px-4 py-8 flex flex-col gap-6">
 
-        {/* マップ表示エリア（準備中） */}
-        {/* TODO(Phase7): mapId を公開APIに追加し WorldMapPanel を表示する */}
-        {/* TODO(Phase7): fetch ロジック・スライム一覧を PlayerProfilePage と共通フック usePublicProfile(handle) に切り出す */}
-        <section className="bg-white rounded-xl shadow p-8 text-center">
-          <div className="text-4xl mb-3">🗺️</div>
-          <p className="text-gray-600 font-medium mb-1">マップ閲覧機能は準備中です</p>
-          <p className="text-xs text-gray-400">
-            将来のアップデートでこのプレイヤーのワールドマップを閲覧できるようになります
-          </p>
-        </section>
+        {/* マップ表示（mapId が取得できた場合は WorldMapPanel を表示） */}
+        {profile.mapId ? (
+          <WorldMapPanel
+            mapId={profile.mapId}
+            slimes={slimesForMap}
+          />
+        ) : (
+          <section className="bg-white rounded-xl shadow p-8 text-center">
+            <div className="text-4xl mb-3">🗺️</div>
+            <p className="text-gray-600 font-medium mb-1">マップを読み込めませんでした</p>
+            <p className="text-xs text-gray-400">
+              このプレイヤーのマップ情報が見つかりません
+            </p>
+          </section>
+        )}
 
         {/* スライム一覧 */}
         <section className="bg-white rounded-xl shadow p-5">
