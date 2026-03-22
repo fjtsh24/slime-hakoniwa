@@ -15,7 +15,7 @@
 import * as admin from 'firebase-admin'
 import { processDueTurns } from '../../functions/src/scheduled/turnProcessor'
 import type { World } from '../../shared/types/world'
-import type { Slime, SlimeStats, RacialValues } from '../../shared/types/slime'
+import type { Slime } from '../../shared/types/slime'
 import type { ActionReservation } from '../../shared/types/action'
 import type { TurnLog } from '../../shared/types/turnLog'
 import { INVENTORY_MAX_SLOTS } from '../../shared/constants/game'

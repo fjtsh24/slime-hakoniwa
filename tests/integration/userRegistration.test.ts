@@ -132,7 +132,7 @@ function createTestUserRecord(overrides?: Partial<MockUserRecord>): MockUserReco
   return {
     uid: overrides?.uid ?? 'user-integration-test-001',
     email: overrides?.email ?? 'integration-test@example.com',
-    displayName: overrides?.displayName ?? '統合テストユーザー',
+    displayName: overrides && 'displayName' in overrides ? overrides.displayName : '統合テストユーザー',
   }
 }
 
