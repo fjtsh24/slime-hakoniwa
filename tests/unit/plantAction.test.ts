@@ -11,6 +11,13 @@
  *       テストは TDD 方針に従い先行作成。
  */
 
+const mockBatch = {
+  set: jest.fn(),
+  update: jest.fn(),
+  delete: jest.fn(),
+  commit: jest.fn().mockResolvedValue(undefined),
+}
+
 jest.mock('firebase-admin', () => ({
   firestore: jest.fn(() => ({
     collection: jest.fn(() => ({
@@ -18,6 +25,7 @@ jest.mock('firebase-admin', () => ({
         get: jest.fn().mockResolvedValue({ exists: false, data: () => undefined }),
       })),
     })),
+    batch: jest.fn(() => mockBatch),
   })),
   initializeApp: jest.fn(),
   apps: [],
