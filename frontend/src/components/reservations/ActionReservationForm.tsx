@@ -110,6 +110,7 @@ export function ActionReservationForm({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [currentTile, setCurrentTile] = useState<Tile | null>(null)
+  const [tileLoading, setTileLoading] = useState(true)
 
   // マップタイルクリック → move 座標オートセット
   useEffect(() => {
@@ -129,16 +130,27 @@ export function ActionReservationForm({
   useEffect(() => {
     if (!slimeMapId || slimeTileX === undefined || slimeTileY === undefined) {
       setCurrentTile(null)
+      setTileLoading(false)
       return
     }
 
-    const unsubscribe = onSnapshot(
+    setTileLoading(true)
+    const q = query(
       collection(db, 'maps', slimeMapId, 'tiles'),
+      where('x', '==', slimeTileX),
+      where('y', '==', slimeTileY),
+    )
+    const unsubscribe = onSnapshot(
+      q,
       (snap) => {
-        const tile = snap.docs
-          .map((d) => d.data() as Tile)
-          .find((t) => t.x === slimeTileX && t.y === slimeTileY) ?? null
-        setCurrentTile(tile)
+        const tile = snap.docs[0]?.data() as Tile | undefined
+        setCurrentTile(tile ?? null)
+        setTileLoading(false)
+      },
+      (err) => {
+        logger.error('タイル購読エラー', { mapId: slimeMapId, x: slimeTileX, y: slimeTileY, error: err.message })
+        setCurrentTile(null)
+        setTileLoading(false)
       }
     )
     return () => unsubscribe()
@@ -388,7 +400,9 @@ export function ActionReservationForm({
       {actionType === 'gather' && (
         <div className="flex flex-col gap-1 text-xs bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
           <p className="text-gray-600">現在地のタイル属性に応じた食料を採集します。</p>
-          {currentTile ? (() => {
+          {tileLoading ? (
+            <p className="text-gray-400">タイル情報を読み込み中...</p>
+          ) : currentTile ? (() => {
             const { label, category } = getGatherHint(currentTile.attributes)
             const attrs = currentTile.attributes
             return (
@@ -407,7 +421,7 @@ export function ActionReservationForm({
               </>
             )
           })() : (
-            <p className="text-gray-400">タイル情報を読み込み中...</p>
+            <p className="text-red-500 text-xs">タイル情報を取得できませんでした</p>
           )}
         </div>
       )}
@@ -415,7 +429,9 @@ export function ActionReservationForm({
       {actionType === 'fish' && (
         <div className="flex flex-col gap-1 text-xs bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
           <p className="text-gray-600">水属性のタイルで釣りをします。成功すると魚系食料（fish 種族値・SPD 強化）が手に入ります。</p>
-          {currentTile ? (() => {
+          {tileLoading ? (
+            <p className="text-gray-400">タイル情報を読み込み中...</p>
+          ) : currentTile ? (() => {
             const water = currentTile.attributes.water
             const canFish = water >= 0.3
             return (
@@ -427,7 +443,7 @@ export function ActionReservationForm({
               </p>
             )
           })() : (
-            <p className="text-gray-400">タイル情報を読み込み中...</p>
+            <p className="text-red-500 text-xs">タイル情報を取得できませんでした</p>
           )}
           <p className="text-gray-500">失敗した場合はターンを消費するだけになります。</p>
         </div>
