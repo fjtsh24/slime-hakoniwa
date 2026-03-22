@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from './stores/authStore'
 import { useUserStore } from './stores/userStore'
+import { trackPageView } from './lib/analytics'
 import { LoginPage } from './components/auth/LoginPage'
 import { GamePage } from './pages/GamePage'
 import { SetupPage } from './pages/SetupPage'
@@ -16,6 +17,11 @@ function AppRoutes() {
   const user = useAuthStore((s) => s.user)
   const isAuthLoading = useAuthStore((s) => s.isLoading)
   const { userProfile, isLoading: isUserLoading, subscribe, cleanup } = useUserStore()
+  const location = useLocation()
+
+  useEffect(() => {
+    trackPageView(location.pathname)
+  }, [location.pathname])
 
   // 認証状態が確定したらuserProfileの購読を開始・停止する
   useEffect(() => {

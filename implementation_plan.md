@@ -10,7 +10,7 @@
 | Phase 4 | 進化・分裂・融合 | 3週間 | ✅ 完了 |
 | Phase 5 | マップ描画・UI完成 | 3週間 | ✅ 完了 |
 | Phase 6 | ソーシャル・野生スライム | 2週間 | ✅ 完了 |
-| Phase 7 | チューニング・リリース準備 | 2週間 | 進行中 |
+| Phase 7 | チューニング・リリース準備 | 2週間 | ✅ 完了 |
 | Phase 8 | タイル属性操作・パス統一 | 4週間 | 未着手 |
 
 ---
@@ -505,15 +505,22 @@
   - SlimeSpecies に `illustrationUrl?: string` 追加
   - 図鑑ページ（EncyclopediaPage）に立ち絵表示・14種族対応進化ツリー
 
-- [ ] **SVG タイルグラデーション**（タイルリッチ化 Tier 1）
+- [x] **SVG タイルグラデーション**（タイルリッチ化 Tier 1）
   - `<defs>` に属性別 `<linearGradient>` 定義
   - ベタ色 → グラデーションで奥行き感
 
 #### その他 Phase 7 タスク
 
-- [ ] Google Analytics 実装（`VITE_GA_MEASUREMENT_ID`）
-- [ ] テストカバレッジ最終確認（コアロジック80%以上）
-- [ ] セキュリティルール最終レビュー
+- [x] Google Analytics 実装（`VITE_GA_MEASUREMENT_ID`）
+- [x] テストカバレッジ最終確認（コアロジック80%以上、+26件追加）
+- [x] セキュリティルール最終レビュー（`docs/security_review/phase_7_final.md`）
+
+#### Phase 7 残課題（Phase 8 以降）
+
+- [ ] earth グラデーション配色の見直し（#228b22→#8b6914 が草地/泥地で曖昧になる場面への対応、A1/Fun M-1）
+- [ ] GA 追加推奨イベント実装（`reservation_complete`・`slime_evolution`・`first_reservation` 等 6件、`docs/fun_review/phase_7_final.md` 参照）
+- [ ] レートリミット設定（公開エンドポイント、A2/Sec S-1）
+- [ ] `/slimes/{slimeId}` 読み取り範囲の最小化（A2/Sec S-2）
 
 ### タイルグラフィック専門家依頼（Phase 8 以降）
 
