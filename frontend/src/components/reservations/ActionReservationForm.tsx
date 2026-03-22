@@ -130,6 +130,7 @@ export function ActionReservationForm({
     const inventory = slime?.inventory ?? []
     const first = foods.find((f) => {
       if (!f.tileAttributeDelta || !Object.values(f.tileAttributeDelta).some((v) => v !== 0)) return false
+      if (f.alwaysAvailable) return true
       const rawQty = inventory.find((s) => s.foodId === f.id)?.quantity ?? 0
       return rawQty - (reservedFoodQty[f.id] ?? 0) > 0
     })
@@ -618,6 +619,7 @@ export function ActionReservationForm({
         // tileAttributeDelta が定義されていてインベントリに1個以上ある食料のみ表示
         const plantableFoods = foods.filter((f) => {
           if (!f.tileAttributeDelta || !Object.values(f.tileAttributeDelta).some((v) => v !== 0)) return false
+          if (f.alwaysAvailable) return true
           const raw = inventory.find((s) => s.foodId === f.id)?.quantity ?? 0
           return raw - (reservedFoodQty[f.id] ?? 0) > 0
         })
@@ -641,8 +643,8 @@ export function ActionReservationForm({
                   <div className="grid grid-cols-3 gap-1.5 max-h-40 overflow-y-auto pr-0.5">
                     {plantableFoods.map((f) => {
                       const raw = inventory.find((s) => s.foodId === f.id)?.quantity ?? 0
-                      const reserved = reservedFoodQty[f.id] ?? 0
-                      const qty = Math.max(0, raw - reserved)
+                      const reserved = f.alwaysAvailable ? 0 : (reservedFoodQty[f.id] ?? 0)
+                      const qty = f.alwaysAvailable ? Infinity : Math.max(0, raw - reserved)
                       const isSelected = (plantFoodId || selectedFood?.id) === f.id
                       return (
                         <button
@@ -662,7 +664,7 @@ export function ActionReservationForm({
                             : <span className="w-9 h-9 flex items-center justify-center text-2xl">🌿</span>
                           }
                           <span className="text-xs leading-tight text-gray-700 font-medium line-clamp-2 w-full">{f.name}</span>
-                          <span className="text-xs font-bold text-emerald-700">×{qty}</span>
+                          <span className="text-xs font-bold text-emerald-700">{qty === Infinity ? '∞' : `×${qty}`}</span>
                           {reserved > 0 && (
                             <span className="text-xs text-orange-500 leading-none">予約{reserved}</span>
                           )}

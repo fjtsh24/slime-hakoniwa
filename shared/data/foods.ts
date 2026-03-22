@@ -12,7 +12,7 @@ export const foods: Food[] = [
   {
     id: "food-slime-001",
     name: "スライムの欠片",
-    description: "スライムの体から落ちた小さな欠片。スライム系の種族値が少し上がる。",
+    description: "スライムの体から落ちた小さな欠片。スライム系の種族値が少し上がる。タイルに植えると全属性をわずかに弱める。",
     category: "slime",
     statDeltas: {},
     racialDeltas: { slime: 0.1 },
@@ -20,6 +20,7 @@ export const foods: Food[] = [
     skillGrantProb: 0.0,
     alwaysAvailable: true,
     imageUrl: "/assets/food/fruits/grape.png",
+    tileAttributeDelta: { fire: -0.02, water: -0.02, earth: -0.02, wind: -0.02 },
   },
   {
     id: "food-slime-002",
