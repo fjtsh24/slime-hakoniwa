@@ -119,7 +119,26 @@ async function seed(): Promise<void> {
   });
   console.log("ワールドを作成しました: world-001");
 
-  // ===== 2. マップ =====
+  // ===== 2. ユーザープロファイル（authTrigger が非同期のため seed で直接作成） =====
+  // authTrigger.onUserCreate はランダム mapId を割り当てるが、seed では map-001 を固定で使う。
+  // authTrigger の idempotency チェック（userSnap.exists）により二重作成は防がれる。
+  const userProfileRef = db.collection("users").doc("test-user-001");
+  const userProfileSnap = await userProfileRef.get();
+  if (!userProfileSnap.exists) {
+    await userProfileRef.set({
+      uid: "test-user-001",
+      displayName: "テストユーザー",
+      email: "test@slime.local",
+      mapId: "map-001",
+      createdAt: admin.firestore.Timestamp.fromDate(now),
+      updatedAt: admin.firestore.Timestamp.fromDate(now),
+    });
+    console.log("ユーザープロファイルを作成しました: users/test-user-001 (mapId=map-001)");
+  } else {
+    console.log("ユーザープロファイルは既に存在します（スキップ）");
+  }
+
+  // ===== 3. マップ =====
   const mapRef = db.collection("maps").doc("map-001");
   await mapRef.set({
     id: "map-001",
@@ -265,9 +284,10 @@ async function seed(): Promise<void> {
 
   console.log("\nシードデータの投入が完了しました！");
   console.log("投入件数:");
+  console.log("  - ユーザープロファイル: 1件 (mapId=map-001)");
   console.log("  - ワールド: 1件");
   console.log("  - マップ: 1件");
-  console.log("  - タイル: 100件");
+  console.log("  - タイル: 100件（/tiles/ + maps/map-001/tiles/ 両パス）");
   console.log("  - スライム（テストユーザー所有）: 3件");
   console.log("  - スライム（野生）: 2件");
 }
