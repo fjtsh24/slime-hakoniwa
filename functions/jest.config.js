@@ -15,6 +15,8 @@ module.exports = {
     }],
   },
   moduleNameMapper: {
+    '^firebase-admin$': '<rootDir>/functions/node_modules/firebase-admin/lib/index.js',
+    '^firebase-admin/firestore$': '<rootDir>/functions/node_modules/firebase-admin/lib/firestore/index.js',
     '^@shared/(.*)$': '<rootDir>/shared/$1',
   },
   moduleDirectories: [

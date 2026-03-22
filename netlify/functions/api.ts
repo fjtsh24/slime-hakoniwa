@@ -7,6 +7,8 @@ import { verifyIdToken } from './helpers/auth'
 import {
   createReservationSchema,
   deleteReservationSchema,
+  registerHandleSchema,
+  publicHandleParamSchema,
 } from './helpers/validation'
 import { logger } from '../../shared/lib/logger'
 import {
@@ -397,6 +399,289 @@ const handler: Handler = async (event): Promise<HandlerResponse> => {
       logger.error('[API] 初期スライム作成エラー', { method, path, uid, error: String(slimeError) })
       return jsonResponse(500, { error: 'サーバーエラーが発生しました' })
     }
+  }
+
+  // =========================================================
+  // GET /public/encyclopedia — スライム図鑑（認証不要）
+  // =========================================================
+  if (method === 'GET' && path === '/public/encyclopedia') {
+    const publicSpecies = slimeSpecies.map((s) => ({
+      id: s.id,
+      name: s.name,
+      description: s.description,
+      baseStats: {
+        hp: s.baseStats.hp,
+        atk: s.baseStats.atk,
+        def: s.baseStats.def,
+        spd: s.baseStats.spd,
+      },
+      evolutionConditions: s.evolutionConditions.map((ec) => ({
+        targetSpeciesId: ec.targetSpeciesId,
+      })),
+    }))
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=300, s-maxage=3600',
+      },
+      body: JSON.stringify({ species: publicSpecies }),
+    }
+  }
+
+  // =========================================================
+  // GET /public/players/:handle — プレイヤー公開プロフィール（認証不要）
+  // =========================================================
+  const publicPlayerMatch = path.match(/^\/public\/players\/(.+)$/)
+  if (method === 'GET' && publicPlayerMatch) {
+    const paramResult = publicHandleParamSchema.safeParse({ handle: publicPlayerMatch[1] })
+    if (!paramResult.success) {
+      return jsonResponse(400, { error: 'ハンドルの形式が不正です' })
+    }
+    const { handle } = paramResult.data
+
+    // publicHandles/{handle} から uid を逆引き
+    const handleDoc = await db.collection('publicHandles').doc(handle).get()
+    if (!handleDoc.exists) {
+      return jsonResponse(404, { error: 'プレイヤーが見つかりません' })
+    }
+    const uid = (handleDoc.data() as { uid: string }).uid
+
+    // publicProfiles/{uid} を取得
+    const profileDoc = await db.collection('publicProfiles').doc(uid).get()
+    if (!profileDoc.exists) {
+      return jsonResponse(404, { error: 'プロフィールが見つかりません' })
+    }
+    const profileData = profileDoc.data()!
+
+    // ホワイトリスト方式でフィルタリング（MUST-1: uid を含めない・MUST-2）
+    const publicProfile = {
+      publicHandle: profileData['publicHandle'] as string,
+      displayName: profileData['displayName'] as string,
+      slimeSummaries: (profileData['slimeSummaries'] as unknown[] ?? []).map((s) => {
+        const sl = s as Record<string, unknown>
+        const stats = sl['stats'] as Record<string, number> | null | undefined
+        return {
+          id: sl['id'],
+          name: sl['name'],
+          speciesId: sl['speciesId'],
+          stats: {
+            hp: stats?.['hp'] ?? 0,
+            atk: stats?.['atk'] ?? 0,
+            def: stats?.['def'] ?? 0,
+            spd: stats?.['spd'] ?? 0,
+          },
+          color: sl['color'] ?? null,
+        }
+      }),
+    }
+
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=60, s-maxage=300',
+      },
+      body: JSON.stringify(publicProfile),
+    }
+  }
+
+  // =========================================================
+  // GET /public/live — ライブ観戦フィード（認証不要）
+  // =========================================================
+  if (method === 'GET' && path === '/public/live') {
+    const PUBLIC_EVENT_TYPES = ['evolve', 'split', 'merge', 'battle_win']
+
+    const logsSnap = await db
+      .collection('turnLogs')
+      .where('actorType', '==', 'slime')
+      .where('eventType', 'in', PUBLIC_EVENT_TYPES)
+      .orderBy('processedAt', 'desc')
+      .limit(20)
+      .get()
+
+    // slimeId → スライム公開情報のバルク取得
+    const slimeIds = [...new Set(
+      logsSnap.docs
+        .map((d) => d.data()['slimeId'] as string | null)
+        .filter((id): id is string => id != null)
+    )]
+    const slimeDocs: Record<string, admin.firestore.DocumentData> = {}
+    if (slimeIds.length > 0) {
+      const slimeSnaps = await Promise.all(
+        slimeIds.map((id) => db.collection('slimes').doc(id).get())
+      )
+      for (const snap of slimeSnaps) {
+        if (snap.exists) slimeDocs[snap.id] = snap.data()!
+      }
+    }
+
+    // MUST-5: eventData をホワイトリスト方式でフィルタリング
+    const PUBLIC_EVENT_DATA_KEYS: Record<string, string[]> = {
+      evolve: ['previousSpeciesId', 'newSpeciesId'],
+      split: [],
+      merge: [],
+      battle_win: [],
+    }
+
+    const PUBLIC_EVENT_TYPES_SET = new Set(PUBLIC_EVENT_TYPES)
+
+    const events = logsSnap.docs.map((d) => {
+      const data = d.data()
+      const eventType = data['eventType'] as string
+      // 深層防御: DBクエリフィルタをすり抜けた非公開 eventType を除去（A7/QA TC-5-09）
+      if (!PUBLIC_EVENT_TYPES_SET.has(eventType)) return null
+      const rawEventData = (data['eventData'] ?? {}) as Record<string, unknown>
+      const allowedKeys = PUBLIC_EVENT_DATA_KEYS[eventType] ?? []
+      const filteredEventData: Record<string, unknown> = {}
+      for (const key of allowedKeys) {
+        if (key in rawEventData) filteredEventData[key] = rawEventData[key]
+      }
+
+      const slimeId = data['slimeId'] as string | null
+      const slimeData = slimeId ? slimeDocs[slimeId] : null
+      const slimeSummary = slimeData
+        ? {
+            slimeId,
+            name: slimeData['name'] as string,
+            speciesId: slimeData['speciesId'] as string,
+            color: (slimeData['color'] as string | undefined) ?? null,
+          }
+        : null
+
+      const rawProcessedAt = data['processedAt']
+      const processedAt = rawProcessedAt && typeof rawProcessedAt.toDate === 'function'
+        ? rawProcessedAt.toDate().toISOString()
+        : String(rawProcessedAt ?? '')
+
+      return {
+        id: d.id,
+        worldId: data['worldId'] as string,
+        turnNumber: data['turnNumber'] as number,
+        eventType,
+        eventData: filteredEventData,
+        slimeSummary,
+        processedAt,
+      }
+    }).filter((e): e is NonNullable<typeof e> => e !== null)
+
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=60, s-maxage=300',
+      },
+      body: JSON.stringify({ events }),
+    }
+  }
+
+  // =========================================================
+  // POST /users/handle — publicHandle 登録・変更（認証必須）
+  // =========================================================
+  if (method === 'POST' && path === '/users/handle') {
+    // 1. IDトークン検証
+    let uid: string
+    try {
+      const result = await verifyIdToken(
+        event.headers['authorization'] ?? event.headers['Authorization']
+      )
+      uid = result.uid
+    } catch (authError) {
+      logger.error('[API] 認証エラー', { method, path, error: String(authError) })
+      return jsonResponse(401, { error: '認証に失敗しました' })
+    }
+
+    // 2. バリデーション
+    let body: unknown
+    try {
+      body = JSON.parse(event.body ?? '{}')
+    } catch {
+      return jsonResponse(400, { error: 'リクエストボディが不正な JSON です' })
+    }
+    const parseResult = registerHandleSchema.safeParse(body)
+    if (!parseResult.success) {
+      return jsonResponse(400, {
+        error: 'バリデーションエラー',
+        details: parseResult.error.flatten(),
+      })
+    }
+    const { handle: normalizedHandle } = parseResult.data
+
+    // 3. トランザクション: 重複チェック・30日制限・登録
+    const handleRef = db.collection('publicHandles').doc(normalizedHandle)
+    const profileRef = db.collection('publicProfiles').doc(uid)
+    const now = admin.firestore.Timestamp.now()
+    const HANDLE_CHANGE_INTERVAL_DAYS = 30
+
+    try {
+      await db.runTransaction(async (tx) => {
+        const [handleDoc, profileDoc] = await Promise.all([
+          tx.get(handleRef),
+          tx.get(profileRef),
+        ])
+
+        // 重複チェック（自分が既に持っているhandleと同じ場合はOK）
+        if (handleDoc.exists) {
+          const owner = (handleDoc.data() as { uid: string }).uid
+          if (owner !== uid) {
+            throw Object.assign(new Error('このハンドルは既に使用されています'), { code: 409 })
+          }
+          // 同じhandleへの再登録は変更扱いしない（30日制限対象外）
+          return
+        }
+
+        // 30日変更制限チェック
+        if (profileDoc.exists) {
+          const lastChanged = profileDoc.data()!['lastHandleChangedAt']
+          if (lastChanged != null) {
+            const lastChangedDate = lastChanged && typeof lastChanged.toDate === 'function'
+              ? lastChanged.toDate()
+              : new Date(lastChanged)
+            const daysSince = (Date.now() - lastChangedDate.getTime()) / (1000 * 60 * 60 * 24)
+            if (daysSince < HANDLE_CHANGE_INTERVAL_DAYS) {
+              const nextAllowed = new Date(
+                lastChangedDate.getTime() + HANDLE_CHANGE_INTERVAL_DAYS * 24 * 60 * 60 * 1000
+              )
+              throw Object.assign(
+                new Error(`ハンドルの変更は30日に1回までです（次回変更可能日時: ${nextAllowed.toISOString()}）`),
+                { code: 429, nextAllowed: nextAllowed.toISOString() }
+              )
+            }
+          }
+
+          // 旧ハンドルの削除
+          const oldHandle = profileDoc.data()!['publicHandle'] as string | undefined
+          if (oldHandle && oldHandle !== normalizedHandle) {
+            tx.delete(db.collection('publicHandles').doc(oldHandle))
+          }
+        }
+
+        // 新ハンドルの登録
+        tx.set(handleRef, { uid, registeredAt: now })
+        tx.set(profileRef, {
+          publicHandle: normalizedHandle,
+          displayName: profileDoc.exists
+            ? (profileDoc.data()!['displayName'] ?? '')
+            : '',
+          slimeSummaries: profileDoc.exists
+            ? (profileDoc.data()!['slimeSummaries'] ?? [])
+            : [],
+          lastHandleChangedAt: now,
+          updatedAt: now,
+        }, { merge: true })
+      })
+    } catch (txError) {
+      const err = txError as Error & { code?: number; nextAllowed?: string }
+      if (err.code === 409) return jsonResponse(409, { error: err.message })
+      if (err.code === 429) {
+        return jsonResponse(429, { error: err.message, nextAllowed: err.nextAllowed })
+      }
+      logger.error('[API] handle登録エラー', { method, path, uid, error: String(txError) })
+      return jsonResponse(500, { error: 'サーバーエラーが発生しました' })
+    }
+
+    logger.info('[API] handle登録完了', { method, path, uid, handle: normalizedHandle, durationMs: Date.now() - startMs })
+    return jsonResponse(200, { publicHandle: normalizedHandle })
   }
 
   // =========================================================
