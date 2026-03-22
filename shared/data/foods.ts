@@ -55,6 +55,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/plants/herb1.png",
+    tileAttributeDelta: { earth: 0.05 },
   },
   {
     id: "food-plant-002",
@@ -66,6 +67,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/plants/herb2.png",
+    tileAttributeDelta: { earth: 0.05 },
   },
   {
     id: "food-plant-003",
@@ -77,6 +79,7 @@ export const foods: Food[] = [
     skillGrantId: "skill-def-002",
     skillGrantProb: 0.08,
     imageUrl: "/assets/food/plants/nut1.png",
+    tileAttributeDelta: { earth: 0.05 },
   },
 
   // ===== フルーツ（gather で入手・plant カテゴリ） =====
@@ -90,6 +93,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/fruits/apple.png",
+    tileAttributeDelta: { earth: 0.05 },
   },
   {
     id: "food-fruit-002",
@@ -101,6 +105,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/fruits/banana.png",
+    tileAttributeDelta: { earth: 0.05 },
   },
   {
     id: "food-fruit-003",
@@ -112,6 +117,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/fruits/strawberry.png",
+    tileAttributeDelta: { earth: 0.05 },
   },
   {
     id: "food-fruit-004",
@@ -123,6 +129,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/fruits/melon.png",
+    tileAttributeDelta: { earth: 0.05 },
   },
   {
     id: "food-fruit-005",
@@ -134,6 +141,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/fruits/cherry.png",
+    tileAttributeDelta: { earth: 0.05 },
   },
   {
     id: "food-fruit-006",
@@ -145,6 +153,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/fruits/watermelon.png",
+    tileAttributeDelta: { earth: 0.05 },
   },
   {
     id: "food-fruit-007",
@@ -156,6 +165,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/fruits/lemon.png",
+    tileAttributeDelta: { earth: 0.05 },
   },
 
   // ===== キノコ（gather で入手・plant カテゴリ） =====
@@ -169,6 +179,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/plants/mushroom1.png",
+    tileAttributeDelta: { earth: 0.05 },
   },
   {
     id: "food-mush-002",
@@ -180,6 +191,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/plants/mushroom2.png",
+    tileAttributeDelta: { earth: 0.05 },
   },
   {
     id: "food-mush-003",
@@ -191,6 +203,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/plants/mushroom3.png",
+    tileAttributeDelta: { earth: 0.05 },
   },
 
   // ===== human 種 =====
@@ -204,6 +217,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/prepared/preserved_meat.png",
+    tileAttributeDelta: { fire: 0.01, water: 0.01, earth: 0.01, wind: 0.01 },
   },
   {
     id: "food-human-002",
@@ -215,6 +229,7 @@ export const foods: Food[] = [
     skillGrantId: "skill-def-003",
     skillGrantProb: 0.05,
     imageUrl: "/assets/food/prepared/bread.png",
+    tileAttributeDelta: { fire: 0.01, water: 0.01, earth: 0.01, wind: 0.01 },
   },
 
   // ===== beast 種 =====
@@ -228,6 +243,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/prepared/meat.png",
+    tileAttributeDelta: { fire: 0.05 },
   },
   {
     id: "food-beast-002",
@@ -239,6 +255,7 @@ export const foods: Food[] = [
     skillGrantId: "skill-def-004",
     skillGrantProb: 0.12,
     imageUrl: "/assets/food/fruits/persimmon.png",
+    tileAttributeDelta: { fire: 0.05 },
   },
 
   // ===== spirit 種 =====
@@ -252,6 +269,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/fruits/peaches.png",
+    tileAttributeDelta: { wind: 0.05 },
   },
   {
     id: "food-spirit-002",
@@ -263,6 +281,7 @@ export const foods: Food[] = [
     skillGrantId: "skill-def-005",
     skillGrantProb: 0.15,
     imageUrl: "/assets/food/fruits/kiwi_fruit.png",
+    tileAttributeDelta: { wind: 0.05 },
   },
 
   // ===== fish 種 =====
@@ -276,6 +295,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/prepared/fish_river.png",
+    tileAttributeDelta: { water: 0.05 },
   },
   {
     id: "food-fish-002",
@@ -287,6 +307,7 @@ export const foods: Food[] = [
     skillGrantId: "skill-def-006",
     skillGrantProb: 0.1,
     imageUrl: "/assets/food/prepared/fish_deep.png",
+    tileAttributeDelta: { water: 0.05 },
   },
 
   // ===== spirit ドロップ食料（Phase 6 W2: spirit モンスター由来）=====
@@ -300,6 +321,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/fruits/apricot.png",
+    tileAttributeDelta: { wind: 0.05 },
   },
   {
     id: "food-spirit-drop-weak-002",
@@ -311,6 +333,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/fruits/japanese_pear.png",
+    tileAttributeDelta: { wind: 0.05 },
   },
   {
     id: "food-spirit-drop-normal-001",
@@ -322,6 +345,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/fruits/pear.png",
+    tileAttributeDelta: { wind: 0.05 },
   },
   {
     id: "food-spirit-drop-normal-002",
@@ -333,6 +357,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/fruits/grape_fruit.png",
+    tileAttributeDelta: { wind: 0.05 },
   },
   {
     id: "food-spirit-drop-strong-001",
@@ -344,6 +369,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/fruits/mango.png",
+    tileAttributeDelta: { wind: 0.05 },
   },
   {
     id: "food-spirit-drop-strong-002",
@@ -355,6 +381,7 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/fruits/pineapple.png",
+    tileAttributeDelta: { wind: 0.05 },
   },
 
   // ===== slime ドロップ食料（Phase 6 W2: slime モンスター由来）=====
@@ -423,5 +450,55 @@ export const foods: Food[] = [
     skillGrantId: null,
     skillGrantProb: 0.0,
     imageUrl: "/assets/food/fruits/tomato.png",
+  },
+
+  // ===== 浄化食料（Phase 8 W2: タイル属性を下げる特殊食料）=====
+  {
+    id: "food-purify-fire",
+    name: "消炎草",
+    description: "火属性を弱める草。タイルに植えると炎の力を鎮める。",
+    category: "plant",
+    statDeltas: {},
+    racialDeltas: {},
+    skillGrantId: null,
+    skillGrantProb: 0.0,
+    imageUrl: "/assets/foods/food-purify-fire.png",
+    tileAttributeDelta: { fire: -0.08 },
+  },
+  {
+    id: "food-purify-water",
+    name: "乾燥砂",
+    description: "水属性を弱める砂。タイルに植えると水の流れを止める。",
+    category: "plant",
+    statDeltas: {},
+    racialDeltas: {},
+    skillGrantId: null,
+    skillGrantProb: 0.0,
+    imageUrl: "/assets/foods/food-purify-water.png",
+    tileAttributeDelta: { water: -0.08 },
+  },
+  {
+    id: "food-purify-earth",
+    name: "溶岩石",
+    description: "土属性を弱める石。タイルに植えると大地を溶かす。",
+    category: "beast",
+    statDeltas: {},
+    racialDeltas: {},
+    skillGrantId: null,
+    skillGrantProb: 0.0,
+    imageUrl: "/assets/foods/food-purify-earth.png",
+    tileAttributeDelta: { earth: -0.08 },
+  },
+  {
+    id: "food-purify-wind",
+    name: "重石",
+    description: "風属性を弱める石。タイルに植えると風を封じ込める。",
+    category: "beast",
+    statDeltas: {},
+    racialDeltas: {},
+    skillGrantId: null,
+    skillGrantProb: 0.0,
+    imageUrl: "/assets/foods/food-purify-wind.png",
+    tileAttributeDelta: { wind: -0.08 },
   },
 ];

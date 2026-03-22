@@ -17,7 +17,7 @@ import { wildMonsters } from '../../../shared/data/wildMonsters'
 import { skillDefinitions } from '../../../shared/data/skillDefinitions'
 import type { DropEntry } from '../../../shared/types/dropTable'
 import type { SkillDefinition } from '../../../shared/types/skill'
-import { INVENTORY_MAX_SLOTS, RACIAL_VALUE_MAX } from '../../../shared/constants/game'
+import { INVENTORY_MAX_SLOTS, RACIAL_VALUE_MAX, TILE_DELTA_MAX, TILE_DELTA_MIN } from '../../../shared/constants/game'
 import { logger } from '../../../shared/lib/logger'
 
 // ----------------------------------------------------------------
@@ -253,7 +253,7 @@ export async function processWorldTurn(worldId: string): Promise<void> {
       const slime = { id: slimeDoc.id, ...slimeDoc.data() } as Slime
       const slimeReservations = reservationsBySlime.get(slime.id) ?? []
       const needsTile = slimeReservations.some(
-        (r) => r.status === 'pending' && (r.actionType === 'gather' || r.actionType === 'fish')
+        (r) => r.status === 'pending' && (r.actionType === 'gather' || r.actionType === 'fish' || r.actionType === 'plant')
       )
       if (needsTile) {
         const coords = mapIdToCoords.get(slime.mapId) ?? new Set<string>()
@@ -1294,6 +1294,146 @@ export async function executeReservedAction(
       } catch {
         // 融合失敗は無視（ターゲット取得失敗など）
       }
+      break
+    }
+
+    case 'plant': {
+      // 植え付けアクション（Phase 8 追加）
+      // インベントリの食料をタイルに植え、tileAttributeDelta に従ってタイル属性を変化させる
+      const plantData = reservation.actionData as { foodId?: string }
+      const plantFoodId = plantData.foodId
+      if (!plantFoodId) break
+
+      // 1. インベントリに foodId が存在するか確認
+      const plantInventory = updatedSlime.inventory ?? []
+      const hasFood = plantInventory.some((slot) => slot.foodId === plantFoodId)
+      if (!hasFood) {
+        logger.debug('[executeReservedAction] plant: インベントリに食料なし', {
+          slimeId: slime.id,
+          foodId: plantFoodId,
+        })
+        events.push({ eventType: 'plant_fail', eventData: { foodId: plantFoodId, reason: 'food_not_found' } })
+        break
+      }
+
+      // 2. food.tileAttributeDelta を参照（food マスタを検索）
+      let plantFood: Food | undefined
+      if (foods && foods.length > 0) {
+        plantFood = foods.find((f) => f.id === plantFoodId)
+      }
+      if (!plantFood) {
+        plantFood = staticFoods.find((f) => f.id === plantFoodId)
+      }
+      if (!plantFood) {
+        events.push({ eventType: 'plant_fail', eventData: { foodId: plantFoodId, reason: 'food_not_found' } })
+        break
+      }
+
+      const delta = plantFood.tileAttributeDelta
+      const hasEffect =
+        delta !== undefined &&
+        Object.values(delta).some((v) => v !== 0)
+      if (!hasEffect) {
+        logger.debug('[executeReservedAction] plant: tileAttributeDelta なし', {
+          slimeId: slime.id,
+          foodId: plantFoodId,
+          foodName: plantFood.name,
+        })
+        events.push({ eventType: 'plant_fail', eventData: { foodId: plantFoodId, reason: 'no_tile_effect' } })
+        break
+      }
+
+      // 3. スライム現在タイルを worldTiles から検索（tileX/tileY で一致）
+      const plantTile = (_tiles ?? []).find((t) => t.x === slime.tileX && t.y === slime.tileY)
+      if (!plantTile) {
+        logger.debug('[executeReservedAction] plant: タイルが見つからない', {
+          slimeId: slime.id,
+          tileX: slime.tileX,
+          tileY: slime.tileY,
+        })
+        events.push({ eventType: 'plant_fail', eventData: { foodId: plantFoodId, reason: 'tile_not_found' } })
+        break
+      }
+
+      // 4. インベントリから食料を1個消費
+      const plantRemoveResult = removeFromInventory(updatedSlime.inventory!, plantFoodId, 1)
+      if (!plantRemoveResult.success) {
+        events.push({ eventType: 'plant_fail', eventData: { foodId: plantFoodId, reason: 'food_not_found' } })
+        break
+      }
+      updatedSlime = { ...updatedSlime, inventory: plantRemoveResult.inventory }
+
+      // 5. tileAttributeDelta の各属性を現在値に加算し clamp(0, 1.0)
+      // TILE_DELTA_MAX / TILE_DELTA_MIN は validation 層での検証用。clamp は 0〜1.0 で保証。
+      void TILE_DELTA_MAX
+      void TILE_DELTA_MIN
+      const currentAttrs = plantTile.attributes
+      const newFire = clamp(
+        (currentAttrs.fire ?? 0) + (delta.fire ?? 0),
+        0,
+        1.0
+      )
+      const newWater = clamp(
+        (currentAttrs.water ?? 0) + (delta.water ?? 0),
+        0,
+        1.0
+      )
+      const newEarth = clamp(
+        (currentAttrs.earth ?? 0) + (delta.earth ?? 0),
+        0,
+        1.0
+      )
+      const newWind = clamp(
+        (currentAttrs.wind ?? 0) + (delta.wind ?? 0),
+        0,
+        1.0
+      )
+
+      // 6. batch.update(tileRef, { 'attributes.fire': newFire, ... }) で更新
+      try {
+        const tileRef = db().collection('tiles').doc(plantTile.id)
+        const plantBatch = db().batch()
+        plantBatch.update(tileRef, {
+          'attributes.fire': newFire,
+          'attributes.water': newWater,
+          'attributes.earth': newEarth,
+          'attributes.wind': newWind,
+        })
+        await plantBatch.commit()
+      } catch (plantErr) {
+        logger.warn('[executeReservedAction] plant: タイル更新失敗', {
+          slimeId: slime.id,
+          tileId: plantTile.id,
+          error: plantErr instanceof Error ? plantErr.message : String(plantErr),
+        })
+        // タイル更新失敗時はインベントリ消費を戻さない（設計書通り: plant_fail にはしない）
+        // ただし plant_fail として記録する
+        events.push({ eventType: 'plant_fail', eventData: { foodId: plantFoodId, reason: 'tile_not_found' } })
+        break
+      }
+
+      // 7. plant_success イベント記録
+      logger.debug('[executeReservedAction] plant成功', {
+        slimeId: slime.id,
+        foodId: plantFoodId,
+        foodName: plantFood.name,
+        tileId: plantTile.id,
+        tileX: slime.tileX,
+        tileY: slime.tileY,
+        delta,
+        newAttributes: { fire: newFire, water: newWater, earth: newEarth, wind: newWind },
+      })
+      events.push({
+        eventType: 'plant_success',
+        eventData: {
+          foodId: plantFoodId,
+          tileId: plantTile.id,
+          tileX: slime.tileX,
+          tileY: slime.tileY,
+          delta,
+          newAttributes: { fire: newFire, water: newWater, earth: newEarth, wind: newWind },
+        },
+      })
       break
     }
 

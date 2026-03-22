@@ -13,6 +13,7 @@ import { MAP_WIDTH_MAX, MAP_HEIGHT_MAX } from '../../../shared/constants/map'
  *   hunt    : actionData に targetCategory（"beast"|"plant"|"fish"|"human"）と targetStrength（"weak"|"normal"）が必須
  *   battle  : actionData に targetCategory（"beast"|"plant"|"fish"|"human"）と targetStrength（"weak"|"normal"）が必須
  *   merge   : actionData に targetSlimeId（非空文字列）が必須（Phase 4 追加）
+ *   plant   : actionData に foodId（非空文字列）が必須（Phase 8 追加）
  */
 
 /** gather / fish 用: 追加データなし */
@@ -33,6 +34,13 @@ const mergeDataSchema = z
   })
   .strict()
 
+/** plant（植え付け）用: foodId が必須（Phase 8 追加） */
+const plantDataSchema = z
+  .object({
+    foodId: z.string().min(1, 'foodId は必須です'),
+  })
+  .strict()
+
 export const createReservationSchema = z
   .object({
     slimeId: z.string().min(1, 'slimeId は必須です'),
@@ -41,10 +49,10 @@ export const createReservationSchema = z
       .number()
       .int('turnNumber は整数でなければなりません')
       .positive('turnNumber は正の整数でなければなりません'),
-    actionType: z.enum(['eat', 'move', 'rest', 'battle', 'gather', 'fish', 'hunt', 'merge'], {
+    actionType: z.enum(['eat', 'move', 'rest', 'battle', 'gather', 'fish', 'hunt', 'merge', 'plant'], {
       errorMap: () => ({
         message:
-          'actionType は "eat" | "move" | "rest" | "battle" | "gather" | "fish" | "hunt" | "merge" のいずれかです',
+          'actionType は "eat" | "move" | "rest" | "battle" | "gather" | "fish" | "hunt" | "merge" | "plant" のいずれかです',
       }),
     }),
     actionData: z.union([
@@ -59,6 +67,8 @@ export const createReservationSchema = z
       huntBattleDataSchema,
       // merge: targetSlimeId が必須
       mergeDataSchema,
+      // plant: foodId が必須（Phase 8 追加）
+      plantDataSchema,
       // rest / gather / fish: 空オブジェクト（strict）
       emptyDataSchema,
     ]),
@@ -118,6 +128,17 @@ export const createReservationSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: 'merge アクションには actionData.targetSlimeId（非空文字列）が必要です',
+        })
+      }
+      return
+    }
+
+    if (actionType === 'plant') {
+      const result = plantDataSchema.safeParse(actionData)
+      if (!result.success) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'plant アクションには actionData.foodId（非空文字列）が必要です',
         })
       }
       return
