@@ -16,6 +16,7 @@ import type { Tile } from '../../../../shared/types/map'
 import type { Slime } from '../../../../shared/types/slime'
 import { createLogger } from '../../lib/logger'
 import { DEFAULT_SLIME_COLOR } from './turnLogUtils'
+import { useWorldStore } from '../../stores/worldStore'
 
 const logger = createLogger('WorldMapPanel')
 
@@ -41,18 +42,39 @@ const TILE_ICONS: Record<'fire' | 'water' | 'earth' | 'wind', string> = {
   wind: '💨',
 }
 
-/** タイルの支配属性を返す */
+/** タイルの支配属性を返す（タイブレーク時はランダム） */
 function getDominantAttr(tile: Tile): 'fire' | 'water' | 'earth' | 'wind' {
   const attrs = tile.attributes
-  return (['fire', 'water', 'earth', 'wind'] as const).reduce(
-    (max, attr) => (attrs[attr] > attrs[max] ? attr : max),
-    'fire' as 'fire' | 'water' | 'earth' | 'wind'
-  )
+  const keys = ['fire', 'water', 'earth', 'wind'] as const
+  const maxVal = Math.max(...keys.map((k) => attrs[k]))
+  const candidates = keys.filter((k) => attrs[k] === maxVal)
+  return candidates[Math.floor(Math.random() * candidates.length)]
+}
+
+/** 季節・天候に応じた CSS filter 文字列を生成する */
+function getMapFilter(season?: string, weather?: string): string {
+  const filters: string[] = []
+
+  switch (season) {
+    case 'spring': filters.push('hue-rotate(10deg)', 'saturate(1.1)'); break
+    case 'summer': filters.push('saturate(1.4)', 'brightness(1.05)'); break
+    case 'autumn': filters.push('hue-rotate(-20deg)', 'saturate(0.9)', 'brightness(0.95)'); break
+    case 'winter': filters.push('saturate(0.5)', 'brightness(0.9)'); break
+  }
+
+  switch (weather) {
+    case 'rainy':  filters.push('brightness(0.85)', 'saturate(0.8)'); break
+    case 'stormy': filters.push('brightness(0.75)', 'saturate(0.7)', 'contrast(1.1)'); break
+    case 'foggy':  filters.push('brightness(0.9)', 'saturate(0.4)', 'contrast(0.9)'); break
+  }
+
+  return filters.length > 0 ? filters.join(' ') : 'none'
 }
 
 export function WorldMapPanel({ mapId, slimes, selectedSlimeId, onTileClick }: WorldMapPanelProps) {
   const [tiles, setTiles] = useState<Tile[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const world = useWorldStore((s) => s.world)
 
   useEffect(() => {
     const unsubscribe = onSnapshot(
@@ -102,8 +124,13 @@ export function WorldMapPanel({ mapId, slimes, selectedSlimeId, onTileClick }: W
       </div>
 
       <div
-        className="grid gap-0.5 mx-auto"
-        style={{ gridTemplateColumns: 'repeat(10, minmax(0, 1fr))', width: '100%', maxWidth: 360 }}
+        className="grid gap-0.5 mx-auto transition-[filter] duration-700"
+        style={{
+          gridTemplateColumns: 'repeat(10, minmax(0, 1fr))',
+          width: '100%',
+          maxWidth: 360,
+          filter: getMapFilter(world?.season, world?.weather),
+        }}
       >
         {tiles.map((tile) => {
           const dominant = getDominantAttr(tile)

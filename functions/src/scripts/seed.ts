@@ -13,10 +13,56 @@ admin.initializeApp({
 const db = admin.firestore();
 
 /**
- * ランダムな属性値（0〜0.3）を生成する
+ * ランダムなノイズ値（0〜0.25）を生成する
  */
-function randomAttr(): number {
-  return Math.round(Math.random() * 0.3 * 100) / 100;
+function randomNoise(): number {
+  return Math.round(Math.random() * 0.25 * 100) / 100;
+}
+
+/**
+ * バイオームゾーンに基づいてタイル属性を生成する
+ *
+ * ゾーン分割（10×10マップ）:
+ *   左上 (x<5, y<5): fire 優勢（溶岩台地）
+ *   右上 (x>=5, y<5): wind 優勢（高原）
+ *   左下 (x<5, y>=5): water 優勢（湿地・川）
+ *   右下 (x>=5, y>=5): earth 優勢（森林）
+ *
+ * 境界付近はノイズが多く混合する。
+ */
+function generateTileAttributes(x: number, y: number): {
+  fire: number; water: number; earth: number; wind: number;
+} {
+  // ゾーン中心からの距離で支配属性を決定
+  const isTop = y < 5;
+  const isLeft = x < 5;
+
+  // 各ゾーンの支配属性
+  const dominant: 'fire' | 'water' | 'earth' | 'wind' =
+    isLeft && isTop ? 'fire' :
+    !isLeft && isTop ? 'wind' :
+    isLeft && !isTop ? 'water' :
+    'earth';
+
+  // 境界からの距離（0=境界, 4=中心）
+  const distX = isLeft ? 4 - x : x - 5;
+  const distY = isTop ? 4 - y : y - 5;
+  const borderFactor = Math.min(distX, distY); // 0~4
+
+  // 支配属性値: 境界では低め(0.4~0.6)、中心では高め(0.6~0.9)
+  const dominantBase = 0.4 + borderFactor * 0.1;
+  const dominantValue = Math.min(0.99, dominantBase + randomNoise());
+
+  // 非支配属性値: 低め(0~0.25)にノイズ
+  const attrs = {
+    fire: randomNoise(),
+    water: randomNoise(),
+    earth: randomNoise(),
+    wind: randomNoise(),
+  };
+  attrs[dominant] = Math.round(dominantValue * 100) / 100;
+
+  return attrs;
 }
 
 /**
@@ -98,12 +144,7 @@ async function seed(): Promise<void> {
         mapId: "map-001",
         x,
         y,
-        attributes: {
-          fire: randomAttr(),
-          water: randomAttr(),
-          earth: randomAttr(),
-          wind: randomAttr(),
-        },
+        attributes: generateTileAttributes(x, y),
       });
     }
   }
