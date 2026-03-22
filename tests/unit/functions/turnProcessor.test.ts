@@ -554,20 +554,20 @@ describe('executeReservedAction - rest', () => {
 // executeAutonomousAction
 // ================================================================
 describe('executeAutonomousAction', () => {
-  it('hunger >= 20 かつ < 50 の場合、hp が微回復する', async () => {
+  it('hunger 20〜39 かつインベントリなしの場合、hp が微回復する', async () => {
     const slime = createTestSlime({
       stats: { hp: 50, atk: 20, def: 15, spd: 10, exp: 0, hunger: 20 },
     })
 
     const result = await executeAutonomousAction(slime)
 
-    // hunger >= 20 かつ < 50 のとき自律的に休息して HP を 5% 回復
+    // hunger 20〜39 かつ食料なし → 休息してHP微回復
     const maxHp = slime.stats.atk + slime.stats.def + 50
     expect(result.updatedSlime.stats.hp).toBeGreaterThan(slime.stats.hp)
     expect(result.updatedSlime.stats.hp).toBeLessThanOrEqual(maxHp)
   })
 
-  it('hunger >= 50 の場合、hp が変化しない', async () => {
+  it('hunger >= 40 の場合、hp が変化しない', async () => {
     const slime = createTestSlime({
       stats: { hp: 50, atk: 20, def: 15, spd: 10, exp: 0, hunger: 50 },
     })
@@ -578,6 +578,59 @@ describe('executeAutonomousAction', () => {
     expect(result.updatedSlime.stats.hp).toBe(slime.stats.hp)
     // autonomous イベントが記録されること
     expect(result.events.some((e) => e.eventType === 'autonomous')).toBe(true)
+  })
+
+  it('AU-01: hunger < 40 かつインベントリに食料がある場合、自動で食事を行う', async () => {
+    const slime = createTestSlime({
+      stats: { hp: 50, atk: 20, def: 15, spd: 10, exp: 0, hunger: 30 },
+      inventory: [{ foodId: 'food-plant-001', quantity: 3 }],
+    })
+
+    const result = await executeAutonomousAction(slime)
+
+    // hunger が +30 されること（30 + 30 = 60、上限100）
+    expect(result.updatedSlime.stats.hunger).toBeGreaterThan(slime.stats.hunger)
+    // インベントリが1個減っていること
+    const remainingSlot = result.updatedSlime.inventory?.find((s) => s.foodId === 'food-plant-001')
+    expect(remainingSlot?.quantity).toBe(2)
+    // auto_eat イベントが記録されること
+    const autoEatEvent = result.events.find(
+      (e) => e.eventType === 'autonomous' && e.eventData['action'] === 'auto_eat'
+    )
+    expect(autoEatEvent).toBeDefined()
+    expect(autoEatEvent?.eventData['foodId']).toBe('food-plant-001')
+  })
+
+  it('AU-02: hunger < 40 かつインベントリが空の場合、自動食事は行わず休息する', async () => {
+    const slime = createTestSlime({
+      stats: { hp: 50, atk: 20, def: 15, spd: 10, exp: 0, hunger: 30 },
+      inventory: [],
+    })
+    const hpBefore = slime.stats.hp
+
+    const result = await executeAutonomousAction(slime)
+
+    // 自動食事は行われない（autonomous イベントの action が auto_eat でない）
+    const autoEatEvent = result.events.find(
+      (e) => e.eventType === 'autonomous' && e.eventData['action'] === 'auto_eat'
+    )
+    expect(autoEatEvent).toBeUndefined()
+    // 休息でHP微回復
+    expect(result.updatedSlime.stats.hp).toBeGreaterThan(hpBefore)
+  })
+
+  it('AU-03: hunger < 40 かつインベントリに食料1個の場合、消費後インベントリが空になる', async () => {
+    const slime = createTestSlime({
+      stats: { hp: 50, atk: 20, def: 15, spd: 10, exp: 0, hunger: 10 },
+      inventory: [{ foodId: 'food-plant-001', quantity: 1 }],
+    })
+
+    const result = await executeAutonomousAction(slime)
+
+    // インベントリが空になること
+    expect(result.updatedSlime.inventory?.length).toBe(0)
+    // hunger が回復していること
+    expect(result.updatedSlime.stats.hunger).toBeGreaterThan(slime.stats.hunger)
   })
 })
 

@@ -1310,17 +1310,59 @@ export async function executeReservedAction(
 
 /**
  * 自律行動を実行する
+ *
+ * 優先順位:
+ *  1. hunger < 40 かつインベントリに食料あり → 自動食事（auto_eat）
+ *  2. hunger >= 40                           → 歩き回る（walk）
+ *  3. hunger >= 20 かつ食料なし              → 休息・HP微回復（rest）
+ *  4. hunger < 20                            → 行動不能（weak）
+ *
+ * 自動食事の注意:
+ *  - インベントリ先頭スロットを1個消費する
+ *  - hunger を +30 回復（上限100）
+ *  - statDeltas（HP等）は applyFoodEffects で適用
+ *  - racialDeltas・スキル付与は適用しない（偏り防止・簡略化）
  */
 export async function executeAutonomousAction(slime: Slime): Promise<ActionResult> {
-  const updatedSlime: Slime = {
+  let updatedSlime: Slime = {
     ...slime,
     stats: { ...slime.stats },
     racialValues: { ...slime.racialValues },
+    inventory: slime.inventory ? [...slime.inventory] : [],
   }
   const events: ActionResult['events'] = []
 
+  // ── 自動食事（hunger < 40 かつインベントリに食料あり）────────────────
+  if (slime.stats.hunger < 40 && (updatedSlime.inventory?.length ?? 0) > 0) {
+    const slot = updatedSlime.inventory![0]
+    const food = staticFoods.find((f) => f.id === slot.foodId)
+
+    if (food) {
+      const removeResult = removeFromInventory(updatedSlime.inventory!, slot.foodId, 1)
+      if (removeResult.success) {
+        updatedSlime = { ...updatedSlime, inventory: removeResult.inventory }
+        // statDeltas（HP等）を適用。racialDeltas・スキル付与は自立食事では省略。
+        updatedSlime = applyFoodEffects(updatedSlime, food)
+        const hungerBefore = updatedSlime.stats.hunger
+        updatedSlime.stats.hunger = clamp(updatedSlime.stats.hunger + 30, 0, 100)
+        logger.debug('[executeAutonomousAction] 自動食事', {
+          slimeId: slime.id,
+          foodId: food.id,
+          hungerBefore,
+          hungerAfter: updatedSlime.stats.hunger,
+        })
+        events.push({
+          eventType: 'autonomous',
+          eventData: { action: 'auto_eat', foodId: food.id, hunger: slime.stats.hunger },
+        })
+        return { updatedSlime, events }
+      }
+    }
+  }
+
+  // ── 通常の自律行動（hunger に応じたフォールスルー）──────────────────
   const autonomousPath =
-    slime.stats.hunger >= 50 ? 'walk' : slime.stats.hunger >= 20 ? 'rest' : 'weak'
+    slime.stats.hunger >= 40 ? 'walk' : slime.stats.hunger >= 20 ? 'rest' : 'weak'
 
   logger.debug('[executeAutonomousAction] 開始', {
     slimeId: slime.id,
@@ -1329,10 +1371,10 @@ export async function executeAutonomousAction(slime: Slime): Promise<ActionResul
     path: autonomousPath,
   })
 
-  if (slime.stats.hunger >= 50) {
-    // hunger >= 50: 自律的に近くを歩き回る（HP変化なし）
+  if (slime.stats.hunger >= 40) {
+    // hunger >= 40: 自律的に近くを歩き回る（HP変化なし）
   } else if (slime.stats.hunger >= 20) {
-    // hunger < 50 かつ hunger >= 20: 自律的に休息してHP微回復（maxHP × 5%）
+    // hunger 20〜39 かつ食料なし: 休息してHP微回復（maxHP × 5%）
     const maxHp = updatedSlime.stats.atk + updatedSlime.stats.def + 50
     const healAmount = Math.floor(maxHp * 0.05)
     const hpBefore = updatedSlime.stats.hp
