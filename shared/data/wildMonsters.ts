@@ -239,6 +239,64 @@ export const wildMonsters: WildMonsterSpecies[] = [
     dropTableId: "drop-human-normal",
   },
 
+  // ===== beast / strong =====
+  {
+    id: "monster-beast-strong-001",
+    name: "覇龍ゴルドラゴン",
+    description: "伝説に語られる龍の王。その咆哮だけで山が崩れ、炎の息は城を溶かすという。",
+    category: "beast",
+    strength: "strong",
+    power: 70,
+    dropTableId: "drop-beast-strong",
+  },
+  {
+    id: "monster-beast-strong-002",
+    name: "魔獣キマイラ",
+    description: "ライオン・蛇・ヤギが一体となった古代の魔獣。三つの頭が独立して攻撃を仕掛けてくる。",
+    category: "beast",
+    strength: "strong",
+    power: 70,
+    dropTableId: "drop-beast-strong",
+  },
+  {
+    id: "monster-beast-strong-003",
+    name: "巨人オーガキング",
+    description: "オーガの王。全身が鎧のような硬い皮膚で覆われ、持つ棍棒の一振りで岩が割れる。",
+    category: "beast",
+    strength: "strong",
+    power: 70,
+    dropTableId: "drop-beast-strong",
+  },
+
+  // ===== plant / strong =====
+  {
+    id: "monster-plant-strong-001",
+    name: "古樹霊マンドラゴラ",
+    description: "数百年生き続けた古木に宿る精霊。その根は地中深くまで伸び、近づく者を締め上げる。",
+    category: "plant",
+    strength: "strong",
+    power: 70,
+    dropTableId: "drop-plant-strong",
+  },
+  {
+    id: "monster-plant-strong-002",
+    name: "花食い巨木トレント",
+    description: "巨大な歩く木。無数の蔦で獲物を絡め取り、幹の中に取り込んでしまう。",
+    category: "plant",
+    strength: "strong",
+    power: 70,
+    dropTableId: "drop-plant-strong",
+  },
+  {
+    id: "monster-plant-strong-003",
+    name: "毒花の女王バナシア",
+    description: "全身が毒性の強い花で覆われた植物型の上位種。触れた者を徐々に石化させる花粉を撒く。",
+    category: "plant",
+    strength: "strong",
+    power: 70,
+    dropTableId: "drop-plant-strong",
+  },
+
   // ===== fish / strong =====
   {
     id: "monster-fish-strong-001",

@@ -195,8 +195,27 @@ export const dropTables: DropTableEntry[] = [
   },
 
   // =========================================================
-  // hunt ドロップテーブル（Phase 6 W2: fish/human/spirit/slime）
+  // hunt ドロップテーブル（Phase 6 W2: 全カテゴリ strong + fish/human/spirit/slime）
   // =========================================================
+
+  {
+    id: "drop-beast-strong",
+    actionType: "hunt",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-beast-002", weight: 55, minQty: 1, maxQty: 3 },
+      { foodId: "food-beast-001", weight: 30, minQty: 2, maxQty: 4 },
+    ],
+  },
+  {
+    id: "drop-plant-strong",
+    actionType: "hunt",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-plant-003", weight: 50, minQty: 1, maxQty: 2 },
+      { foodId: "food-plant-002", weight: 35, minQty: 1, maxQty: 2 },
+    ],
+  },
 
   {
     id: "drop-fish-weak",

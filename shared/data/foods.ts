@@ -244,7 +244,7 @@ export const foods: Food[] = [
   },
   {
     id: "food-slime-drop-normal-001",
-    name: "スライムコア",
+    name: "スライムコア（中）",
     description: "中級スライムの核。slime 種族値と HP が上がる。",
     category: "slime",
     statDeltas: { hp: 6, exp: 5 },

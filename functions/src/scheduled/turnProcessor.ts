@@ -1678,6 +1678,22 @@ export function checkWeatherTransition(
   const worldRef = db().collection('worlds').doc(world.id)
   batch.update(worldRef, { weather: nextWeather.id, weatherEndsAtTurn })
 
+  // turnLogs に記録（WorldLogPanel で表示される）
+  const logRef = db().collection('turnLogs').doc(randomUUID())
+  batch.set(logRef, {
+    worldId: world.id,
+    slimeId: null,
+    actorType: 'world',
+    turnNumber: currentTurn,
+    eventType: 'weather_change',
+    eventData: {
+      from: world.weather ?? 'none',
+      to: nextWeather.id,
+      weatherEndsAtTurn,
+    },
+    processedAt: FieldValue.serverTimestamp(),
+  })
+
   logger.info('[turnProcessor] 天候遷移', {
     worldId: world.id,
     prevWeather: world.weather ?? 'none',
@@ -1688,7 +1704,7 @@ export function checkWeatherTransition(
 }
 
 const SEASONS: Array<'spring' | 'summer' | 'autumn' | 'winter'> = ['spring', 'summer', 'autumn', 'winter']
-const SEASON_DURATION_TURNS = 20
+const SEASON_DURATION_TURNS = 120 // 約5日（1時間/ターン）
 
 /**
  * 季節遷移チェック
@@ -1711,6 +1727,21 @@ export function checkSeasonTransition(
 
   const worldRef = db().collection('worlds').doc(world.id)
   batch.update(worldRef, { season: nextSeason, seasonStartTurn: currentTurn })
+
+  // turnLogs に記録（WorldLogPanel で表示される）
+  const logRef = db().collection('turnLogs').doc(randomUUID())
+  batch.set(logRef, {
+    worldId: world.id,
+    slimeId: null,
+    actorType: 'world',
+    turnNumber: currentTurn,
+    eventType: 'season_change',
+    eventData: {
+      from: world.season ?? 'none',
+      to: nextSeason,
+    },
+    processedAt: FieldValue.serverTimestamp(),
+  })
 
   logger.info('[turnProcessor] 季節遷移', {
     worldId: world.id,

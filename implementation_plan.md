@@ -404,32 +404,43 @@
 - CDN キャッシュパージ設定（A2/Sec M-1）
 - Firebase App Check 導入（Phase 4 持ち越し）
 
-### Week 2: ソーシャル拡張・野生スライム・ワールドイベント
+### Week 2: ソーシャル拡張・野生スライム・ワールドイベント ✅（2026-03-22完了）
 
 **ソーシャル拡張（A4/FE）**
-- [ ] `/players/:handle/map` 他プレイヤーのマップ閲覧（読み取り専用・Phase 5 マップ完成が前提）
-- [ ] `/live` ライブ観戦フィードページ
+- [ ] `/players/:handle/map` 他プレイヤーのマップ閲覧（読み取り専用・Week 3 対応予定）
+- [x] `/live` ライブ観戦フィードページ（未認証アクセス可・30秒自動更新）
+- [x] LoginPage にスライム図鑑・ライブ観戦リンク追加（未ログインユーザー向け）
+- [x] EncyclopediaPage 進化ルート SVGツリー表示（Week 1 残課題 M-1 対応）
 
 **野生スライム・モンスター拡張（A3/BE）**
-- [ ] 野生スライムのAI自律行動ロジック（ターン進行時に処理）
-- [ ] `wildMonsters.ts` に spirit / slime 系モンスター追加（weak/normal/strong 全解放）
-- [ ] slime 系モンスターと `isWild: true` スライムエンティティの統合設計（A1・A3・A5で協議）
-  - 推奨: 静的マスタ（wildMonsters.ts）から生成する方式を基本とし、`isWild` スライムとは別管理
-- [ ] battle対象カテゴリ拡張: spirit / slime 系を追加
-- [ ] battle強度に `"strong"` を追加（zodスキーマ解放）
-- [ ] 食料交換・贈与機能の検討（Phase 7のフィードバック次第）
+- [x] `wildMonsters.ts` に spirit / slime 系モンスター追加（weak/normal/strong 各3体）
+- [x] beast / plant / fish / human の strong 強度モンスター追加
+- [x] spirit / slime 系ドロップ食料追加（foods.ts + dropTable.ts）
+- [x] battle対象カテゴリ拡張: spirit / slime 系を追加（validation.ts）
+- [x] battle強度に `"strong"` を追加（zodスキーマ解放）
 
 **ワールドイベント実装（A3/BE・A1/Fun設計・A5/DB）**
+- [x] A1/Fun によるワールドイベント詳細設計（`docs/phase6_w2_design.md`）
+- [x] `checkWeatherTransition` / `checkSeasonTransition` を turnProcessor.ts に実装
+  - `actorType: 'world'` で `turnLogs` に記録（WorldLogPanel 表示対応）
+  - 季節による hunger 消費補正（夏+2, 冬+1）
+- [x] `worlds/{worldId}` スキーマに `weather / season` フィールド追加（shared/types/world.ts）
+- [x] SEASON_DURATION_TURNS = 120（約5日/季節）
 
-> **設計背景**: Phase 4で `slimeId: null` + `actorType: 'world'` のスキーマを導入し、Phase 5で WorldLogPanel の表示対応を完了した後、ここで実際のトリガーを実装する
+### Phase 6 Week 2 残課題（Week 3 以降）
 
-- [ ] A1/Fun によるワールドイベント詳細設計（優先度・頻度・ゲームバランスへの影響）
-  - 候補: 天気変化（gather/fish成功率変動）・アイテム自然出現（マップ上の特定タイル）・エリア封鎖/開放
-- [ ] `functions/src/scheduled/turnProcessor.ts`: ターン処理時にワールドイベントを判定・書き込む
-  - `slimeId: null`、`actorType: 'world'` で `turnLogs` に書き込み
-  - 天気・季節などのワールド状態は `worlds/{worldId}` に保持し、ターン処理時に参照
-- [ ] `worlds/{worldId}` スキーマに `weather / season` 等のワールド状態フィールド追加（A5/DB）
-- [ ] `firestore.rules`: `slimeId: null` ドキュメントの読み取り権限確認（`worldId` が自分のワールドであること）
+- `/players/:handle/map` 他プレイヤーマップ閲覧ページ（A4/FE）
+- LiveFeedPage に天候・季節イベント表示追加（A1/Fun M-2）
+- 天候継続ターン数の乱数幅導入（A1/Fun M-1）
+- `checkWeatherTransition` / `checkSeasonTransition` ユニットテスト追加（A7/QA M-3）
+- world.ts の `weather` 型を文字列リテラルユニオンに強化（A2/Sec M-1）
+- 図鑑の進化条件説明文を登録誘導文に変更（A1/Fun M-3）
+
+### レビュー完了 ✅（2026-03-22）
+
+- [x] A7/QA レビュー → `docs/qa_review/phase_6_w2.md`（141件全通過・M-1/M-2 即修正済み）
+- [x] A2/Sec レビュー → `docs/security_review/phase_6_w2.md`（MUST-1〜3 全達成）
+- [x] A1/Fun レビュー → `docs/fun_review/phase_6_w2.md`（H-1/H-2 即修正済み）
 
 **対人戦闘（PvP）について**
 - Phase 6では実装しない
