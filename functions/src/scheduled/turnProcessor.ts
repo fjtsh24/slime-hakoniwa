@@ -1460,10 +1460,9 @@ export async function executeReservedAction(
  * 自律行動を実行する
  *
  * 優先順位:
- *  1. hunger < 40 かつインベントリに食料あり → 自動食事（auto_eat）
- *  2. hunger >= 40                           → 歩き回る（walk）
- *  3. hunger >= 20 かつ食料なし              → 休息・HP微回復（rest）
- *  4. hunger < 20                            → 行動不能（weak）
+ *  1. hunger < 40  → スライムの欠片（alwaysAvailable）で自動食事（auto_eat）
+ *                    インベントリを参照・消費しないためプレイヤー予約と競合しない
+ *  2. hunger >= 40 → 歩き回る（walk）
  *
  * 自動食事の注意:
  *  - インベントリ先頭スロットを1個消費する
