@@ -193,4 +193,274 @@ export const dropTables: DropTableEntry[] = [
       { foodId: "food-plant-003", weight: 15, minQty: 1, maxQty: 1 },
     ],
   },
+
+  // =========================================================
+  // hunt ドロップテーブル（Phase 6 W2: 全カテゴリ strong + fish/human/spirit/slime）
+  // =========================================================
+
+  {
+    id: "drop-beast-strong",
+    actionType: "hunt",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-beast-002", weight: 55, minQty: 1, maxQty: 3 },
+      { foodId: "food-beast-001", weight: 30, minQty: 2, maxQty: 4 },
+    ],
+  },
+  {
+    id: "drop-plant-strong",
+    actionType: "hunt",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-plant-003", weight: 50, minQty: 1, maxQty: 2 },
+      { foodId: "food-plant-002", weight: 35, minQty: 1, maxQty: 2 },
+    ],
+  },
+
+  {
+    id: "drop-fish-weak",
+    actionType: "hunt",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-fish-001", weight: 50, minQty: 1, maxQty: 2 },
+      { foodId: "food-plant-001", weight: 20, minQty: 1, maxQty: 1 },
+    ],
+  },
+  {
+    id: "drop-fish-normal",
+    actionType: "hunt",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-fish-001", weight: 40, minQty: 1, maxQty: 3 },
+      { foodId: "food-fish-002", weight: 30, minQty: 1, maxQty: 2 },
+      { foodId: "food-plant-001", weight: 15, minQty: 1, maxQty: 2 },
+    ],
+  },
+  {
+    id: "drop-fish-strong",
+    actionType: "hunt",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-fish-002", weight: 55, minQty: 1, maxQty: 3 },
+      { foodId: "food-fish-001", weight: 30, minQty: 2, maxQty: 4 },
+    ],
+  },
+  {
+    id: "drop-human-weak",
+    actionType: "hunt",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-human-001", weight: 50, minQty: 1, maxQty: 2 },
+      { foodId: "food-plant-001", weight: 20, minQty: 1, maxQty: 1 },
+    ],
+  },
+  {
+    id: "drop-human-normal",
+    actionType: "hunt",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-human-001", weight: 40, minQty: 1, maxQty: 3 },
+      { foodId: "food-human-002", weight: 25, minQty: 1, maxQty: 2 },
+      { foodId: "food-beast-001", weight: 15, minQty: 1, maxQty: 2 },
+    ],
+  },
+  {
+    id: "drop-human-strong",
+    actionType: "hunt",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-human-002", weight: 55, minQty: 1, maxQty: 2 },
+      { foodId: "food-human-001", weight: 30, minQty: 2, maxQty: 3 },
+    ],
+  },
+  {
+    id: "drop-spirit-weak",
+    actionType: "hunt",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-spirit-drop-weak-001", weight: 55, minQty: 1, maxQty: 2 },
+      { foodId: "food-spirit-drop-weak-002", weight: 35, minQty: 1, maxQty: 1 },
+    ],
+  },
+  {
+    id: "drop-spirit-normal",
+    actionType: "hunt",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-spirit-drop-normal-001", weight: 40, minQty: 1, maxQty: 2 },
+      { foodId: "food-spirit-drop-normal-002", weight: 35, minQty: 1, maxQty: 1 },
+      { foodId: "food-spirit-drop-weak-001",   weight: 15, minQty: 1, maxQty: 2 },
+    ],
+  },
+  {
+    id: "drop-spirit-strong",
+    actionType: "hunt",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-spirit-drop-strong-001", weight: 40, minQty: 1, maxQty: 1 },
+      { foodId: "food-spirit-drop-strong-002", weight: 30, minQty: 1, maxQty: 1 },
+      { foodId: "food-spirit-drop-normal-001", weight: 20, minQty: 1, maxQty: 2 },
+    ],
+  },
+  {
+    id: "drop-slime-weak",
+    actionType: "hunt",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-slime-drop-weak-001", weight: 55, minQty: 1, maxQty: 2 },
+      { foodId: "food-slime-drop-weak-002", weight: 35, minQty: 1, maxQty: 1 },
+    ],
+  },
+  {
+    id: "drop-slime-normal",
+    actionType: "hunt",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-slime-drop-normal-001", weight: 40, minQty: 1, maxQty: 2 },
+      { foodId: "food-slime-drop-normal-002", weight: 35, minQty: 1, maxQty: 1 },
+      { foodId: "food-slime-drop-weak-001",   weight: 15, minQty: 1, maxQty: 2 },
+    ],
+  },
+  {
+    id: "drop-slime-strong",
+    actionType: "hunt",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-slime-drop-strong-001", weight: 40, minQty: 1, maxQty: 1 },
+      { foodId: "food-slime-drop-strong-002", weight: 30, minQty: 1, maxQty: 1 },
+      { foodId: "food-slime-drop-normal-001", weight: 20, minQty: 1, maxQty: 2 },
+    ],
+  },
+
+  // =========================================================
+  // battle ドロップテーブル（Phase 6 W2: 全カテゴリ strong + spirit/slime）
+  // =========================================================
+
+  {
+    id: "drop-battle-beast-strong",
+    actionType: "battle",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-beast-002", weight: 55, minQty: 1, maxQty: 2 },
+      { foodId: "food-beast-001", weight: 30, minQty: 2, maxQty: 4 },
+    ],
+  },
+  {
+    id: "drop-battle-plant-strong",
+    actionType: "battle",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-plant-003", weight: 50, minQty: 1, maxQty: 2 },
+      { foodId: "food-plant-002", weight: 35, minQty: 1, maxQty: 2 },
+    ],
+  },
+  {
+    id: "drop-battle-fish-weak",
+    actionType: "battle",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-fish-001", weight: 55, minQty: 1, maxQty: 2 },
+      { foodId: "food-plant-001", weight: 20, minQty: 1, maxQty: 1 },
+    ],
+  },
+  {
+    id: "drop-battle-fish-normal",
+    actionType: "battle",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-fish-001", weight: 40, minQty: 1, maxQty: 3 },
+      { foodId: "food-fish-002", weight: 35, minQty: 1, maxQty: 2 },
+    ],
+  },
+  {
+    id: "drop-battle-fish-strong",
+    actionType: "battle",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-fish-002", weight: 60, minQty: 1, maxQty: 3 },
+      { foodId: "food-fish-001", weight: 30, minQty: 2, maxQty: 4 },
+    ],
+  },
+  {
+    id: "drop-battle-human-weak",
+    actionType: "battle",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-human-001", weight: 55, minQty: 1, maxQty: 2 },
+      { foodId: "food-plant-001", weight: 20, minQty: 1, maxQty: 1 },
+    ],
+  },
+  {
+    id: "drop-battle-human-normal",
+    actionType: "battle",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-human-001", weight: 40, minQty: 1, maxQty: 3 },
+      { foodId: "food-human-002", weight: 30, minQty: 1, maxQty: 2 },
+      { foodId: "food-beast-001", weight: 15, minQty: 1, maxQty: 2 },
+    ],
+  },
+  {
+    id: "drop-battle-human-strong",
+    actionType: "battle",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-human-002", weight: 60, minQty: 1, maxQty: 2 },
+      { foodId: "food-human-001", weight: 25, minQty: 2, maxQty: 3 },
+    ],
+  },
+  {
+    id: "drop-battle-spirit-weak",
+    actionType: "battle",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-spirit-drop-weak-001", weight: 55, minQty: 1, maxQty: 2 },
+      { foodId: "food-spirit-drop-weak-002", weight: 35, minQty: 1, maxQty: 1 },
+    ],
+  },
+  {
+    id: "drop-battle-spirit-normal",
+    actionType: "battle",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-spirit-drop-normal-001", weight: 40, minQty: 1, maxQty: 2 },
+      { foodId: "food-spirit-drop-normal-002", weight: 40, minQty: 1, maxQty: 1 },
+    ],
+  },
+  {
+    id: "drop-battle-spirit-strong",
+    actionType: "battle",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-spirit-drop-strong-001", weight: 45, minQty: 1, maxQty: 1 },
+      { foodId: "food-spirit-drop-strong-002", weight: 35, minQty: 1, maxQty: 1 },
+    ],
+  },
+  {
+    id: "drop-battle-slime-weak",
+    actionType: "battle",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-slime-drop-weak-001", weight: 55, minQty: 1, maxQty: 2 },
+      { foodId: "food-slime-drop-weak-002", weight: 35, minQty: 1, maxQty: 1 },
+    ],
+  },
+  {
+    id: "drop-battle-slime-normal",
+    actionType: "battle",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-slime-drop-normal-001", weight: 40, minQty: 1, maxQty: 2 },
+      { foodId: "food-slime-drop-normal-002", weight: 40, minQty: 1, maxQty: 1 },
+    ],
+  },
+  {
+    id: "drop-battle-slime-strong",
+    actionType: "battle",
+    tileCondition: null,
+    drops: [
+      { foodId: "food-slime-drop-strong-001", weight: 45, minQty: 1, maxQty: 1 },
+      { foodId: "food-slime-drop-strong-002", weight: 35, minQty: 1, maxQty: 1 },
+    ],
+  },
 ];

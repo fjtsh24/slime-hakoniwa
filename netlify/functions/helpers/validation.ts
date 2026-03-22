@@ -21,8 +21,8 @@ const emptyDataSchema = z.object({}).strict()
 /** hunt / battle 用: targetCategory + targetStrength */
 const huntBattleDataSchema = z
   .object({
-    targetCategory: z.enum(['beast', 'plant', 'fish', 'human']),
-    targetStrength: z.enum(['weak', 'normal']),
+    targetCategory: z.enum(['beast', 'plant', 'fish', 'human', 'spirit', 'slime']),
+    targetStrength: z.enum(['weak', 'normal', 'strong']),
   })
   .strict()
 
