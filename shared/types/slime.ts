@@ -113,4 +113,6 @@ export interface SlimeSpecies {
   baseStats: SlimeStats;
   /** 進化条件の一覧 */
   evolutionConditions: EvolutionCondition[];
+  /** 図鑑・プロフィールに表示する立ち絵画像URL（/assets/characters/ 以下） */
+  illustrationUrl?: string;
 }
