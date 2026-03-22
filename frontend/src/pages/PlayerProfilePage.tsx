@@ -1,13 +1,6 @@
-import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { slimeSpecies } from '../../../shared/data/slimeSpecies'
-import type { SlimeSummary } from '../../../shared/types/publicProfile'
-
-interface PublicProfileData {
-  publicHandle: string
-  displayName: string
-  slimeSummaries: SlimeSummary[]
-}
+import { usePublicProfile } from '../hooks/usePublicProfile'
 
 function getSpeciesName(speciesId: string): string {
   return slimeSpecies.find((s) => s.id === speciesId)?.name ?? speciesId
@@ -15,31 +8,7 @@ function getSpeciesName(speciesId: string): string {
 
 export function PlayerProfilePage() {
   const { handle } = useParams<{ handle: string }>()
-  const [profile, setProfile] = useState<PublicProfileData | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!handle) return
-    setIsLoading(true)
-    setError(null)
-
-    fetch(`/api/public/players/${encodeURIComponent(handle)}`)
-      .then(async (res) => {
-        if (res.status === 404) {
-          setError('プレイヤーが見つかりません')
-          return
-        }
-        if (!res.ok) {
-          setError('プロフィールの取得に失敗しました')
-          return
-        }
-        const data = await res.json() as PublicProfileData
-        setProfile(data)
-      })
-      .catch(() => setError('通信エラーが発生しました'))
-      .finally(() => setIsLoading(false))
-  }, [handle])
+  const { profile, isLoading, error } = usePublicProfile(handle)
 
   if (isLoading) {
     return (

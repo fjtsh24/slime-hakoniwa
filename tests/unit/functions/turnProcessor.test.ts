@@ -1126,3 +1126,142 @@ describe('checkSeasonTransition', () => {
     expect(eventData['from']).toBe('none')
   })
 })
+
+// ================================================================
+// processSlimeTurn — 季節 hungerDecrement 補正（HIGH テスト）
+// ================================================================
+describe('processSlimeTurn — 季節 hungerDecrement 補正', () => {
+  it('ST-H-01: summer の場合 hunger が 7 減少する（5+2）', async () => {
+    const slime = createTestSlime({ stats: { hp: 50, atk: 10, def: 10, spd: 10, exp: 0, hunger: 60 } })
+    const result = await processSlimeTurn(slime, [], 1, undefined, undefined, undefined, { season: 'summer' })
+    expect(result.updatedSlime.stats.hunger).toBe(53) // 60 - 7
+  })
+
+  it('ST-H-02: winter の場合 hunger が 6 減少する（5+1）', async () => {
+    const slime = createTestSlime({ stats: { hp: 50, atk: 10, def: 10, spd: 10, exp: 0, hunger: 60 } })
+    const result = await processSlimeTurn(slime, [], 1, undefined, undefined, undefined, { season: 'winter' })
+    expect(result.updatedSlime.stats.hunger).toBe(54) // 60 - 6
+  })
+
+  it('ST-H-03: spring/autumn の場合 hunger が 5 減少する（補正なし）', async () => {
+    const slime = createTestSlime({ stats: { hp: 50, atk: 10, def: 10, spd: 10, exp: 0, hunger: 60 } })
+    const [resSp, resAu] = await Promise.all([
+      processSlimeTurn(slime, [], 1, undefined, undefined, undefined, { season: 'spring' }),
+      processSlimeTurn(slime, [], 1, undefined, undefined, undefined, { season: 'autumn' }),
+    ])
+    expect(resSp.updatedSlime.stats.hunger).toBe(55)
+    expect(resAu.updatedSlime.stats.hunger).toBe(55)
+  })
+
+  it('ST-H-04: summer で hunger が 5 の場合、0 未満にならない（アンダーフロー防止）', async () => {
+    const slime = createTestSlime({ stats: { hp: 50, atk: 10, def: 10, spd: 10, exp: 0, hunger: 5 } })
+    const result = await processSlimeTurn(slime, [], 1, undefined, undefined, undefined, { season: 'summer' })
+    expect(result.updatedSlime.stats.hunger).toBe(0)
+  })
+})
+
+// ================================================================
+// processSlimeTurn — incapacitatedUntilTurn 行動スキップ（HIGH テスト）
+// ================================================================
+describe('processSlimeTurn — incapacitatedUntilTurn 行動スキップ', () => {
+  it('INC-01: incapacitatedUntilTurn >= currentTurn の場合、battle_incapacitated イベントを記録する', async () => {
+    const slime = createTestSlime({ incapacitatedUntilTurn: 5 })
+    const reservation = createTestReservation({ actionType: 'rest', turnNumber: 1, status: 'pending' })
+    const result = await processSlimeTurn(slime, [reservation], 3) // currentTurn=3 <= 5
+
+    expect(result.events.some((e) => e.eventType === 'battle_incapacitated')).toBe(true)
+    // 予約は executed になるが、アクション自体は実行されない（HP 変化なし）
+    const execd = result.updatedReservations.find((r) => r.id === reservation.id)
+    expect(execd?.status).toBe('executed')
+  })
+
+  it('INC-02: incapacitatedUntilTurn < currentTurn の場合、通常行動を実行する', async () => {
+    const slime = createTestSlime({ incapacitatedUntilTurn: 2, stats: { hp: 50, atk: 10, def: 10, spd: 10, exp: 0, hunger: 60 } })
+    const result = await processSlimeTurn(slime, [], 3) // currentTurn=3 > 2 → 行動可能
+
+    expect(result.events.some((e) => e.eventType === 'battle_incapacitated')).toBe(false)
+    expect(result.events.some((e) => e.eventType === 'autonomous')).toBe(true)
+  })
+})
+
+// ================================================================
+// executeReservedAction - eat (alwaysAvailable)（HIGH テスト）
+// ================================================================
+describe('executeReservedAction - eat (alwaysAvailable)', () => {
+  it('AA-01: alwaysAvailable=true の食料はインベントリが空でも食べられる', async () => {
+    // food-slime-001 は alwaysAvailable: true（shared/data/foods.ts）
+    const slime = createTestSlime({ inventory: [] })
+    const reservation = createTestReservation({
+      actionType: 'eat',
+      actionData: { foodId: 'food-slime-001' },
+    })
+
+    const result = await executeReservedAction(slime, reservation)
+
+    // 食事成功：hunger が増加し、食事イベントが記録される
+    expect(result.events.some((e) => e.eventType === 'eat')).toBe(true)
+    // インベントリは変化しない（消費不要）
+    expect(result.updatedSlime.inventory?.length ?? 0).toBe(0)
+  })
+
+  it('AA-02: alwaysAvailable=false の食料はインベントリが空の場合スキップされる', async () => {
+    const slime = createTestSlime({ inventory: [] })
+    const reservation = createTestReservation({
+      actionType: 'eat',
+      actionData: { foodId: 'food-plant-001' }, // alwaysAvailable: false（通常の食料）
+    })
+
+    const result = await executeReservedAction(slime, reservation)
+
+    // インベントリにない → eat イベントが記録されない
+    expect(result.events.some((e) => e.eventType === 'eat')).toBe(false)
+  })
+})
+
+// ================================================================
+// executeReservedAction - move (タイルあり racialValues 更新)（HIGH テスト）
+// ================================================================
+describe('executeReservedAction - move (タイルあり)', () => {
+  it('MV-01: タイルあり時に racialValues が属性×0.1 加算される', async () => {
+    const slime = createTestSlime({
+      racialValues: { fire: 0, water: 0, earth: 0, wind: 0, slime: 0, plant: 0, human: 0, beast: 0, spirit: 0, fish: 0 },
+    })
+    const reservation = createTestReservation({
+      actionType: 'move',
+      actionData: { targetX: 2, targetY: 3 },
+    })
+    const tile: import('../../../../shared/types/map').Tile = {
+      id: 'tile-2-3',
+      mapId: 'map-001',
+      x: 2,
+      y: 3,
+      attributes: { fire: 0.8, water: 0.1, earth: 0.0, wind: 0.0 },
+    }
+
+    const result = await executeReservedAction(slime, reservation, undefined, [tile])
+
+    // fire: 0 + 0.8 * 0.1 = 0.08
+    expect(result.updatedSlime.racialValues.fire).toBeCloseTo(0.08, 5)
+    // water: 0 + 0.1 * 0.1 = 0.01
+    expect(result.updatedSlime.racialValues.water).toBeCloseTo(0.01, 5)
+    // 移動先に設定されること
+    expect(result.updatedSlime.tileX).toBe(2)
+    expect(result.updatedSlime.tileY).toBe(3)
+  })
+
+  it('MV-02: タイルなし時は racialValues が変化しない', async () => {
+    const slime = createTestSlime({
+      racialValues: { fire: 0.3, water: 0.2, earth: 0.1, wind: 0.0, slime: 0, plant: 0, human: 0, beast: 0, spirit: 0, fish: 0 },
+    })
+    const reservation = createTestReservation({
+      actionType: 'move',
+      actionData: { targetX: 5, targetY: 5 },
+    })
+
+    // タイルリスト空（Firestoreアクセスは jest モックで空を返す）
+    const result = await executeReservedAction(slime, reservation, undefined, [])
+
+    expect(result.updatedSlime.racialValues.fire).toBeCloseTo(0.3, 5)
+    expect(result.updatedSlime.racialValues.water).toBeCloseTo(0.2, 5)
+  })
+})

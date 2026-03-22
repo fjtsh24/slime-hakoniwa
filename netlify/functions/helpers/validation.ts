@@ -152,6 +152,20 @@ export const registerHandleSchema = z.object({
 export type RegisterHandleInput = z.infer<typeof registerHandleSchema>
 
 /**
+ * /api/worlds/:worldId/status パスパラメータのバリデーションスキーマ（S-1: A2/Sec）
+ * Firestore ドキュメントID: 1〜128文字・スラッシュ不可
+ */
+export const worldIdParamSchema = z.object({
+  worldId: z
+    .string()
+    .min(1, 'worldId は必須です')
+    .max(128, 'worldId が長すぎます')
+    .regex(/^[^/]+$/, 'worldId にスラッシュは使用できません'),
+})
+
+export type WorldIdParam = z.infer<typeof worldIdParamSchema>
+
+/**
  * /api/public/players/:handle パスパラメータのバリデーションスキーマ
  */
 export const publicHandleParamSchema = z.object({

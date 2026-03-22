@@ -9,6 +9,7 @@ import {
   deleteReservationSchema,
   registerHandleSchema,
   publicHandleParamSchema,
+  worldIdParamSchema,
 } from './helpers/validation'
 import { logger } from '../../shared/lib/logger'
 import {
@@ -234,6 +235,21 @@ const handler: Handler = async (event): Promise<HandlerResponse> => {
       })
     }
 
+    // 5-d. merge アクションの場合、targetSlimeId が自分所有か確認（S-4: A2/Sec）
+    if (actionType === 'merge') {
+      const targetSlimeId = (actionData as { targetSlimeId: string }).targetSlimeId
+      if (targetSlimeId === slimeId) {
+        return jsonResponse(400, { error: '自分自身とは融合できません' })
+      }
+      const targetDoc = await db.collection('slimes').doc(targetSlimeId).get()
+      if (!targetDoc.exists) {
+        return jsonResponse(404, { error: '融合対象のスライムが見つかりません' })
+      }
+      if ((targetDoc.data() as { ownerUid: string }).ownerUid !== uid) {
+        return jsonResponse(403, { error: '他プレイヤーのスライムとは融合できません' })
+      }
+    }
+
     // 6. actionReservations に status='pending' で追加
     const now = admin.firestore.Timestamp.now()
     const reservationRef = db.collection('actionReservations').doc()
@@ -330,7 +346,12 @@ const handler: Handler = async (event): Promise<HandlerResponse> => {
   const worldStatusMatch = path.match(/^\/worlds\/([^/]+)\/status$/)
   if (method === 'GET' && worldStatusMatch) {
     // 1. 認証不要（公開エンドポイント）
-    const worldId = worldStatusMatch[1]
+    // S-1: worldId パラメータバリデーション（A2/Sec）
+    const worldIdResult = worldIdParamSchema.safeParse({ worldId: worldStatusMatch[1] })
+    if (!worldIdResult.success) {
+      return jsonResponse(400, { error: 'worldId の形式が不正です' })
+    }
+    const { worldId } = worldIdResult.data
 
     // 2. Firestore から world ドキュメントを取得
     const worldDoc = await db.collection('worlds').doc(worldId).get()
@@ -447,8 +468,11 @@ const handler: Handler = async (event): Promise<HandlerResponse> => {
     }
     const uid = (handleDoc.data() as { uid: string }).uid
 
-    // publicProfiles/{uid} を取得
-    const profileDoc = await db.collection('publicProfiles').doc(uid).get()
+    // publicProfiles/{uid} と users/{uid} を並行取得（mapId のため）
+    const [profileDoc, userDoc] = await Promise.all([
+      db.collection('publicProfiles').doc(uid).get(),
+      db.collection('users').doc(uid).get(),
+    ])
     if (!profileDoc.exists) {
       return jsonResponse(404, { error: 'プロフィールが見つかりません' })
     }
@@ -474,6 +498,8 @@ const handler: Handler = async (event): Promise<HandlerResponse> => {
           color: sl['color'] ?? null,
         }
       }),
+      // TODO(Phase7): mapId を追加して PlayerMapPage で WorldMapPanel を表示する
+      mapId: userDoc.exists ? ((userDoc.data()!['mapId'] as string | undefined) ?? null) : null,
     }
 
     return {
@@ -547,6 +573,10 @@ const handler: Handler = async (event): Promise<HandlerResponse> => {
       season_change: ['from', 'to'],
     }
 
+    // S-1: from/to フィールドの enum 検証（A2/Sec）— 不正値はフィールドを除外する
+    const VALID_WEATHER_VALUES = new Set(['sunny', 'rainy', 'stormy', 'foggy', 'none'])
+    const VALID_SEASON_VALUES = new Set(['spring', 'summer', 'autumn', 'winter', 'none'])
+
     const PUBLIC_EVENT_TYPES_SET = new Set(PUBLIC_EVENT_TYPES)
 
     const events = allDocs.map((d) => {
@@ -558,7 +588,14 @@ const handler: Handler = async (event): Promise<HandlerResponse> => {
       const allowedKeys = PUBLIC_EVENT_DATA_KEYS[eventType] ?? []
       const filteredEventData: Record<string, unknown> = {}
       for (const key of allowedKeys) {
-        if (key in rawEventData) filteredEventData[key] = rawEventData[key]
+        if (!(key in rawEventData)) continue
+        // from/to は enum 検証を行い、不正値のフィールドは除外する
+        if (key === 'from' || key === 'to') {
+          const val = rawEventData[key]
+          if (eventType === 'weather_change' && !VALID_WEATHER_VALUES.has(val as string)) continue
+          if (eventType === 'season_change' && !VALID_SEASON_VALUES.has(val as string)) continue
+        }
+        filteredEventData[key] = rawEventData[key]
       }
 
       const slimeId = data['slimeId'] as string | null
