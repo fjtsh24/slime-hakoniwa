@@ -15,8 +15,8 @@ export interface World {
   status?: 'idle' | 'processing';
   createdAt: Date;
   // ===== Phase 6 W2: ワールドイベントシステム =====
-  /** 現在の天候（'sunny' | 'rainy' | 'stormy' | 'foggy'）。未設定時は 'sunny' 扱い */
-  weather?: string;
+  /** 現在の天候。未設定時は 'sunny' 扱い */
+  weather?: 'sunny' | 'rainy' | 'stormy' | 'foggy';
   /** 天候が終了するターン番号 */
   weatherEndsAtTurn?: number;
   /** 現在の季節 */

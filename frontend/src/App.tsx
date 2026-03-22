@@ -10,6 +10,7 @@ import { CreditsPage } from './pages/CreditsPage'
 import { EncyclopediaPage } from './pages/EncyclopediaPage'
 import { PlayerProfilePage } from './pages/PlayerProfilePage'
 import { LiveFeedPage } from './pages/LiveFeedPage'
+import { PlayerMapPage } from './pages/PlayerMapPage'
 
 function AppRoutes() {
   const user = useAuthStore((s) => s.user)
@@ -43,6 +44,7 @@ function AppRoutes() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/encyclopedia" element={<EncyclopediaPage />} />
         <Route path="/players/:handle" element={<PlayerProfilePage />} />
+        <Route path="/players/:handle/map" element={<PlayerMapPage />} />
         <Route path="/live" element={<LiveFeedPage />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
@@ -87,6 +89,7 @@ function AppRoutes() {
       <Route path="/credits" element={<CreditsPage />} />
       <Route path="/encyclopedia" element={<EncyclopediaPage />} />
       <Route path="/players/:handle" element={<PlayerProfilePage />} />
+      <Route path="/players/:handle/map" element={<PlayerMapPage />} />
       <Route path="/live" element={<LiveFeedPage />} />
       <Route
         path="*"

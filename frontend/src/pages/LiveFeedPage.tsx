@@ -13,10 +13,15 @@ interface LiveEvent {
   id: string
   worldId: string
   turnNumber: number
-  eventType: 'evolve' | 'split' | 'merge' | 'battle_win'
+  eventType: 'evolve' | 'split' | 'merge' | 'battle_win' | 'weather_change' | 'season_change'
   eventData: {
+    // スライムイベント
     previousSpeciesId?: string
     newSpeciesId?: string
+    // ワールドイベント（天候・季節）
+    from?: string
+    to?: string
+    weatherEndsAtTurn?: number
   }
   slimeSummary: LiveSlimeSummary | null
   processedAt: string
@@ -30,20 +35,31 @@ const AUTO_REFRESH_MS = 30_000
 
 function getEventLabel(eventType: LiveEvent['eventType']): string {
   switch (eventType) {
-    case 'evolve':     return '進化'
-    case 'split':      return '分裂'
-    case 'merge':      return '合体'
-    case 'battle_win': return '戦闘勝利'
+    case 'evolve':         return '進化'
+    case 'split':          return '分裂'
+    case 'merge':          return '合体'
+    case 'battle_win':     return '戦闘勝利'
+    case 'weather_change': return '天候変化'
+    case 'season_change':  return '季節変化'
   }
 }
 
 function getEventColors(eventType: LiveEvent['eventType']): { badge: string; border: string } {
   switch (eventType) {
-    case 'evolve':     return { badge: 'bg-purple-100 text-purple-700', border: 'border-purple-200' }
-    case 'split':      return { badge: 'bg-blue-100 text-blue-700',   border: 'border-blue-200' }
-    case 'merge':      return { badge: 'bg-teal-100 text-teal-700',   border: 'border-teal-200' }
-    case 'battle_win': return { badge: 'bg-orange-100 text-orange-700', border: 'border-orange-200' }
+    case 'evolve':         return { badge: 'bg-purple-100 text-purple-700', border: 'border-purple-200' }
+    case 'split':          return { badge: 'bg-blue-100 text-blue-700',     border: 'border-blue-200' }
+    case 'merge':          return { badge: 'bg-teal-100 text-teal-700',     border: 'border-teal-200' }
+    case 'battle_win':     return { badge: 'bg-orange-100 text-orange-700', border: 'border-orange-200' }
+    case 'weather_change': return { badge: 'bg-sky-100 text-sky-700',       border: 'border-sky-200' }
+    case 'season_change':  return { badge: 'bg-green-100 text-green-700',   border: 'border-green-200' }
   }
+}
+
+const WEATHER_LABELS: Record<string, string> = {
+  sunny: '晴れ', rainy: '雨', stormy: '嵐', foggy: '霧', none: 'なし',
+}
+const SEASON_LABELS: Record<string, string> = {
+  spring: '春', summer: '夏', autumn: '秋', winter: '冬', none: 'なし',
 }
 
 function getSpeciesName(speciesId: string): string {
@@ -68,9 +84,19 @@ function buildEventDescription(event: LiveEvent): string {
       const to = event.eventData.newSpeciesId ? getSpeciesName(event.eventData.newSpeciesId) : '不明'
       return `${slimeName} が ${from} から ${to} に進化した！`
     }
-    case 'split':      return `${slimeName} が分裂した！`
-    case 'merge':      return `${slimeName} が他のスライムと合体した！`
-    case 'battle_win': return `${slimeName} が戦闘に勝利した！`
+    case 'split':          return `${slimeName} が分裂した！`
+    case 'merge':          return `${slimeName} が他のスライムと合体した！`
+    case 'battle_win':     return `${slimeName} が戦闘に勝利した！`
+    case 'weather_change': {
+      const from = WEATHER_LABELS[event.eventData.from ?? ''] ?? event.eventData.from ?? '不明'
+      const to   = WEATHER_LABELS[event.eventData.to ?? '']   ?? event.eventData.to   ?? '不明'
+      return `世界の天気が ${from} から ${to} に変わった！`
+    }
+    case 'season_change': {
+      const from = SEASON_LABELS[event.eventData.from ?? ''] ?? event.eventData.from ?? '不明'
+      const to   = SEASON_LABELS[event.eventData.to ?? '']   ?? event.eventData.to   ?? '不明'
+      return `季節が ${from} から ${to} に移り変わった！`
+    }
   }
 }
 
@@ -123,7 +149,7 @@ export function LiveFeedPage() {
         <div className="bg-white rounded-xl shadow p-4 mb-6 flex items-start gap-3">
           <div className="flex-1">
             <p className="text-sm text-gray-600">
-              世界中のスライムが起こした注目イベントをリアルタイムで観戦できます。進化・分裂・合体・戦闘勝利の瞬間をお見逃しなく。
+              世界中のスライムが起こした注目イベントをリアルタイムで観戦できます。進化・分裂・合体・戦闘勝利はもちろん、天候や季節の変化もお知らせします。
             </p>
             <p className="text-xs text-gray-400 mt-1">30秒ごとに自動更新。ログインなしで閲覧できます。</p>
           </div>
@@ -155,10 +181,17 @@ export function LiveFeedPage() {
           <ol className="flex flex-col gap-3">
             {events.map((event) => {
               const colors = getEventColors(event.eventType)
+              const isWorldEvent = event.eventType === 'weather_change' || event.eventType === 'season_change'
               const slimeColor = event.slimeSummary?.color ?? '#86efac'
               return (
                 <li key={event.id} className={`bg-white rounded-xl shadow-sm border ${colors.border} p-4 flex items-start gap-3`}>
-                  <div className="w-10 h-10 rounded-full flex-shrink-0 mt-0.5" style={{ backgroundColor: slimeColor }} aria-hidden="true" />
+                  {isWorldEvent ? (
+                    <div className="w-10 h-10 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center bg-sky-100 text-sky-600 text-base font-bold" aria-hidden="true">
+                      {event.eventType === 'weather_change' ? '天' : '季'}
+                    </div>
+                  ) : (
+                    <div className="w-10 h-10 rounded-full flex-shrink-0 mt-0.5" style={{ backgroundColor: slimeColor }} aria-hidden="true" />
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${colors.badge}`}>{getEventLabel(event.eventType)}</span>

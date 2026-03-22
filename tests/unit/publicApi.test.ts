@@ -294,12 +294,19 @@ describe('MUST-5: GET /public/live — 非公開イベントタイプ・eventDat
 
   function setupLive(
     logDocs: Array<{ id: string; data: Record<string, unknown> }>,
-    slimeDoc = FULL_SLIME_DOC
+    slimeDoc = FULL_SLIME_DOC,
+    worldLogDocs: Array<{ id: string; data: Record<string, unknown> }> = []
   ) {
-    mockLiveQuery.get.mockResolvedValue({
-      docs: logDocs.map((d) => ({ id: d.id, data: () => d.data })),
-      empty: logDocs.length === 0,
-    })
+    // Promise.all で slime クエリ → world クエリの順に get() が呼ばれる
+    mockLiveQuery.get
+      .mockResolvedValueOnce({
+        docs: logDocs.map((d) => ({ id: d.id, data: () => d.data })),
+        empty: logDocs.length === 0,
+      })
+      .mockResolvedValueOnce({
+        docs: worldLogDocs.map((d) => ({ id: d.id, data: () => d.data })),
+        empty: worldLogDocs.length === 0,
+      })
     mockSlimeDocGet.mockResolvedValue(docSnap(true, slimeDoc))
   }
 
@@ -316,6 +323,25 @@ describe('MUST-5: GET /public/live — 非公開イベントタイプ・eventDat
         eventType,
         actorType: 'slime',
         slimeId,
+        eventData,
+        processedAt: makeTimestamp(new Date('2026-03-21T12:00:00Z')),
+      },
+    }
+  }
+
+  /** world イベント用ログドキュメントを生成する（actorType: 'world', slimeId: null） */
+  function makeWorldLog(
+    eventType: 'weather_change' | 'season_change',
+    eventData: Record<string, unknown>
+  ) {
+    return {
+      id: `log-${eventType}`,
+      data: {
+        worldId: 'world-001',
+        turnNumber: 10,
+        eventType,
+        actorType: 'world',
+        slimeId: null,
         eventData,
         processedAt: makeTimestamp(new Date('2026-03-21T12:00:00Z')),
       },

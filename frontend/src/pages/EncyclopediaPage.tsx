@@ -154,7 +154,7 @@ export function EncyclopediaPage() {
           <h2 className="text-base font-bold text-gray-700 mb-4">進化ルート</h2>
           <EvolutionTreeSVG />
           <p className="text-xs text-gray-400 mt-3">
-            ※ 進化条件（必要な種族値など）はゲーム内でのみ確認できます。
+            ※ 登録するとゲーム内で詳しい進化条件（必要な種族値など）を確認できます。
           </p>
         </section>
 

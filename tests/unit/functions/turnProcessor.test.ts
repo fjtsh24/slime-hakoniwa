@@ -49,6 +49,8 @@ import {
   executeAutonomousAction,
   checkEvolution,
   checkSplit,
+  checkWeatherTransition,
+  checkSeasonTransition,
 } from '../../../functions/src/scheduled/turnProcessor'
 
 // ---- テスト用フィクスチャ ----
@@ -853,5 +855,221 @@ describe('checkSplit', () => {
     expect(result.newSlime?.mapId).toBe('map-xyz')
     expect(result.newSlime?.worldId).toBe('world-001')
     jest.spyOn(Math, 'random').mockRestore()
+  })
+})
+
+// ================================================================
+// checkWeatherTransition
+// ================================================================
+describe('checkWeatherTransition', () => {
+  function makeBatch() {
+    const batchSet = jest.fn()
+    const batchUpdate = jest.fn()
+    const batchCommit = jest.fn().mockResolvedValue(undefined)
+    const batch = { set: batchSet, update: batchUpdate, commit: batchCommit }
+    return { batch, batchSet, batchUpdate, batchCommit }
+  }
+
+  beforeEach(() => {
+    mockDoc.mockReturnValue({ get: mockGet, set: mockSet, update: mockUpdate })
+    mockCollection.mockReturnValue({ doc: mockDoc, where: mockWhere, get: mockGet })
+  })
+
+  // WT-01: world.weather が未設定 → 遷移が発生し batch.update が呼ばれる
+  it('WT-01: world.weather が未設定の場合、batch.update が呼ばれる', () => {
+    const { batch, batchUpdate } = makeBatch()
+    const world = createTestWorld({ currentTurn: 10 })
+
+    checkWeatherTransition(world, 10, batch as unknown as FirebaseFirestore.WriteBatch)
+
+    expect(batchUpdate).toHaveBeenCalledTimes(1)
+    expect(batchUpdate).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        weather: expect.stringMatching(/^(sunny|rainy|stormy|foggy)$/),
+        weatherEndsAtTurn: expect.any(Number),
+      })
+    )
+  })
+
+  // WT-02: weatherEndsAtTurn > currentTurn → 遷移しない
+  it('WT-02: weatherEndsAtTurn > currentTurn の場合、batch.update が呼ばれない', () => {
+    const { batch, batchUpdate } = makeBatch()
+    const world = createTestWorld({ weather: 'sunny', weatherEndsAtTurn: 20 })
+
+    checkWeatherTransition(world, 10, batch as unknown as FirebaseFirestore.WriteBatch)
+
+    expect(batchUpdate).not.toHaveBeenCalled()
+  })
+
+  // WT-03: weatherEndsAtTurn <= currentTurn → 遷移が発生する
+  it('WT-03: weatherEndsAtTurn <= currentTurn の場合、batch.update が呼ばれ有効な天候が設定される', () => {
+    const { batch, batchUpdate } = makeBatch()
+    const world = createTestWorld({ weather: 'rainy', weatherEndsAtTurn: 10 })
+
+    checkWeatherTransition(world, 10, batch as unknown as FirebaseFirestore.WriteBatch)
+
+    expect(batchUpdate).toHaveBeenCalledTimes(1)
+    expect(batchUpdate).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ weather: expect.stringMatching(/^(sunny|rainy|stormy|foggy)$/) })
+    )
+  })
+
+  // WT-04: 遷移発生時に batch.set（turnLogs 書き込み）も呼ばれる
+  it('WT-04: 遷移発生時に batch.set も呼ばれる（turnLogs 書き込み）', () => {
+    const { batch, batchSet } = makeBatch()
+    const world = createTestWorld({ weather: 'foggy', weatherEndsAtTurn: 5 })
+
+    checkWeatherTransition(world, 10, batch as unknown as FirebaseFirestore.WriteBatch)
+
+    expect(batchSet).toHaveBeenCalledTimes(1)
+    expect(batchSet).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        eventType: 'weather_change',
+        eventData: expect.objectContaining({
+          from: 'foggy',
+          to: expect.any(String),
+          weatherEndsAtTurn: expect.any(Number),
+        }),
+      })
+    )
+  })
+
+  // WT-05: weatherEndsAtTurn が各天候の minDuration〜maxDuration 範囲内（50回抽選）
+  it('WT-05: weatherEndsAtTurn が minDuration(2)〜maxDuration(12) の範囲内', () => {
+    const currentTurn = 50
+    for (let i = 0; i < 50; i++) {
+      const { batch, batchUpdate } = makeBatch()
+      const world = createTestWorld({ weather: undefined })
+      checkWeatherTransition(world, currentTurn, batch as unknown as FirebaseFirestore.WriteBatch)
+      const data = (batchUpdate.mock.calls[0][1] as Record<string, unknown>)
+      const endsAt = data['weatherEndsAtTurn'] as number
+      // stormy min=2, sunny max=12
+      expect(endsAt).toBeGreaterThanOrEqual(currentTurn + 2)
+      expect(endsAt).toBeLessThanOrEqual(currentTurn + 12)
+    }
+  })
+})
+
+// ================================================================
+// checkSeasonTransition
+// ================================================================
+describe('checkSeasonTransition', () => {
+  function makeBatch() {
+    const batchSet = jest.fn()
+    const batchUpdate = jest.fn()
+    const batchCommit = jest.fn().mockResolvedValue(undefined)
+    const batch = { set: batchSet, update: batchUpdate, commit: batchCommit }
+    return { batch, batchSet, batchUpdate, batchCommit }
+  }
+
+  beforeEach(() => {
+    mockDoc.mockReturnValue({ get: mockGet, set: mockSet, update: mockUpdate })
+    mockCollection.mockReturnValue({ doc: mockDoc, where: mockWhere, get: mockGet })
+  })
+
+  // ST-W-01: world.season が未設定 → 遷移が発生する
+  it('ST-W-01: world.season が未設定の場合、batch.update が呼ばれる', () => {
+    const { batch, batchUpdate } = makeBatch()
+    const world = createTestWorld({ currentTurn: 50 })
+
+    checkSeasonTransition(world, 50, batch as unknown as FirebaseFirestore.WriteBatch)
+
+    expect(batchUpdate).toHaveBeenCalledTimes(1)
+    expect(batchUpdate).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ season: expect.any(String), seasonStartTurn: 50 })
+    )
+  })
+
+  // ST-W-02: seasonStartTurn + SEASON_DURATION_TURNS > currentTurn → 遷移しない
+  it('ST-W-02: seasonStartTurn + 120 > currentTurn の場合、batch.update が呼ばれない', () => {
+    const { batch, batchUpdate } = makeBatch()
+    const world = createTestWorld({ season: 'spring', seasonStartTurn: 0 })
+
+    checkSeasonTransition(world, 50, batch as unknown as FirebaseFirestore.WriteBatch)
+
+    expect(batchUpdate).not.toHaveBeenCalled()
+  })
+
+  // ST-W-02b: 境界値 currentTurn = 119 でも遷移しない（0 + 120 > 119）
+  it('ST-W-02b: currentTurn = 119（境界値-1）では遷移しない', () => {
+    const { batch, batchUpdate } = makeBatch()
+    const world = createTestWorld({ season: 'spring', seasonStartTurn: 0 })
+
+    checkSeasonTransition(world, 119, batch as unknown as FirebaseFirestore.WriteBatch)
+
+    expect(batchUpdate).not.toHaveBeenCalled()
+  })
+
+  // ST-W-03: seasonStartTurn + SEASON_DURATION_TURNS <= currentTurn → 遷移が発生する
+  it('ST-W-03: seasonStartTurn + 120 <= currentTurn の場合、batch.update が呼ばれる', () => {
+    const { batch, batchUpdate } = makeBatch()
+    const world = createTestWorld({ season: 'summer', seasonStartTurn: 0 })
+
+    checkSeasonTransition(world, 120, batch as unknown as FirebaseFirestore.WriteBatch)
+
+    expect(batchUpdate).toHaveBeenCalledTimes(1)
+  })
+
+  // ST-W-04: winter → 次は spring（SEASONS のループ）
+  it('ST-W-04: winter の次は spring（ループ）', () => {
+    const { batch, batchUpdate } = makeBatch()
+    const world = createTestWorld({ season: 'winter', seasonStartTurn: 0 })
+
+    checkSeasonTransition(world, 120, batch as unknown as FirebaseFirestore.WriteBatch)
+
+    expect(batchUpdate).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ season: 'spring' })
+    )
+  })
+
+  // ST-W-05: 遷移発生時に turnLogs も書き込まれる
+  it('ST-W-05: 遷移発生時に batch.set も呼ばれる（turnLogs 書き込み）', () => {
+    const { batch, batchSet } = makeBatch()
+    const world = createTestWorld({ season: 'autumn', seasonStartTurn: 0 })
+
+    checkSeasonTransition(world, 120, batch as unknown as FirebaseFirestore.WriteBatch)
+
+    expect(batchSet).toHaveBeenCalledTimes(1)
+    expect(batchSet).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        eventType: 'season_change',
+        eventData: expect.objectContaining({
+          from: 'autumn',
+          to: 'winter',
+        }),
+      })
+    )
+  })
+
+  // ST-W-06: 全季節ループ（spring→summer→autumn→winter→spring）の正確性
+  it('ST-W-06: 全季節が正しい順序でループする', () => {
+    const seasons = ['spring', 'summer', 'autumn', 'winter'] as const
+    const expectedNext = ['summer', 'autumn', 'winter', 'spring'] as const
+
+    seasons.forEach((current, idx) => {
+      const { batch, batchUpdate } = makeBatch()
+      const world = createTestWorld({ season: current, seasonStartTurn: 0 })
+      checkSeasonTransition(world, 120, batch as unknown as FirebaseFirestore.WriteBatch)
+      const data = (batchUpdate.mock.calls[0][1] as Record<string, unknown>)
+      expect(data['season']).toBe(expectedNext[idx])
+    })
+  })
+
+  // ST-W-07: season 未設定時の turnLog の from は 'none'
+  it('ST-W-07: season 未設定時は eventData.from が "none"', () => {
+    const { batch, batchSet } = makeBatch()
+    const world = createTestWorld({ season: undefined, seasonStartTurn: undefined })
+
+    checkSeasonTransition(world, 100, batch as unknown as FirebaseFirestore.WriteBatch)
+
+    const setData = (batchSet.mock.calls[0][1] as Record<string, unknown>)
+    const eventData = setData['eventData'] as Record<string, unknown>
+    expect(eventData['from']).toBe('none')
   })
 })

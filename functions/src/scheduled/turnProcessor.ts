@@ -1643,11 +1643,11 @@ export function removeFromInventory(
 // ワールドイベントシステム（Phase 6 W2）
 // ----------------------------------------------------------------
 
-const WEATHER_DEFINITIONS: Array<{ id: string; durationTurns: number; weight: number }> = [
-  { id: 'sunny',  durationTurns: 8, weight: 50 },
-  { id: 'rainy',  durationTurns: 4, weight: 25 },
-  { id: 'stormy', durationTurns: 2, weight: 10 },
-  { id: 'foggy',  durationTurns: 3, weight: 15 },
+const WEATHER_DEFINITIONS: Array<{ id: string; minDuration: number; maxDuration: number; weight: number }> = [
+  { id: 'sunny',  minDuration: 6,  maxDuration: 12, weight: 50 },
+  { id: 'rainy',  minDuration: 4,  maxDuration: 8,  weight: 25 },
+  { id: 'stormy', minDuration: 2,  maxDuration: 4,  weight: 10 },
+  { id: 'foggy',  minDuration: 3,  maxDuration: 6,  weight: 15 },
 ]
 
 /**
@@ -1674,7 +1674,8 @@ export function checkWeatherTransition(
     if (rand <= 0) { nextWeather = w; break }
   }
 
-  const weatherEndsAtTurn = currentTurn + nextWeather.durationTurns
+  const duration = nextWeather.minDuration + Math.floor(Math.random() * (nextWeather.maxDuration - nextWeather.minDuration + 1))
+  const weatherEndsAtTurn = currentTurn + duration
   const worldRef = db().collection('worlds').doc(world.id)
   batch.update(worldRef, { weather: nextWeather.id, weatherEndsAtTurn })
 

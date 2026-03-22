@@ -490,19 +490,40 @@ const handler: Handler = async (event): Promise<HandlerResponse> => {
   // GET /public/live — ライブ観戦フィード（認証不要）
   // =========================================================
   if (method === 'GET' && path === '/public/live') {
-    const PUBLIC_EVENT_TYPES = ['evolve', 'split', 'merge', 'battle_win']
+    const SLIME_EVENT_TYPES = ['evolve', 'split', 'merge', 'battle_win']
+    const WORLD_EVENT_TYPES = ['weather_change', 'season_change']
+    const PUBLIC_EVENT_TYPES = [...SLIME_EVENT_TYPES, ...WORLD_EVENT_TYPES]
 
-    const logsSnap = await db
-      .collection('turnLogs')
-      .where('actorType', '==', 'slime')
-      .where('eventType', 'in', PUBLIC_EVENT_TYPES)
-      .orderBy('processedAt', 'desc')
-      .limit(20)
-      .get()
+    // slime イベントと world イベントを並行取得してマージする
+    const [slimeLogsSnap, worldLogsSnap] = await Promise.all([
+      db
+        .collection('turnLogs')
+        .where('actorType', '==', 'slime')
+        .where('eventType', 'in', SLIME_EVENT_TYPES)
+        .orderBy('processedAt', 'desc')
+        .limit(20)
+        .get(),
+      db
+        .collection('turnLogs')
+        .where('actorType', '==', 'world')
+        .where('eventType', 'in', WORLD_EVENT_TYPES)
+        .orderBy('processedAt', 'desc')
+        .limit(20)
+        .get(),
+    ])
+
+    // processedAt 降順でマージし上位 20 件に絞る
+    const allDocs = [...slimeLogsSnap.docs, ...worldLogsSnap.docs].sort((a, b) => {
+      const tsA = a.data()['processedAt']
+      const tsB = b.data()['processedAt']
+      const msA = tsA && typeof tsA.toDate === 'function' ? tsA.toDate().getTime() : 0
+      const msB = tsB && typeof tsB.toDate === 'function' ? tsB.toDate().getTime() : 0
+      return msB - msA
+    }).slice(0, 20)
 
     // slimeId → スライム公開情報のバルク取得
     const slimeIds = [...new Set(
-      logsSnap.docs
+      allDocs
         .map((d) => d.data()['slimeId'] as string | null)
         .filter((id): id is string => id != null)
     )]
@@ -522,11 +543,13 @@ const handler: Handler = async (event): Promise<HandlerResponse> => {
       split: [],
       merge: [],
       battle_win: [],
+      weather_change: ['from', 'to', 'weatherEndsAtTurn'],
+      season_change: ['from', 'to'],
     }
 
     const PUBLIC_EVENT_TYPES_SET = new Set(PUBLIC_EVENT_TYPES)
 
-    const events = logsSnap.docs.map((d) => {
+    const events = allDocs.map((d) => {
       const data = d.data()
       const eventType = data['eventType'] as string
       // 深層防御: DBクエリフィルタをすり抜けた非公開 eventType を除去（A7/QA TC-5-09）
