@@ -20,6 +20,7 @@ import type { Slime } from '../../../../shared/types/slime'
 import { createLogger } from '../../lib/logger'
 import { DEFAULT_SLIME_COLOR } from './turnLogUtils'
 import { useWorldStore } from '../../stores/worldStore'
+import { getSlimeIconUrl } from '../../lib/slimeIconMap'
 
 const logger = createLogger('WorldMapPanel')
 
@@ -264,7 +265,7 @@ export function WorldMapPanel({ mapId, slimes, selectedSlimeId, onTileClick }: W
                 return (
                   <image
                     key={s.id}
-                    href="/assets/slimes/slime-base.png"
+                    href={getSlimeIconUrl(s.speciesId)}
                     x={ix}
                     y={iy}
                     width={iconSize}

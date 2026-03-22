@@ -27,6 +27,7 @@ import { foods } from '../../../shared/data/foods'
 import { DEFAULT_SLIME_COLOR } from '../components/world/turnLogUtils'
 import { DevPanel } from '../components/dev/DevPanel'
 import { getFoodIconUrl } from '../lib/foodIconMap'
+import { getSlimeIconUrl } from '../lib/slimeIconMap'
 import { HandleSetupModal } from '../components/profile/HandleSetupModal'
 
 const WORLD_ID = 'world-001'
@@ -308,12 +309,12 @@ export function GamePage() {
                         }`}
                       >
                         <div className="flex items-center gap-2">
-                          {/* スライムスプライト + カラーオーバーレイ */}
-                          <span className="relative w-5 h-5 flex-shrink-0 inline-block">
+                          {/* スライムアイコン（種族別） */}
+                          <span className="relative w-6 h-6 flex-shrink-0 inline-block">
                             <img
-                              src="/assets/slimes/slime-base.png"
-                              alt="slime"
-                              className="w-5 h-5 object-contain"
+                              src={getSlimeIconUrl(s.speciesId)}
+                              alt={s.speciesId}
+                              className="w-6 h-6 object-cover rounded-full"
                               style={{ filter: `drop-shadow(0 0 3px ${s.color ?? DEFAULT_SLIME_COLOR})` }}
                             />
                           </span>
