@@ -36,6 +36,10 @@ interface WorldMapPanelProps {
 const TW = 20  // タイル半幅
 const TH = 10  // タイル半高さ（2:1 比率）
 
+/** スライムアイコンのサイズ（タイル幅 40 に対して 14:20 ≈ 35% / 100%） */
+const ICON_W = 14
+const ICON_H = 20
+
 /** タイル属性ごとの RGB 値（ブレンド計算用に事前定義） */
 type RGB = { r: number; g: number; b: number }
 
@@ -66,12 +70,13 @@ const TILE_ICONS: Record<'fire' | 'water' | 'earth' | 'wind', string> = {
 
 /**
  * 複数スライムの表示オフセット（タイル中心からの相対位置）
+ * ICON_W=14 に合わせて ±8 で隣接配置
  * インデックス = slimesOnTile.length - 1 (max 3)
  */
 const SLIME_OFFSETS: [number, number][][] = [
   [[0, 0]],
-  [[-6, 0], [6, 0]],
-  [[-6, -3], [6, -3], [0, 4]],
+  [[-8, 0], [8, 0]],
+  [[-8, -3], [8, -3], [0, 5]],
 ]
 
 /**
@@ -173,10 +178,10 @@ export function WorldMapPanel({ mapId, slimes, selectedSlimeId, onTileClick }: W
    * ± TW/TH のマージンを加えてタイル端を切り抜かない
    */
   const N = 10
-  const vbX = -(N - 1) * TW - TW   // -200
-  const vbY = -TH                   // -10
-  const vbW = 2 * ((N - 1) * TW + TW)  // 400
-  const vbH = (2 * (N - 1)) * TH + 2 * TH  // 200
+  const vbX = -(N - 1) * TW - TW        // -200
+  const vbY = -ICON_H                    // -20（アイコン高さ分だけ上に拡張）
+  const vbW = 2 * ((N - 1) * TW + TW)   // 400
+  const vbH = (2 * (N - 1)) * TH + 2 * TH + ICON_H  // 220
 
   return (
     <div className="bg-white rounded-xl shadow p-4 flex flex-col gap-3">
@@ -258,9 +263,8 @@ export function WorldMapPanel({ mapId, slimes, selectedSlimeId, onTileClick }: W
               {slimesOnTile.slice(0, 3).map((s, i) => {
                 const offsets = SLIME_OFFSETS[Math.min(slimesOnTile.length, 3) - 1]
                 const [ox, oy] = offsets[i]
-                const iconSize = 10
-                const ix = cx + ox - iconSize / 2
-                const iy = cy + oy - iconSize   // 足元をタイル中心に合わせる
+                const ix = cx + ox - ICON_W / 2
+                const iy = cy + oy - ICON_H   // 足元をオフセット位置に合わせる
                 const slimeColor = s.color ?? DEFAULT_SLIME_COLOR
                 return (
                   <image
@@ -268,8 +272,8 @@ export function WorldMapPanel({ mapId, slimes, selectedSlimeId, onTileClick }: W
                     href={getSlimeIconUrl(s.speciesId)}
                     x={ix}
                     y={iy}
-                    width={iconSize}
-                    height={iconSize}
+                    width={ICON_W}
+                    height={ICON_H}
                     className={s.id === selectedSlimeId ? 'slime-selected' : 'slime-idle'}
                     style={{
                       transformBox: 'fill-box',
@@ -283,8 +287,8 @@ export function WorldMapPanel({ mapId, slimes, selectedSlimeId, onTileClick }: W
               {/* 4体以上いる場合の +N 表示 */}
               {slimesOnTile.length > 3 && (
                 <text
-                  x={cx + 9}
-                  y={cy + 2}
+                  x={cx + ICON_W / 2 + 2}
+                  y={cy - ICON_H + 6}
                   fontSize={5}
                   fill="#4b5563"
                   fontWeight="bold"
